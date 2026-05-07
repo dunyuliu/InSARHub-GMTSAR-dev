@@ -820,12 +820,13 @@ Check documentation for how to setup .netrc file.\n""")
         jobs = []
         stack_paths: dict = {}
         for key, results in self.active_results.items():
-            download_path = self.download_dir / f'p{key[0]}_f{key[1]}'
+            stack_path = self.download_dir / f'p{key[0]}_f{key[1]}'
+            download_path = stack_path / 'slc'
             download_path.mkdir(parents=True, exist_ok=True)
             stack_paths[key] = download_path
-            write_workflow_marker(download_path, downloader=type(self).name)
+            write_workflow_marker(stack_path, downloader=type(self).name)
             _cfg = {**_cfg_base, 'relativeOrbit': key[0], 'frame': key[1]}
-            (download_path / "downloader_config.json").write_text(_json.dumps(_cfg, indent=2, default=str))
+            (stack_path / "downloader_config.json").write_text(_json.dumps(_cfg, indent=2, default=str))
             for result in results:
                 if scene_filter is None or result.properties['sceneName'] in scene_filter:
                     jobs.append((key, result, download_path))

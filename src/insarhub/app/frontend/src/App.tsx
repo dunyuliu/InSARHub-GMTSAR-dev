@@ -14,7 +14,7 @@ import { bboxToWkt, geometryToWkt, getGeometryBbox, type Bbox } from './geoUtils
 import { DARK, LIGHT } from './theme'
 import shpjs from 'shpjs'
 
-const API = import.meta.env.DEV ? 'http://localhost:8000' : ''
+const API = ''
 
 // ── Colorbar ────────────────────────────────────────────────────────────────
 function colormapGradient(type: string): string {
@@ -513,6 +513,7 @@ export default function App() {
           theme={theme}
           workdir={workdir}
           mapClickSignal={mapClickSignal}
+          aoiWkt={aoiWkt}
           onClose={() => setJobsOpen(false)}
           onRasterSelect={setRasterOverlay}
         />

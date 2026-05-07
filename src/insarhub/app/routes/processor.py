@@ -10,7 +10,7 @@ from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 import insarhub.app.state as state
-from insarhub.app.models import ProcessRequest, Hyp3ActionRequest, LocalActionRequest
+from insarhub.app.models import ProcessRequest, Hyp3ActionRequest, LocalActionRequest, LocalSubmitRequest
 from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job, write_insarhub_config
 from insarhub.commands.processor import SaveJobsCommand, SubmitCommand
 from insarhub.core.registry import Processor
@@ -53,6 +53,8 @@ async def _run_folder_process(job_id: str, req: ProcessRequest):
 
             cfg = cfg_cls(workdir=folder)
             _apply_config_from_dict(cfg, req.processor_config, skip_keys={"workdir", "pairs"})
+            if hasattr(cfg, "__post_init__"):
+                cfg.__post_init__()  # re-resolve any "auto"/"" values reintroduced by user dict
             cfg.pairs = pairs
 
             proc_cfg = {k: v for k, v in dataclasses.asdict(cfg).items() if k not in ("workdir", "pairs")}
@@ -220,13 +222,19 @@ async def get_folder_local_jobs(path: str):
     if not folder.exists():
         raise HTTPException(status_code=404, detail="Folder not found")
     files = []
-    for f in sorted(folder.glob("isce_jobs*.json")):
+    # Search root and isce/ subdirectory (ISCE_S1 saves jobs to workdir/isce/)
+    seen = set()
+    for f in sorted(list(folder.glob("isce_jobs*.json")) + list((folder / "isce").glob("isce_jobs*.json"))):
+        if f in seen:
+            continue
+        seen.add(f)
         try:
             data = json.loads(f.read_text())
             total = len(data.get("jobs", {}))
         except Exception:
             total = 0
-        files.append({"name": f.name, "total": total, "users": []})
+        rel = f.relative_to(folder)
+        files.append({"name": str(rel), "total": total, "users": []})
     proc_type = None
     try:
         from insarhub.app.state import read_insarhub_config
@@ -262,10 +270,11 @@ async def _run_local_action(job_id: str, req: LocalActionRequest):
                 state._finish_job(job_id, status="error", progress=0, message="Processor has no config")
                 return
 
-            cfg = cfg_cls(workdir=folder)
-            cfg.saved_job_path = str(job_file)
+            cfg = cfg_cls(workdir=folder, saved_job_path=str(job_file))
             state._jobs[job_id]["message"] = "Initializing processor…"
-            processor = Processor.create(req.processor_type, cfg)
+            saved_data = json.loads(job_file.read_text())
+            pairs = [(j["step"], j["step"]) for j in saved_data.get("jobs", {}).values()]
+            processor = proc_cls(pairs=pairs or [("_", "_")], config=cfg)
 
             if req.action == "refresh":
                 state._jobs[job_id]["message"] = "Refreshing job statuses…"
@@ -275,15 +284,14 @@ async def _run_local_action(job_id: str, req: LocalActionRequest):
                     sc = meta.get("status", "UNKNOWN")
                     counts[sc] = counts.get(sc, 0) + 1
                 total = sum(counts.values())
-                summary = f"{total} pairs — " + ", ".join(
+                summary = f"{total} steps — " + ", ".join(
                     f"{v} {k.lower()}" for k, v in sorted(counts.items())
                 )
                 lines = [summary]
-                for meta in jobs.values():
-                    ref = meta.get("ref", "")[:25]
-                    sec = meta.get("sec", "")[:25]
-                    sc  = meta.get("status", "?")
-                    lines.append(f"  {ref} / {sec}  {sc}")
+                for meta in sorted(jobs.values(), key=lambda m: m.get("step", "")):
+                    step = meta.get("step", meta.get("ref", ""))[:40]
+                    sc   = meta.get("status", "?")
+                    lines.append(f"  {step}  {sc}")
                 state._finish_job(job_id, status="done", message="\n".join(lines))
 
             elif req.action == "retry":
@@ -298,3 +306,191 @@ async def _run_local_action(job_id: str, req: LocalActionRequest):
             state._finish_job(job_id, status="error", progress=0, message=str(e))
 
     await asyncio.to_thread(run)
+
+
+@router.get("/api/folder-pairs-files")
+async def get_folder_pairs_files(path: str):
+    """List stack/pairs JSON files in a folder for ISCE_S1 submit."""
+    folder = Path(path).expanduser().resolve()
+    if not folder.exists():
+        raise HTTPException(status_code=404, detail="Folder not found")
+    seen: set[str] = set()
+    for pattern in ("stack_p*_f*.json", "pairs*.json", "*_pairs.json"):
+        for f in folder.glob(pattern):
+            seen.add(f.name)
+    return {"files": sorted(seen)}
+
+
+@router.post("/api/folder-local-submit")
+async def folder_local_submit(req: LocalSubmitRequest, background_tasks: BackgroundTasks):
+    """Start a local ISCE_S1 processing run from a pairs JSON file."""
+    job_id, _ = _new_job("Starting local submit…")
+    background_tasks.add_task(_run_local_submit, job_id, req)
+    return {"job_id": job_id}
+
+
+async def _run_local_submit(job_id: str, req: LocalSubmitRequest):
+    def run():
+        try:
+            folder = Path(req.folder_path).expanduser().resolve()
+
+            pairs_path = folder / req.pairs_file
+            if not pairs_path.exists():
+                state._finish_job(job_id, status="error", progress=0,
+                                  message=f"Pairs file not found: {req.pairs_file}")
+                return
+
+            raw = json.loads(pairs_path.read_text())
+            raw_pairs = raw.get("pairs", raw) if isinstance(raw, dict) else raw
+            pairs = [(str(p[0]), str(p[1])) for p in raw_pairs]
+            if not pairs:
+                state._finish_job(job_id, status="error", progress=0,
+                                  message="No pairs found in the selected file.")
+                return
+
+            proc_cls = Processor._registry.get(req.processor_type)
+            if proc_cls is None:
+                state._finish_job(job_id, status="error", progress=0,
+                                  message=f"Unknown processor: {req.processor_type}")
+                return
+            cfg_cls = getattr(proc_cls, "default_config", None)
+            if cfg_cls is None or not dataclasses.is_dataclass(cfg_cls):
+                state._finish_job(job_id, status="error", progress=0,
+                                  message="Processor has no config dataclass")
+                return
+
+            # Merge priority (lowest → highest):
+            #   global SettingsPanel < folder insarhub_config.json < request payload
+            in_memory    = state._settings.get("processor_config", {})
+            insarhub_cfg = state.read_insarhub_config(folder)
+            on_disk      = insarhub_cfg.get("processor", {}).get("config", {})
+            merged       = {**in_memory, **on_disk, **req.processor_config}
+
+            # sbatch_options.json is always the source of truth — overrides any saved value
+            sbatch_path = folder / "sbatch_options.json"
+            if not sbatch_path.exists():
+                sbatch_path = folder / "srun_options.json"  # migrate old name
+            if sbatch_path.exists():
+                try:
+                    merged["sbatch_options_per_step"] = json.loads(sbatch_path.read_text())
+                except Exception:
+                    pass
+
+            valid_keys  = {f.name for f in dataclasses.fields(cfg_cls)}
+            init_kwargs = {k: v for k, v in merged.items() if k in valid_keys}
+            init_kwargs["workdir"] = str(folder)
+
+            cfg       = cfg_cls(**init_kwargs)
+            processor = proc_cls(pairs=pairs, config=cfg)
+
+            # Persist resolved config so the folder is self-contained for future runs
+            cfg_dict = {k: v for k, v in dataclasses.asdict(cfg).items()
+                        if k not in ("workdir", "name")}
+            write_insarhub_config(folder, {"processor": {"type": req.processor_type,
+                                                         "config": cfg_dict}})
+
+            state._jobs[job_id]["message"] = f"Submitting {len(pairs)} pair(s)…"
+            processor.submit()
+            processor.save()
+
+            state._finish_job(job_id, status="done", progress=100,
+                              message=f"Submitted {len(pairs)} pair(s). Processing started in background.")
+
+        except Exception as e:
+            state._finish_job(job_id, status="error", progress=0, message=str(e))
+
+    await asyncio.to_thread(run)
+
+
+_SBATCH_DEFAULT_TEMPLATE = {
+    "_comment": (
+        "Slurmjob_Config fields per step. 'default' applies to any unlisted step. "
+        "Step-specific keys override the default. "
+        "Supported keys: time, partition, nodes, ntasks, cpus_per_task, mem, "
+        "account, qos, nodelist, gpus, mail_user, mail_type."
+    ),
+    "_steps": {
+        "01": "unpack_topo_reference",
+        "02": "unpack_secondary_slc",
+        "03": "average_baseline",
+        "04": "extract_burst_overlaps",
+        "05": "overlap_geo2rdr",
+        "06": "overlap_resample",
+        "07": "pairs_misreg",
+        "08": "timeseries_misreg",
+        "09": "fullBurst_geo2rdr",
+        "10": "fullBurst_resample",
+        "11": "extract_stack_valid_region",
+        "12": "merge_reference_secondary_slc",
+        "13": "generate_burst_igram",
+        "14": "merge_burst_igram",
+        "15": "filter_coherence",
+        "16": "unwrap",
+    },
+    "default": {
+        "time":          "04:00:00",
+        "partition":     "all",
+        "nodes":         1,
+        "ntasks":        1,
+        "cpus_per_task": 4,
+        "mem":           "16G",
+    },
+    "01": {"cpus_per_task": 1, "mem": "4G"},
+    "02": {"cpus_per_task": 1, "mem": "4G"},
+    "03": {"cpus_per_task": 1, "mem": "4G"},
+    "04": {"cpus_per_task": 1, "mem": "4G"},
+    "05": {},
+    "06": {},
+    "07": {},
+    "08": {},
+    "09": {},
+    "10": {"cpus_per_task": 8, "mem": "32G"},
+    "11": {},
+    "12": {"cpus_per_task": 8, "mem": "32G"},
+    "13": {"cpus_per_task": 8, "mem": "32G"},
+    "14": {"cpus_per_task": 8, "mem": "32G"},
+    "15": {"cpus_per_task": 8, "mem": "32G"},
+    "16": {"time": "08:00:00", "cpus_per_task": 8, "mem": "64G"},
+}
+
+
+@router.get("/api/folder-sbatch-options")
+async def get_sbatch_options(path: str):
+    """Return sbatch_options.json, creating or upgrading to the full 16-step template."""
+    folder = Path(path).expanduser().resolve()
+    if not folder.exists():
+        raise HTTPException(status_code=404, detail="Folder not found")
+    sbatch_path = folder / "sbatch_options.json"
+    existing: dict = {}
+    # Migrate from old srun_options.json if present
+    old_path = folder / "srun_options.json"
+    src = sbatch_path if sbatch_path.exists() else (old_path if old_path.exists() else None)
+    if src:
+        try:
+            existing = json.loads(src.read_text())
+        except Exception:
+            pass
+    # Rebuild in template order, preserving any user-set per-step flags
+    merged = {}
+    for k, v in _SBATCH_DEFAULT_TEMPLATE.items():
+        if k.isdigit() or k in ("default",):
+            merged[k] = existing.get(k, v)
+        else:
+            merged[k] = v
+    sbatch_path.write_text(json.dumps(merged, indent=2))
+    return {"content": sbatch_path.read_text()}
+
+
+@router.post("/api/folder-sbatch-options")
+async def save_sbatch_options(path: str, body: dict):
+    """Save sbatch_options.json to the folder."""
+    folder = Path(path).expanduser().resolve()
+    if not folder.exists():
+        raise HTTPException(status_code=404, detail="Folder not found")
+    content = body.get("content", "")
+    try:
+        parsed = json.loads(content)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid JSON: {exc}") from exc
+    (folder / "sbatch_options.json").write_text(json.dumps(parsed, indent=2))
+    return {"ok": True}

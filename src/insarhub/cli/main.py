@@ -288,7 +288,7 @@ def create_parser() -> argparse.ArgumentParser:
         + "\n"
         "Examples:\n"
         "  insarhub analyzer -N Hyp3_SBAS run\n"
-        "  insarhub analyzer -N Hyp3_SBAS --compute_maxMemory 30 run --step velocity\n"
+        "  insarhub analyzer -N Hyp3_SBAS --compute-maxMemory 30 run --step velocity\n"
         "  insarhub analyzer -N Hyp3_SBAS --list-options\n"
         "  insarhub analyzer -N Hyp3_SBAS cleanup\n"
     )
@@ -622,7 +622,7 @@ def _field_argparse_kwargs(annotation, default) -> dict:
     origin = typing.get_origin(base)
 
     if base is bool:
-        return {"type": _str_to_bool, "default": default, "metavar": "BOOL"}
+        return {"action": "store_true", "default": bool(default) if default is not None else False}
 
     if origin is list:
         inner_args = typing.get_args(base)
@@ -924,8 +924,9 @@ def _load_pairs(args, workdir: Path) -> dict | list:
         print(f"[pairs] Auto-loading {len(subdir_pairs)} group(s) from subdirs")
         return subdir_pairs
 
-    # Fall back to flat stack_p0_f0.json (new) or pairs.json (legacy)
-    for auto in (workdir / "stack_p0_f0.json", workdir / "pairs.json"):
+    # Fall back to any flat stack_p*_f*.json in workdir root, then legacy pairs.json
+    flat_stacks = sorted(workdir.glob("stack_p*_f*.json"))
+    for auto in (*flat_stacks, workdir / "pairs.json"):
         if auto.is_file():
             print(f"[pairs] Auto-loading {auto}")
             data = json.loads(auto.read_text())
@@ -1689,57 +1690,112 @@ def _proc_credits(args):
 def _proc_local_submit(args, extra_args: list[str]):
     import dataclasses
     from insarhub import Processor
+    from insarhub.app.state import write_insarhub_config as _wic
 
     processor_name = getattr(args, "processor_name", "ISCE_S1")
     processor_cls  = Processor._registry[processor_name]
     workdir        = _resolve_workdir(args.workdir)
 
+    # ── Load saved config (same resolution order as Hyp3) ─────────────────
     _cfg = args.config if (args.config and args.config != "__default__") else None
     _default_cfg_requested = (args.config == "__default__")
     if _cfg:
-        cfg_path  = Path(_cfg).expanduser().resolve()
-        saved_cfg = _read_config_json(cfg_path)
+        saved_cfg = _read_config_json(Path(_cfg).expanduser().resolve())
+        print(f"[INFO] Loaded config from {_cfg}")
     elif _default_cfg_requested:
-        _direct  = workdir / "processor_config.json"
-        cfg_path = _direct if _direct.exists() else _find_subfolder_config(workdir, "processor_config.json")
-        saved_cfg = _read_config_json(cfg_path) if cfg_path else {}
+        saved_cfg = _read_proc_config_from_folder(workdir)
+        if not saved_cfg:
+            print(f"[ERROR] --config specified but no insarhub_config.json found in {workdir}",
+                  file=sys.stderr)
+            sys.exit(1)
+        print(f"[INFO] Loaded saved config from {workdir / 'insarhub_config.json'}")
     else:
-        saved_cfg = {}
+        saved_cfg = _read_proc_config_from_folder(workdir)  # silent fallback
 
+    # ── Parse extra CLI flags as config overrides ──────────────────────────
     config_cls = getattr(processor_cls, "default_config", None)
-    overrides: dict = {}
+    overrides: dict = {k: v for k, v in saved_cfg.items() if k not in ("name",)}
     if config_cls is not None and dataclasses.is_dataclass(config_cls):
         config_parser = _build_config_parser(config_cls, skip_fields=_SUBMIT_SKIP_FIELDS)
         config_ns, unknown = config_parser.parse_known_args(extra_args)
         if unknown:
-            print(f"[ERROR] Unknown flags: {unknown}", file=sys.stderr)
+            print(f"[ERROR] Unknown flags for '{processor_name}': {unknown}", file=sys.stderr)
             sys.exit(1)
-        overrides = {k: v for k, v in vars(config_ns).items() if v is not None}
+        _unset = config_parser._unset_sentinel  # type: ignore[attr-defined]
+        for f in dataclasses.fields(config_cls):
+            if f.name in _SUBMIT_SKIP_FIELDS:
+                continue
+            val = getattr(config_ns, f.name, _unset)
+            if val is not _unset:
+                overrides[f.name] = val
 
-    merged = {**saved_cfg, **overrides, "workdir": str(workdir)}
+    overrides["workdir"] = str(workdir)
 
-    processor = Processor.create(processor_name, **{
-        k: v for k, v in merged.items()
-        if (config_cls is None or hasattr(config_cls, k))
-    })
+    # ── Load pairs (same helpers as Hyp3) ──────────────────────────────────
+    pairs_data = _load_pairs(args, workdir)
+    raw_pairs  = pairs_data if isinstance(pairs_data, list) else next(iter(pairs_data.values()), [])
+    pairs      = [(str(p[0]), str(p[1])) for p in raw_pairs]
+    if not pairs:
+        print("[ERROR] No pairs found. Use --pairs-file or place stack_*.json in workdir.",
+              file=sys.stderr)
+        sys.exit(1)
+    print(f"  Loaded {len(pairs)} pair(s)")
 
-    pairs_path = getattr(args, "pairs", None) or merged.get("pairs")
-    if pairs_path:
-        pairs_path = Path(pairs_path).expanduser().resolve()
-        import json
-        data = json.loads(pairs_path.read_text())
-        pairs = data if isinstance(data, list) else data.get("pairs", [])
-    else:
-        pairs = None
+    # ── Auto-load sbatch_options.json if hpc_mode ─────────────────────────────
+    sbatch_path = workdir / "sbatch_options.json"
+    old_srun_path = workdir / "srun_options.json"
+    if overrides.get("hpc_mode"):
+        if not sbatch_path.exists() and old_srun_path.exists():
+            old_srun_path.rename(sbatch_path)
+            print(f"[INFO] Migrated srun_options.json → sbatch_options.json")
+        if sbatch_path.exists():
+            try:
+                overrides["sbatch_options_per_step"] = json.loads(sbatch_path.read_text())
+                print(f"[INFO] Loaded sbatch options from {sbatch_path}")
+            except Exception as e:
+                print(f"[WARN] Could not read {sbatch_path}: {e}", file=sys.stderr)
+        else:
+            from insarhub.app.routes.processor import _SBATCH_DEFAULT_TEMPLATE
+            sbatch_path.write_text(json.dumps(_SBATCH_DEFAULT_TEMPLATE, indent=2))
+            print(
+                f"\n[INFO] No sbatch_options.json found — initialized default at:\n"
+                f"       {sbatch_path}\n\n"
+                f"  Edit the sbatch options for each step, then rerun:\n\n"
+                f"    insarhub processor -N {processor_name} -w {workdir} --hpc_mode submit\n"
+            )
+            sys.exit(0)
 
-    processor.submit(pairs=pairs)
-    processor.save()
+    # ── Build config + processor ───────────────────────────────────────────
+    valid_keys  = {f.name for f in dataclasses.fields(config_cls)} if config_cls else set()
+    init_kwargs = {k: v for k, v in overrides.items() if k in valid_keys}
+    cfg         = config_cls(**init_kwargs)
+    processor   = processor_cls(pairs=pairs, config=cfg)
+
+    # ── Persist resolved config to insarhub_config.json (mirrors Hyp3) ────
+    # sbatch_options_per_step is excluded: sbatch_options.json is the source of truth
+    _skip_write = _SUBMIT_SKIP_FIELDS | {"workdir", "sbatch_options_per_step"}
+    _wic(workdir, {"processor": {"type": processor_name,
+                                 "config": {f.name: getattr(cfg, f.name)
+                                            for f in dataclasses.fields(cfg)
+                                            if f.name not in _skip_write}}})
+
+    processor.submit()
+
+
+def _load_local_processor(processor_name: str, workdir: Path, jobs_path: Path):
+    """Instantiate a local processor from a saved jobs file without needing pairs."""
+    from insarhub import Processor
+    import dataclasses
+    processor_cls = Processor._registry[processor_name]
+    cfg_cls = getattr(processor_cls, "default_config", None)
+    cfg = cfg_cls(workdir=str(workdir), saved_job_path=str(jobs_path)) if cfg_cls else None
+    # Load pairs from saved jobs so retry() can re-queue them
+    saved = json.loads(jobs_path.read_text())
+    pairs = [(j["step"], j["step"]) for j in saved.get("jobs", {}).values()]
+    return processor_cls(pairs=pairs or [("_", "_")], config=cfg)
 
 
 def _proc_local_refresh(args):
-    import json
-    from insarhub import Processor
-
     processor_name = getattr(args, "processor_name", "ISCE_S1")
     workdir        = _resolve_workdir(args.workdir)
     jobs_path      = _find_jobs_file(workdir, pattern="isce_jobs*.json")
@@ -1747,13 +1803,10 @@ def _proc_local_refresh(args):
         print("[ERROR] No isce_jobs.json found. Run submit first.", file=sys.stderr)
         sys.exit(1)
 
-    processor = Processor.create(processor_name, saved_job_path=str(jobs_path), workdir=str(workdir))
-    processor.refresh()
+    _load_local_processor(processor_name, workdir, jobs_path).refresh()
 
 
 def _proc_local_retry(args):
-    from insarhub import Processor
-
     processor_name = getattr(args, "processor_name", "ISCE_S1")
     workdir        = _resolve_workdir(args.workdir)
     jobs_path      = _find_jobs_file(workdir, pattern="isce_jobs*.json")
@@ -1761,23 +1814,19 @@ def _proc_local_retry(args):
         print("[ERROR] No isce_jobs.json found. Run submit first.", file=sys.stderr)
         sys.exit(1)
 
-    processor = Processor.create(processor_name, saved_job_path=str(jobs_path), workdir=str(workdir))
-    processor.retry()
+    _load_local_processor(processor_name, workdir, jobs_path).retry()
 
 
 def _proc_local_watch(args):
-    from insarhub import Processor
-
-    processor_name    = getattr(args, "processor_name", "ISCE_S1")
-    workdir           = _resolve_workdir(args.workdir)
-    refresh_interval  = getattr(args, "refresh_interval", 60)
-    jobs_path         = _find_jobs_file(workdir, pattern="isce_jobs*.json")
+    processor_name   = getattr(args, "processor_name", "ISCE_S1")
+    workdir          = _resolve_workdir(args.workdir)
+    refresh_interval = getattr(args, "refresh_interval", 60)
+    jobs_path        = _find_jobs_file(workdir, pattern="isce_jobs*.json")
     if jobs_path is None:
         print("[ERROR] No isce_jobs.json found. Run submit first.", file=sys.stderr)
         sys.exit(1)
 
-    processor = Processor.create(processor_name, saved_job_path=str(jobs_path), workdir=str(workdir))
-    processor.watch(refresh_interval=refresh_interval)
+    _load_local_processor(processor_name, workdir, jobs_path).watch(refresh_interval=refresh_interval)
 
 
 def cmd_analyzer(args, extra_args: list[str]):

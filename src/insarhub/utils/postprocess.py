@@ -46,6 +46,10 @@ def _crs_from_attrs(attrs):
             north = (lat is None) or (lat >= 0.0)
             epsg = 32600 + zone if north else 32700 + zone
             return CRS.from_epsg(epsg)
+    # ISCE/MintPy files in geographic coordinates use X_UNIT=degrees — default to WGS84
+    x_unit = str(A.get("X_UNIT", "")).lower()
+    if x_unit in ("degrees", "degree", "deg"):
+        return CRS.from_epsg(4326)
     return None
 
 def _unit_from_attrs(attrs):
@@ -71,12 +75,15 @@ def h5_to_raster(
         out_raster = Path(out_raster).expanduser().resolve()
 
     valid_names = {
-        'ERA5', 'geometryGeo', 'ifgramStack', 'velocity', 'velocityERA5',
+        'ERA5', 'geometryGeo', 'geometryRadar', 'ifgramStack', 'velocity', 'velocityERA5',
         'avgSpatialCoh', 'demErr', 'maskConnComp', 'maskTempCoh',
         'numInvIfgram', 'temporalCoherence', 'timeseries', 'timeseriesResidual',
     }
-    if h5_file.stem not in valid_names:
-        raise ValueError(f"HDF5 file name '{h5_file.stem}' not recognised. Valid names: {sorted(valid_names)}")
+    # geocoded files have a geo_ prefix — strip it before checking
+    stem = h5_file.stem
+    lookup_stem = stem[4:] if stem.startswith('geo_') else stem
+    if lookup_stem not in valid_names:
+        raise ValueError(f"HDF5 file name '{stem}' not recognised. Valid names: {sorted(valid_names)}")
 
     NODATA = -9999.0
 
@@ -125,7 +132,11 @@ def h5_to_raster(
         if crs is None or transform is None:
             raise ValueError("Cannot extract CRS or Transform from HDF5 file attributes.")
 
-        no_data_val = float(attrs.get("NO_DATA_VALUE", np.nan))
+        _ndv_raw = attrs.get("NO_DATA_VALUE", np.nan)
+        try:
+            no_data_val = float(_ndv_raw) if str(_ndv_raw).lower() not in ("none", "nan", "") else np.nan
+        except (ValueError, TypeError):
+            no_data_val = np.nan
         base_tags = {"source": h5_file.name}
         if unit:
             base_tags["units"] = unit
@@ -138,19 +149,26 @@ def h5_to_raster(
             return data
 
         stem = h5_file.stem
+        # strip geo_ prefix for branching logic (geocoded files have this prefix)
+        lsm = stem[4:] if stem.startswith('geo_') else stem
 
         # ── velocity / velocityERA5 ─────────────────────────────────────────
-        if stem in ("velocity", "velocityERA5"):
-            for key in ("velocity", "velocityStd", "residue"):
+        if lsm in ("velocity", "velocityERA5"):
+            for key in ("velocity", "velocityStd", "residue", "intercept", "interceptStd"):
                 if key not in f:
                     continue
                 data = _clean(f[key][()])
-                out_path = out_raster.with_name(f"{out_raster.stem}_{key}.tif")
+                # primary dataset → use file stem (e.g. geo_velocity.tif)
+                # secondary datasets → append suffix (e.g. geo_velocity_residue.tif)
+                if key == lsm:
+                    out_path = out_raster.with_suffix(".tif")
+                else:
+                    out_path = out_raster.with_name(f"{stem}_{key}.tif")
                 _write_band(data, out_path, crs, transform, tags={**base_tags, "dataset": key})
 
         # ── timeseries / timeseriesResidual ─────────────────────────────────
-        elif stem in ("timeseries", "timeseriesResidual"):
-            key = stem
+        elif lsm in ("timeseries", "timeseriesResidual"):
+            key = lsm
             if key not in f:
                 raise ValueError(f"Dataset '{key}' not found in {h5_file.name}")
             data = _clean(f[key][()])          # shape: (n_dates, height, width)
@@ -160,14 +178,14 @@ def h5_to_raster(
                              band_names=dates or None, tags=base_tags)
 
         # ── scalar 2-D float datasets ────────────────────────────────────────
-        elif stem in ("avgSpatialCoh", "temporalCoherence", "demErr", "numInvIfgram"):
+        elif lsm in ("avgSpatialCoh", "temporalCoherence", "demErr", "numInvIfgram"):
             key_map = {
                 "avgSpatialCoh":      "avgSpatialCoh",
                 "temporalCoherence":  "temporalCoherence",
                 "demErr":             "dem_error",
                 "numInvIfgram":       "numInvIfgram",
             }
-            key = key_map[stem]
+            key = key_map[lsm]
             if key not in f:
                 # fall back: first dataset in file
                 key = next(iter(f))
@@ -175,8 +193,8 @@ def h5_to_raster(
             _write_band(data, out_raster, crs, transform, tags={**base_tags, "dataset": key})
 
         # ── mask datasets (uint8) ────────────────────────────────────────────
-        elif stem in ("maskTempCoh", "maskConnComp"):
-            key = stem
+        elif lsm in ("maskTempCoh", "maskConnComp"):
+            key = lsm
             if key not in f:
                 key = next(iter(f))
             data = f[key][()].astype(np.uint8)

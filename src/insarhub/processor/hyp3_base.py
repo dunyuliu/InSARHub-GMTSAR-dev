@@ -104,7 +104,17 @@ class Hyp3Base(Hyp3Processor):
             self._username, _, self._password = netrc.netrc(Path.home().joinpath(".netrc")).authenticators('urs.earthdata.nasa.gov')
         
         self._current_client_user = self._username
-        
+
+        # Fall back to ~/.credit_pool when no pool is explicitly provided
+        if not pool:
+            credit_pool_path = Path.home() / '.credit_pool'
+            if credit_pool_path.exists():
+                try:
+                    from insarhub.utils.tool import earth_credit_pool
+                    pool = earth_credit_pool(credit_pool_path)
+                except Exception:
+                    pool = None
+
         if pool and len(pool) > 0:
             self._username_pool = list(pool.keys())
             self._password_pool = list(pool.values())

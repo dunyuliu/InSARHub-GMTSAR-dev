@@ -56,7 +56,7 @@ def _make_proc(skip_existing: bool = True):
             orbit_dir     = ORBIT_DIR,
             dem_path      = DEM_PATH,
             bbox          = BBOX,
-            max_workers   = 4,
+            max_workers   = 1,
             skip_existing = skip_existing,
         ),
     )

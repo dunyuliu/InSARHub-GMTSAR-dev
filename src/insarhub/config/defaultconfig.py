@@ -907,12 +907,9 @@ class ISCE_S1_Config:
 
     _ui_groups: ClassVar[list] = [
         {"label": "Paths",
-         "fields": ["workdir", "slc_dir", "orbit_dir", "aux_dir", "dem_path", "isce_home"]},
-        {"label": "Network",
-         "fields": ["num_overlap_connections", "reference_date",
-                    "start_date", "end_date", "exclude_dates", "include_dates"]},
+         "fields": ["slc_dir", "orbit_dir", "aux_dir", "dem_path"]},
         {"label": "Area of interest",
-         "fields": ["bbox", "swath_num"]},
+         "fields": ["full_frame", "bbox"]},
         {"label": "Coregistration",
          "fields": ["coregistration", "esd_coherence_threshold", "snr_misreg_threshold"]},
         {"label": "Interferogram",
@@ -920,30 +917,23 @@ class ISCE_S1_Config:
                     "rm_filter", "polarization", "unw_method", "virtual_merge"]},
         {"label": "Ionosphere",
          "fields": ["param_ion", "num_connections_ion"]},
-        {"label": "Compute",
-         "fields": ["use_gpu", "num_proc", "num_proc4topo", "text_cmd"]},
         {"label": "Job",
          "fields": ["max_workers", "skip_existing"]},
+        {"label": "HPC (SLURM)",
+         "fields": ["hpc_mode"]},
     ]
     _ui_fields: ClassVar[dict] = {
-        "workdir":                  {"type": "text", "hint": "Processing root directory"},
-        "slc_dir":                  {"type": "text", "hint": "Directory with Sentinel-1 SLC .SAFE files"},
-        "orbit_dir":                {"type": "text", "hint": "Directory with .EOF orbit files"},
-        "aux_dir":                  {"type": "text", "hint": "Directory with AUX_CAL files (leave blank to auto-download)"},
-        "dem_path":                 {"type": "text", "hint": "ISCE2-format DEM path (leave blank to download GLO-30 using bbox)"},
-        "isce_home":                {"type": "text", "hint": "ISCE2 installation root (or set $ISCE_HOME)"},
-        "bbox":                     {"type": "text", "hint": "Bounding box S N W E, e.g. 33.0 38.0 -120.0 -115.0"},
-        "swath_num":                {"type": "text", "hint": "Subswaths to process, e.g. '1 2 3' or '1 2'"},
-        "num_overlap_connections":  {"type": "number", "min": 1, "max": 10, "step": 1, "default": 3,
-                                     "hint": "Connections for NESD azimuth coregistration"},
-        "reference_date":           {"type": "text", "hint": "Reference date YYYYMMDD (leave blank for auto)"},
-        "start_date":               {"type": "text", "hint": "Start date YYYY-MM-DD (leave blank for all)"},
-        "end_date":                 {"type": "text", "hint": "End date YYYY-MM-DD (leave blank for all)"},
-        "exclude_dates":            {"type": "text", "hint": "Comma-separated dates to exclude, e.g. 20200102,20200126"},
-        "include_dates":            {"type": "text", "hint": "Comma-separated dates to include (all others excluded)"},
+        "workdir":                  {"type": "text", "hint": "Processing root directory (auto = folder being processed)"},
+        "slc_dir":                  {"type": "text", "hint": "Directory with Sentinel-1 SLC .SAFE files. 'auto' = workdir/slc"},
+        "orbit_dir":                {"type": "text", "hint": "Directory with .EOF orbit files. Default = workdir/slc"},
+        "aux_dir":                  {"type": "text", "hint": "Directory with AUX_CAL files. Default = workdir/slc"},
+        "dem_path":                 {"type": "text", "hint": "ISCE2-format DEM, GeoTIFF, or directory. Default = workdir/dem (GLO-30 auto-downloaded if absent)"},
+        "bbox":                     {"type": "text", "hint": "Bounding box S N W E, e.g. 33.0 38.0 -120.0 -115.0. Leave blank to auto-derive from SLC footprints"},
+        "full_frame":               {"type": "bool",
+                                     "hint": "Process full SLC frame — ignore AOI/bbox and let ISCE2 determine the extent"},
         "coregistration":           {"type": "select", "options": ["NESD", "geometry"],
                                      "hint": "NESD = geometry + ESD refinement (recommended); geometry = orbit-only (faster)"},
-        "esd_coherence_threshold":  {"type": "number", "min": 0, "max": 1, "step": 0.05, "default": 0.85,
+        "esd_coherence_threshold":  {"type": "number", "min": 0, "max": 1, "step": 0.05, "default": 0.7,
                                      "hint": "Min coherence in burst overlaps for ESD azimuth estimation"},
         "snr_misreg_threshold":     {"type": "number", "min": 1, "max": 30, "step": 1, "default": 10,
                                      "hint": "Min SNR for range misregistration cross-correlation"},
@@ -969,29 +959,26 @@ class ISCE_S1_Config:
                                      "hint": "Path to ionosphere parameter file (leave blank to skip)"},
         "num_connections_ion":      {"type": "number", "min": 1, "max": 10, "step": 1, "default": 3,
                                      "hint": "Interferogram connections for ionosphere estimation"},
-        "use_gpu":                  {"type": "bool",
-                                     "hint": "Use CUDA GPU acceleration (requires ISCE2 GPU build)"},
-        "num_proc":                 {"type": "number", "min": 1, "max": 32, "step": 1, "default": 1,
-                                     "hint": "Parallel processes per ISCE step (most steps benefit from 1–4)"},
-        "num_proc4topo":            {"type": "number", "min": 1, "max": 32, "step": 1, "default": 1,
-                                     "hint": "Parallel processes for the topo step specifically"},
-        "text_cmd":                 {"type": "text",
-                                     "hint": "Command prefix for each run-script line, e.g. 'mpirun -np 4'"},
         "max_workers":              {"type": "number", "min": 1, "max": 16, "step": 1, "default": 4,
                                      "hint": "Parallel commands within each run step"},
         "skip_existing":            {"type": "bool",
                                      "hint": "Skip steps that already completed successfully"},
+        "hpc_mode":                 {"type": "bool",
+                                     "hint": "Submit each step as a sbatch job with sequential --dependency chaining"},
+        "sbatch_options_per_step":  {"type": "text",
+                                     "hint": "JSON dict of step number → sbatch flags, e.g. {\"01\": \"--ntasks=1 --cpus-per-task=2 --mem=8G\", \"07\": \"--ntasks=1 --cpus-per-task=4 --mem=32G\"}. Steps not listed use the 'default' entry."},
     }
 
     name: str                             = "ISCE_S1_Config"
     workdir: Path | str                   = field(default_factory=lambda: Path.cwd())
-    slc_dir: Path | str                   = field(default_factory=lambda: Path.cwd())
-    orbit_dir: Path | str | None          = None
-    aux_dir: Path | str | None            = None
-    dem_path: Path | str | None           = None
-    isce_home: Path | str | None          = None
+    slc_dir: Path | str                   = "auto"
+    orbit_dir: Path | str | None          = "auto"
+    aux_dir: Path | str | None            = "auto"
+    dem_path: Path | str | None           = "auto"
+    isce_home: Path | str | None          = "auto"
     saved_job_path: Path | str | None     = None
     # Area / dates
+    full_frame: bool                      = False  # True = no bbox, process full SLC extent
     bbox: list[float] | None              = None   # [S, N, W, E]
     swath_num: str                        = "1 2 3"
     start_date: str | None                = None   # YYYY-MM-DD
@@ -1003,7 +990,7 @@ class ISCE_S1_Config:
     reference_date: str | None            = None   # YYYYMMDD
     # Coregistration
     coregistration: str                   = "NESD"
-    esd_coherence_threshold: float        = 0.85
+    esd_coherence_threshold: float        = 0.7
     snr_misreg_threshold: float           = 10.0
     # Interferogram
     looks_range: int                      = 20
@@ -1026,22 +1013,57 @@ class ISCE_S1_Config:
     max_workers: int                      = 4
     skip_existing: bool                   = True
     submission_chunk_size: int            = 1
+    # HPC / SLURM
+    hpc_mode: bool                        = False
+    sbatch_options_per_step: dict           = field(default_factory=dict)
 
     def __post_init__(self):
-        for attr in ("workdir", "slc_dir", "orbit_dir", "aux_dir", "dem_path", "isce_home",
-                     "saved_job_path"):
+        _AUTO = {"auto", ""}
+
+        # workdir must be resolved first so other "auto" paths can reference it
+        if isinstance(self.workdir, str):
+            self.workdir = Path(self.workdir).expanduser().resolve()
+
+        # slc_dir: "auto" → workdir/slc
+        if str(self.slc_dir).strip().lower() in _AUTO:
+            self.slc_dir = Path(self.workdir) / "slc"
+        elif isinstance(self.slc_dir, str):
+            self.slc_dir = Path(self.slc_dir).expanduser().resolve()
+
+        # orbit_dir / aux_dir: "auto" → workdir/slc (same folder as downloaded SLC/orbit files)
+        for attr in ("orbit_dir", "aux_dir"):
             val = getattr(self, attr)
-            if isinstance(val, str):
+            if val is None or str(val).strip().lower() in _AUTO:
+                setattr(self, attr, Path(self.workdir) / "slc")
+            elif isinstance(val, str):
                 setattr(self, attr, Path(val).expanduser().resolve())
+
+        # dem_path: "auto" → workdir/dem directory
+        if self.dem_path is None or str(self.dem_path).strip().lower() in _AUTO:
+            self.dem_path = Path(self.workdir) / "dem"
+        elif isinstance(self.dem_path, str):
+            self.dem_path = Path(self.dem_path).expanduser().resolve()
+
+        # isce_home / saved_job_path: "auto" / None → None (resolved at runtime)
+        for attr in ("isce_home", "saved_job_path"):
+            val = getattr(self, attr)
+            if val is None or str(val).strip().lower() in _AUTO:
+                setattr(self, attr, None)
+            elif isinstance(val, str):
+                setattr(self, attr, Path(val).expanduser().resolve())
+
+        # full_frame clears bbox so the backend never uses a stale AOI
+        if self.full_frame:
+            self.bbox = None
 
 
 @dataclass
 class ISCE_SBAS_Config(Mintpy_SBAS_Base_Config):
-    """MintPy SBAS config pre-wired for ISCE2 topsApp outputs.
+    """MintPy SBAS config pre-wired for ISCE2 stackSentinel outputs.
 
-    File paths are set automatically by ``ISCE_SBAS.prep_data()`` based on
-    the pair directories found in ``workdir``.  You can override any field
-    manually if your directory layout differs.
+    File paths are set automatically by ``ISCE_SBAS.prep_data()`` from
+    ``workdir/isce/``.  You can override any field if your layout differs.
+    MintPy output is always written to ``workdir/mintpy/``.
     """
     name: str                         = "ISCE_SBAS_Config"
     load_processor: str               = "isce"

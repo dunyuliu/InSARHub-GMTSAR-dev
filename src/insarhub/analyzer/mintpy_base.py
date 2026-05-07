@@ -38,17 +38,30 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
 
     def _validate_cds_token(self, key: str) -> bool:
         """Validate a CDS API token via a lightweight HTTP request (no download)."""
-        try:
-            import requests as _requests
-            resp = _requests.get(
-                "https://cds.climate.copernicus.eu/api/retrieve/v1/jobs",
-                headers={"PRIVATE-TOKEN": key},
-                params={"limit": 1},
-                timeout=5,
-            )
-            return resp.status_code == 200
-        except Exception:
-            return False
+        import requests as _requests
+        endpoints = [
+            # Fast profile endpoint (new CDS API)
+            ("GET", "https://cds.climate.copernicus.eu/api/account/me",
+             {"PRIVATE-TOKEN": key}),
+            # Fallback: jobs list
+            ("GET", "https://cds.climate.copernicus.eu/api/retrieve/v1/jobs",
+             {"PRIVATE-TOKEN": key}),
+        ]
+        for method, url, headers in endpoints:
+            try:
+                resp = _requests.request(method, url, headers=headers,
+                                         params={"limit": 1}, timeout=30)
+                if resp.status_code == 200:
+                    return True
+                if resp.status_code in (401, 403):
+                    return False
+            except _requests.exceptions.Timeout:
+                continue
+            except Exception:
+                continue
+        # If all endpoints timed out, assume valid to avoid blocking the user
+        print(f"{Fore.YELLOW}CDS API unreachable (timeout) — assuming token is valid.{Fore.RESET}")
+        return True
 
     def _cds_authorize(self):
         """Ensure valid CDS credentials exist, prompting the user if needed."""
@@ -107,15 +120,15 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
             - Processing is executed inside `self.workdir`.
             - This method wraps MintPy TimeSeriesAnalysis for SBAS workflows.
         """
-        if self.config.troposphericDelay_method == 'pyaps':
-            self._cds_authorize()
-
         run_steps = steps or [
             'load_data', 'modify_network', 'reference_point', 'quick_overview', 'invert_network',
             'correct_LOD', 'correct_SET', 'correct_ionosphere', 'correct_troposphere',
             'deramp', 'correct_topography', 'residual_RMS', 'reference_date',
             'velocity', 'geocode', 'google_earth', 'hdfeos5'
         ]
+
+        if self.config.troposphericDelay_method == 'pyaps' and 'correct_troposphere' in run_steps:
+            self._cds_authorize()
         print(f'{Style.BRIGHT}{Fore.MAGENTA}Running MintPy Analysis...{Fore.RESET}')
         app = TimeSeriesAnalysis(self.cfg_path.as_posix(), self.workdir.as_posix())
         app.open()

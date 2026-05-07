@@ -1648,6 +1648,34 @@ class Slurmjob_Config:
     # Execution
     command: str = "echo Hello SLURM!"
     
+    def to_header_lines(self) -> list[str]:
+        """Return only the #SBATCH directive lines (no shebang, no commands)."""
+        lines = [
+            f"#SBATCH --job-name={self.job_name}",
+            f"#SBATCH --output={self.output_file}",
+            f"#SBATCH --error={self.error_file}",
+            f"#SBATCH --time={self.time}",
+            f"#SBATCH --partition={self.partition}",
+            f"#SBATCH --nodes={self.nodes}",
+            f"#SBATCH --ntasks={self.ntasks}",
+            f"#SBATCH --cpus-per-task={self.cpus_per_task}",
+            f"#SBATCH --mem={self.mem}",
+        ]
+        if self.gpus:
+            lines.append(f"#SBATCH --gres=gpu:{self.gpus}")
+        if self.dependency:
+            lines.append(f"#SBATCH --dependency={self.dependency}")
+        if self.mail_user:
+            lines.append(f"#SBATCH --mail-user={self.mail_user}")
+            lines.append(f"#SBATCH --mail-type={self.mail_type}")
+        if self.account:
+            lines.append(f"#SBATCH --account={self.account}")
+        if self.qos:
+            lines.append(f"#SBATCH --qos={self.qos}")
+        if self.nodelist:
+            lines.append(f"#SBATCH --nodelist={self.nodelist}")
+        return lines
+
     def to_script(self, filename: str = "job.slurm") -> Path:
         """Generate the SLURM script file."""
         lines = ["#!/bin/bash"]

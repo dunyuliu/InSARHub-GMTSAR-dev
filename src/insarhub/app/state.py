@@ -36,11 +36,18 @@ from insarhub.core.registry import Downloader, Processor, Analyzer
 # ---------------------------------------------------------------------------
 
 def _dataclass_defaults(cls) -> dict[str, Any]:
-    """Return {field_name: default_value} for a dataclass, skipping fields with no default."""
+    """Return {field_name: default_value} for a dataclass, skipping fields with no default.
+
+    String defaults of "auto" or "" are omitted so the GUI shows an empty field
+    (the resolved actual path will be shown once the config is saved).
+    """
     out: dict[str, Any] = {}
     for f in dataclasses.fields(cls):
         if f.default is not dataclasses.MISSING:
-            out[f.name] = f.default
+            val = f.default
+            if isinstance(val, str) and val.strip().lower() in ("auto", ""):
+                continue
+            out[f.name] = val
         elif f.default_factory is not dataclasses.MISSING:   # type: ignore[misc]
             try:
                 out[f.name] = f.default_factory()            # type: ignore[misc]
@@ -184,6 +191,13 @@ def read_insarhub_config(folder: Path) -> dict:
         val = data.get(role)
         if isinstance(val, str):
             data[role] = {"type": val}
+
+    # Migrate old class names to current names
+    _RENAMES = {"Hyp3_InSAR": "Hyp3_S1", "ISCE_InSAR": "ISCE_S1"}
+    for role in ("downloader", "processor", "analyzer"):
+        section = data.get(role)
+        if isinstance(section, dict) and section.get("type") in _RENAMES:
+            section["type"] = _RENAMES[section["type"]]
 
     return data
 

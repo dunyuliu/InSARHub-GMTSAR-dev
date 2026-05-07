@@ -41,6 +41,67 @@ logger = logging.getLogger(__name__)
 
 _DATE_RE = re.compile(r"(\d{8})(?:T\d{6})?")
 
+_MARGIN = 0.1  # degrees added around SLC footprint when auto-deriving bbox
+
+
+def _bbox_from_slc_dir(slc_dir: Path) -> list[float] | None:
+    """Scan SAFE dirs and zips in slc_dir, parse manifest.safe corner coords.
+
+    Returns [S, N, W, E] with a small margin, or None if no manifests found.
+    """
+    import xml.etree.ElementTree as ET
+    import zipfile
+
+    all_lats: list[float] = []
+    all_lons: list[float] = []
+
+    def _parse_coords(text: str) -> None:
+        # manifest.safe uses "lat,lon lat,lon …" (space-separated pairs)
+        for token in text.split():
+            parts = token.split(",")
+            if len(parts) == 2:
+                try:
+                    all_lats.append(float(parts[0]))
+                    all_lons.append(float(parts[1]))
+                except ValueError:
+                    pass
+
+    def _read_manifest(xml_text: str) -> None:
+        try:
+            root = ET.fromstring(xml_text)
+            for coords in root.iter("{http://www.opengis.net/gml}coordinates"):
+                if coords.text:
+                    _parse_coords(coords.text.strip())
+        except ET.ParseError:
+            pass
+
+    for safe in slc_dir.glob("*.SAFE"):
+        manifest = safe / "manifest.safe"
+        if manifest.exists():
+            try:
+                _read_manifest(manifest.read_text())
+            except Exception:
+                pass
+
+    for zf_path in slc_dir.glob("*.zip"):
+        try:
+            with zipfile.ZipFile(zf_path, "r") as zf:
+                for name in zf.namelist():
+                    if name.endswith("manifest.safe"):
+                        _read_manifest(zf.read(name).decode())
+        except Exception:
+            pass
+
+    if not all_lats:
+        return None
+
+    return [
+        min(all_lats) - _MARGIN,
+        max(all_lats) + _MARGIN,
+        min(all_lons) - _MARGIN,
+        max(all_lons) + _MARGIN,
+    ]
+
 
 def _parse_date(name: str) -> str:
     """Return YYYYMMDD from a date string or a Sentinel-1 scene/granule name."""
@@ -51,32 +112,107 @@ def _parse_date(name: str) -> str:
     raise ValueError(f"Cannot extract YYYYMMDD from: {name!r}")
 
 
+def _geotiff_to_isce_dem(tif_path: Path, out_dir: Path) -> Path:
+    """Convert a GeoTIFF DEM to ISCE2 binary + XML format.
+
+    dem_stitcher outputs GeoTIFF; ISCE2 needs a flat float32 binary file
+    with a sidecar .xml written by isceobj.
+    """
+    import rasterio
+    from isce.components.isceobj.Image import createDemImage  # type: ignore[import]
+
+    dem_out = out_dir / "dem.wgs84"
+    xml_out = out_dir / "dem.wgs84.xml"
+
+    if dem_out.exists() and xml_out.exists():
+        print(f"  Reusing converted DEM: {dem_out.name}")
+        return dem_out
+
+    print(f"  Converting GeoTIFF DEM → ISCE2 format: {tif_path.name} …")
+    with rasterio.open(tif_path) as ds:
+        arr = ds.read(1).astype(np.float32)
+        t = ds.transform
+        nodata = ds.nodata
+
+    if nodata is not None:
+        arr[arr == nodata] = -32768.0
+    arr[np.isnan(arr)] = -32768.0
+
+    arr.tofile(str(dem_out))
+
+    height, width = arr.shape
+    dem_img = createDemImage()
+    dem_img.filename      = str(dem_out)
+    dem_img.width         = width
+    dem_img.length        = height
+    dem_img.dataType      = "FLOAT"
+    dem_img.scheme        = "BIL"
+    dem_img.bands         = 1
+    dem_img.accessMode    = "READ"
+    dem_img.reference     = "WGS84"
+    dem_img.setFirstLongitude(t.c + 0.5 * t.a)
+    dem_img.setFirstLatitude(t.f  + 0.5 * t.e)
+    dem_img.setDeltaLongitude(t.a)
+    dem_img.setDeltaLatitude(t.e)
+    dem_img.renderHdr()
+
+    print(f"  DEM converted → {dem_out.name}  ({width}×{height} px)")
+    return dem_out
+
+
 def _prepare_dem(config: ISCE_S1_Config, workdir: Path) -> Path:
     """Return path to an ISCE2-format DEM, downloading GLO-30 if needed."""
     raw = config.dem_path
+    dem_dir = workdir / "dem"
     if raw is not None and str(raw).strip().lower() not in ("", "none"):
-        return Path(str(raw))
+        p = Path(str(raw))
+        if p.is_dir():
+            # dem_path is a directory — look for dem.wgs84 inside it
+            dem_dir = p
+        elif p.suffix.lower() in (".tif", ".tiff"):
+            return _geotiff_to_isce_dem(p, workdir)
+        else:
+            return p
 
-    if not config.bbox or len(config.bbox) != 4:
+    bbox: list[float] | None = (
+        list(config.bbox) if config.bbox and len(config.bbox) == 4 else None
+    )
+    if bbox is None:
+        for scan_dir in dict.fromkeys([  # ordered, deduplicated
+            Path(str(config.slc_dir)) if config.slc_dir else None,
+            workdir,
+        ]):
+            if scan_dir is None:
+                continue
+            bbox = _bbox_from_slc_dir(scan_dir)
+            if bbox:
+                print(
+                    f"  Auto-derived bbox from SLCs in {scan_dir}: "
+                    f"S={bbox[0]:.4f} N={bbox[1]:.4f} W={bbox[2]:.4f} E={bbox[3]:.4f}"
+                )
+                break
+
+    if bbox is None:
         raise ValueError(
-            "dem_path is not set and no bbox provided. "
-            "Provide dem_path= (ISCE2 binary DEM + .xml) or bbox=[S, N, W, E] "
-            "to let InSARHub pre-download GLO-30."
+            "No bbox could be derived for DEM download. "
+            "Provide --dem_path (ISCE2 binary DEM + .xml), --bbox 'S N W E', "
+            "or ensure SLC .SAFE/.zip files are in slc_dir or workdir."
         )
 
-    dem_out = workdir / "dem.wgs84"
-    xml_out = workdir / "dem.wgs84.xml"
+    dem_dir.mkdir(parents=True, exist_ok=True)
+    dem_out = dem_dir / "dem.wgs84"
+    xml_out = dem_dir / "dem.wgs84.xml"
     if dem_out.exists() and xml_out.exists():
         logger.info("Reusing existing ISCE2 DEM: %s", dem_out)
         print(f"  Reusing existing DEM: {dem_out.name}")
         return dem_out
 
     try:
-        import isceobj
+        from isce.components.isceobj.Image import createDemImage  # type: ignore[import]
         from dem_stitcher import stitch_dem
 
-        s, n, w, e = config.bbox
-        print(f"  Downloading GLO-30 DEM  bbox {config.bbox}…")
+        s, n, w, e = bbox
+        print(f"  Downloading GLO-30 DEM  bbox {bbox}…")
         arr, profile = stitch_dem(
             [w, s, e, n],
             dem_name="glo_30",
@@ -89,7 +225,7 @@ def _prepare_dem(config: ISCE_S1_Config, workdir: Path) -> Path:
 
         height, width = arr_f32.shape
         t = profile["transform"]
-        dem_img = isceobj.createDemImage()
+        dem_img = createDemImage()
         dem_img.filename   = str(dem_out)
         dem_img.width      = width
         dem_img.length     = height
@@ -152,7 +288,8 @@ class ISCE_S1(ISCE_Base):
         self.config: ISCE_S1_Config = (
             self.config if self.config is not None else ISCE_S1_Config()
         )
-        if not pairs:
+        # Allow empty/dummy pairs when loading from a saved job file (refresh/watch/retry)
+        if not pairs and not self.jobs:
             raise ValueError("pairs must be a non-empty list of (reference, secondary) tuples.")
         self.pairs = pairs
 
@@ -214,10 +351,7 @@ class ISCE_S1(ISCE_Base):
         }
 
     def _resolve_aux_dir(self) -> Path:
-        if self.config.aux_dir:
-            p = Path(str(self.config.aux_dir)).expanduser().resolve()
-        else:
-            p = self.workdir / "aux"
+        p = Path(str(self.config.aux_dir)).expanduser().resolve() if self.config.aux_dir else (self.workdir / "slc")
         p.mkdir(parents=True, exist_ok=True)
         return p
 
@@ -230,7 +364,7 @@ class ISCE_S1(ISCE_Base):
         ns.slc_dirname             = str(cfg.slc_dir)
         ns.orbit_dirname           = orbit_dir_str
         ns.aux_dirname             = str(aux_dir)
-        ns.work_dir                = str(self.workdir)
+        ns.work_dir                = str(self.isce_dir)
         ns.dem                     = str(dem_path)
 
         # area / dates
@@ -281,7 +415,7 @@ class ISCE_S1(ISCE_Base):
             return
 
         cfg       = self.config
-        orbit_dir = str(cfg.orbit_dir) if cfg.orbit_dir else str(self.workdir / "orbits")
+        orbit_dir = str(cfg.orbit_dir) if cfg.orbit_dir else str(self.workdir / "slc")  # config always resolves this
         Path(orbit_dir).mkdir(parents=True, exist_ok=True)
 
         # ensure topsStack is importable
@@ -298,7 +432,7 @@ class ISCE_S1(ISCE_Base):
 
         # stackSentinel writes SAFE_files.txt relative to CWD
         orig_cwd = os.getcwd()
-        os.chdir(str(self.workdir))
+        os.chdir(str(self.isce_dir))
         try:
             print(f"  Discovering SLCs in {cfg.slc_dir} …")
             acquisitionDates, stackReferenceDate, secondaryDates, safe_dict, updateStack = (
@@ -312,5 +446,20 @@ class ISCE_S1(ISCE_Base):
             )
         finally:
             os.chdir(orig_cwd)
+
+        # Redirect MintPy output to workdir/mintpy/ (not isce/mintpy/)
+        mintpy_dir = self.workdir / "mintpy"
+        for script in self._run_files_dir.glob("run_*"):
+            if not script.is_file() or script.suffix:
+                continue
+            text = script.read_text()
+            if "smallbaselineApp.py" in text:
+                patched = re.sub(
+                    r"(smallbaselineApp\.py)(\s+)(\S+\.cfg)",
+                    rf"\1\2\3 --dir {mintpy_dir}",
+                    text,
+                )
+                if patched != text:
+                    script.write_text(patched)
 
         print("  run_files/ generated.")

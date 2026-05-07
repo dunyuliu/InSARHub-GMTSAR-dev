@@ -17,6 +17,13 @@ from rasterio.warp import reproject, Resampling
 router = APIRouter()
 
 _TS_PRIORITY = [
+    'geo/geo_timeseries_ERA5_ramp_demErr.h5',
+    'geo/geo_timeseries_ERA5_ramp.h5',
+    'geo/geo_timeseries_ERA5_demErr.h5',
+    'geo/geo_timeseries_ERA5.h5',
+    'geo/geo_timeseriesResidual_ramp.h5',
+    'geo/geo_timeseriesResidual.h5',
+    'geo/geo_timeseries.h5',
     'timeseries_ERA5_ramp_demErr.h5',
     'timeseries_ERA5_ramp.h5',
     'timeseries_ERA5_demErr.h5',
@@ -25,6 +32,18 @@ _TS_PRIORITY = [
     'timeseriesResidual.h5',
     'timeseries.h5',
 ]
+
+
+def _resolve_mintpy_folder(path_str: str) -> Path:
+    """Return the MintPy output folder: path/mintpy/ if it has outputs, else path/."""
+    base = Path(path_str).expanduser().resolve()
+    sub = base / 'mintpy'
+    if sub.is_dir() and (
+        (sub / 'velocity.h5').exists() or
+        (sub / 'geo' / 'geo_velocity.h5').exists()
+    ):
+        return sub
+    return base
 
 
 # ── Pure helpers ──────────────────────────────────────────────────────────────
@@ -478,13 +497,14 @@ async def render_tif_colored(zip: str, file: str, type_hint: str = ""):
 @router.get("/api/mintpy-check")
 async def mintpy_check(path: str):
     """Return whether velocity.h5 exists and list all available timeseries*.h5 files."""
-    folder = Path(path).expanduser().resolve()
-    has_velocity = (folder / 'velocity.h5').exists()
+    folder = _resolve_mintpy_folder(path)
+    has_velocity = (folder / 'velocity.h5').exists() or (folder / 'geo' / 'geo_velocity.h5').exists()
     ts_files = [n for n in _TS_PRIORITY if (folder / n).exists()]
-    has_overview = (folder / 'numTriNonzeroIntAmbiguity.h5').exists()
+    has_overview = (folder / 'numTriNonzeroIntAmbiguity.h5').exists() or (folder / 'geo' / 'geo_numTriNonzeroIntAmbiguity.h5').exists()
     has_network  = (folder / 'coherenceSpatialAvg.txt').exists()
     return {"has_velocity": has_velocity, "timeseries_files": ts_files,
-            "has_overview": has_overview, "has_network": has_network}
+            "has_overview": has_overview, "has_network": has_network,
+            "mintpy_folder": str(folder)}
 
 
 @router.get("/api/mintpy-network-data")
@@ -587,11 +607,16 @@ async def mintpy_save_network(req: MintpySaveRequest):
     dropped     = [d12 for d12 in all_pairs if d12 not in active_set]
     excluded_str = " ".join(dropped) if dropped else "auto"
 
+    # insarhub_config.json lives at the stack root; for ISCE the mintpy folder is one level in
+    config_folder = folder
+    if not (config_folder / 'insarhub_config.json').exists() and (config_folder.parent / 'insarhub_config.json').exists():
+        config_folder = config_folder.parent
+
     try:
-        cfg = read_insarhub_config(folder)
+        cfg = read_insarhub_config(config_folder)
         az_cfg = cfg.get("analyzer", {}).get("config", {})
         az_cfg["network_excludeDate12"] = excluded_str
-        write_insarhub_config(folder, {"analyzer": {"config": az_cfg}})
+        write_insarhub_config(config_folder, {"analyzer": {"config": az_cfg}})
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Config write failed: {exc}")
 
@@ -609,7 +634,10 @@ async def render_velocity(path: str):
 
     MAX_PIXEL = 256
 
-    vel_path = Path(path).expanduser().resolve() / 'velocity.h5'
+    _base = Path(path).expanduser().resolve()
+    vel_path = _base / 'geo' / 'geo_velocity.h5'
+    if not vel_path.exists():
+        vel_path = _base / 'velocity.h5'
     if not vel_path.exists():
         raise HTTPException(status_code=404, detail='velocity.h5 not found')
     try:
@@ -758,8 +786,11 @@ async def render_mintpy_diag(path: str, name: str):
     if name not in _DIAG_META:
         raise HTTPException(status_code=400, detail=f"Unknown diagnostic: {name}. Choose from {list(_DIAG_META)}")
 
-    meta     = _DIAG_META[name]
-    h5_path  = Path(path).expanduser().resolve() / meta['file']
+    meta    = _DIAG_META[name]
+    _base   = Path(path).expanduser().resolve()
+    h5_path = _base / 'geo' / f"geo_{meta['file']}"
+    if not h5_path.exists():
+        h5_path = _base / meta['file']
     if not h5_path.exists():
         raise HTTPException(status_code=404, detail=f"{meta['file']} not found")
 

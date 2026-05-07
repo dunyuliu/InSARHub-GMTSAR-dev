@@ -87,7 +87,7 @@ class S1_SLC(ASF_Base_Downloader):
                 if stop_event is not None and stop_event.is_set():
                     tqdm.write("Orbit download stopped.")
                     break
-                download_path = Path(save_dir) if save_dir else Path(base_dir) / f'p{key[0]}_f{key[1]}'
+                download_path = (Path(save_dir) / 'slc') if save_dir else (Path(base_dir) / f'p{key[0]}_f{key[1]}' / 'slc')
                 download_path.mkdir(parents=True, exist_ok=True)
                 scene_name = result.properties['sceneName']
                 short_name = scene_name[:40] + "..."

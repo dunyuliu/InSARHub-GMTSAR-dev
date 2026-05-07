@@ -100,7 +100,7 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
   const [downloaderConfig, setDownloaderConfig] = useState<Record<string, any>>({})
 
   // Processor
-  const [processorType,   setProcessorType]   = useState('Hyp3_InSAR')
+  const [processorType,   setProcessorType]   = useState('Hyp3_S1')
   const [processorConfig, setProcessorConfig] = useState<Record<string, any>>({})
 
   // Analyzer — each type stores its own config independently
@@ -312,12 +312,9 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
         )}
         {f.type === 'bool' && (
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-            <input type="checkbox" checked={val === true}
+            <input type="checkbox" checked={!!val}
               onChange={e => setter(f.key, e.target.checked)}
               style={{ accentColor: t.accent, width: 14, height: 14 }} />
-            <span style={{ color: t.text, fontSize: 12 }}>
-              {val === true ? 'Enabled' : val === false ? 'Disabled' : '(not set)'}
-            </span>
           </label>
         )}
         {f.type === 'bool_str' && (
@@ -325,7 +322,6 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
             <input type="checkbox" checked={val === 'yes'}
               onChange={e => setter(f.key, e.target.checked ? 'yes' : 'no')}
               style={{ accentColor: t.accent, width: 14, height: 14 }} />
-            <span style={{ color: t.text, fontSize: 12 }}>{val === 'yes' ? 'Yes' : 'No'}</span>
           </label>
         )}
         {f.type === 'number' && (

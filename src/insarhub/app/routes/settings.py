@@ -115,6 +115,8 @@ async def get_job_folders():
 @router.get("/api/folder-config")
 async def get_folder_config(path: str):
     """Return insarhub_config.json for a folder, merged with in-memory defaults."""
+    import dataclasses
+    from insarhub.core.registry import Processor
     folder = Path(path).expanduser().resolve()
     cfg = read_insarhub_config(folder)
     # Fill missing sections with in-memory defaults so GUI always has full config
@@ -123,7 +125,21 @@ async def get_folder_config(path: str):
         cfg["downloader"] = {"type": dl, "config": state._settings["downloader_config"]}
     if "processor" not in cfg:
         pr = state._settings["processor"]
-        cfg["processor"] = {"type": pr, "config": state._settings["processor_config"]}
+        proc_cls = Processor._registry.get(pr)
+        cfg_cls = getattr(proc_cls, "default_config", None) if proc_cls else None
+        if cfg_cls and dataclasses.is_dataclass(cfg_cls):
+            try:
+                resolved = cfg_cls(workdir=folder)
+                proc_config = {
+                    k: str(v) if isinstance(v, Path) else v
+                    for k, v in dataclasses.asdict(resolved).items()
+                    if k not in ("workdir", "name")
+                }
+            except Exception:
+                proc_config = state._settings["processor_config"]
+        else:
+            proc_config = state._settings["processor_config"]
+        cfg["processor"] = {"type": pr, "config": proc_config}
     if "analyzer" not in cfg:
         az = state._settings["analyzer"]
         cfg["analyzer"] = {"type": az, "config": state._settings["analyzer_configs"].get(az, {})}
@@ -144,6 +160,27 @@ async def patch_folder_config(path: str, body: FolderConfigPatch):
     az_section["config"] = existing
     write_insarhub_config(folder, {"analyzer": az_section})
     return {"ok": True}
+
+
+@router.get("/api/processor-defaults")
+async def get_processor_defaults(processor: str, workdir: str):
+    """Return resolved config defaults for a given processor type and workdir."""
+    import dataclasses
+    from insarhub.core.registry import Processor
+    folder = Path(workdir).expanduser().resolve()
+    proc_cls = Processor._registry.get(processor)
+    cfg_cls = getattr(proc_cls, "default_config", None) if proc_cls else None
+    if cfg_cls is None or not dataclasses.is_dataclass(cfg_cls):
+        raise HTTPException(status_code=404, detail=f"Unknown processor: {processor}")
+    try:
+        resolved = cfg_cls(workdir=folder)
+        return {
+            k: str(v) if isinstance(v, Path) else v
+            for k, v in dataclasses.asdict(resolved).items()
+            if k not in ("workdir", "name") and v is not None
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/api/job-folder")

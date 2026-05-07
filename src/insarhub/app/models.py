@@ -145,6 +145,13 @@ class LocalActionRequest(BaseModel):
     processor_type: str = "ISCE_S1"
 
 
+class LocalSubmitRequest(BaseModel):
+    folder_path:      str
+    pairs_file:       str
+    processor_type:   str = "ISCE_S1"
+    processor_config: dict[str, Any] = Field(default_factory=dict)
+
+
 class FolderConfigPatch(BaseModel):
     analyzer_config: dict[str, Any]
 

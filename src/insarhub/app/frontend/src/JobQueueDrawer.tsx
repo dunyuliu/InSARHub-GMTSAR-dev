@@ -73,8 +73,19 @@ interface Props {
   theme:          Theme
   workdir:        string
   mapClickSignal: number
+  aoiWkt:         string | null
   onClose:        () => void
   onRasterSelect: (overlay: RasterOverlay | null) => void
+}
+
+function wktToBbox(wkt: string): [number, number, number, number] | null {
+  const coords = Array.from(wkt.matchAll(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g))
+    .map(m => [parseFloat(m[1]), parseFloat(m[2])] as [number, number])
+  if (coords.length === 0) return null
+  const lons = coords.map(c => c[0])
+  const lats = coords.map(c => c[1])
+  // returns [S, N, W, E]
+  return [Math.min(...lats), Math.max(...lats), Math.min(...lons), Math.max(...lons)]
 }
 
 // Color per workflow role
@@ -300,23 +311,25 @@ function PairsDrawer({ theme: t, folderPath, onClose, rightOffset }: PairsDrawer
 interface FieldMeta { key: string; label: string; type: string; default: any; options?: string[]; min?: number; max?: number; step?: number; hint?: string }
 interface ProcMeta  { label: string; fields: FieldMeta[]; groups?: Array<{ label: string; fields: string[] }>; compatible_downloader?: string | null }
 
-interface ProcessModalProps { theme: Theme; folderPath: string; downloaderType: string; onClose: () => void; onDone: () => void }
+interface ProcessModalProps { theme: Theme; folderPath: string; downloaderType: string; aoiWkt: string | null; onClose: () => void; onDone: () => void }
 
-function ProcessModal({ theme: t, folderPath, downloaderType, onClose, onDone }: ProcessModalProps) {
-  const [loading,     setLoading]     = useState(true)
-  const [procType,    setProcType]    = useState('')
-  const [procOptions, setProcOptions] = useState<Record<string, ProcMeta>>({})
-  const [procConfig,  setProcConfig]  = useState<Record<string, any>>({})
-  const [dryRun,      setDryRun]      = useState(false)
-  const [status,      setStatus]      = useState<'idle' | 'running' | 'done' | 'error'>('idle')
-  const [message,     setMessage]     = useState('')
+function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, onDone }: ProcessModalProps) {
+  const [loading,      setLoading]      = useState(true)
+  const [procType,     setProcType]     = useState('')
+  const [procOptions,  setProcOptions]  = useState<Record<string, ProcMeta>>({})
+  const [procConfig,   setProcConfig]   = useState<Record<string, any>>({})
+  const [folderAoiWkt, setFolderAoiWkt] = useState<string | null>(null)
+  const [dryRun,       setDryRun]       = useState(false)
+  const [status,       setStatus]       = useState<'idle' | 'running' | 'done' | 'error'>('idle')
+  const [message,      setMessage]      = useState('')
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     Promise.all([
       fetch(`${API}/api/settings`).then(r => r.json()),
       fetch(`${API}/api/workflows`).then(r => r.json()),
-    ]).then(([settings, workflows]) => {
+      fetch(`${API}/api/folder-details?path=${encodeURIComponent(folderPath)}`).then(r => r.json()).catch(() => ({})),
+    ]).then(([settings, workflows, details]) => {
       const allProcs: Record<string, ProcMeta> = workflows.processors ?? {}
       const compat = Object.fromEntries(
         Object.entries(allProcs).filter(([, m]) =>
@@ -328,10 +341,33 @@ function ProcessModal({ theme: t, folderPath, downloaderType, onClose, onDone }:
       const sel = compat[cur] ? cur : (Object.keys(compat)[0] ?? '')
       setProcType(sel)
       setProcConfig(settings.processor_config ?? {})
+      const wkt = details?.downloader_config?.intersectsWith ?? null
+      setFolderAoiWkt(wkt)
       setLoading(false)
     }).catch(() => setLoading(false))
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
-  }, [downloaderType])
+  }, [downloaderType, folderPath])
+
+  // Once procType is known, fetch resolved path defaults for this specific processor+folder
+  useEffect(() => {
+    if (!procType || !folderPath) return
+    fetch(`${API}/api/processor-defaults?processor=${encodeURIComponent(procType)}&workdir=${encodeURIComponent(folderPath)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(resolved => { if (resolved) setProcConfig(prev => ({ ...prev, ...resolved })) })
+      .catch(() => {})
+  }, [procType, folderPath])
+
+  // Pre-fill bbox from map AOI (or folder's saved intersectsWith) whenever proc type or AOI changes
+  const effectiveAoi = aoiWkt ?? folderAoiWkt
+  useEffect(() => {
+    if (procType !== 'ISCE_S1' || !effectiveAoi) return
+    const box = wktToBbox(effectiveAoi)
+    if (!box) return
+    setProcConfig(c => {
+      if (c.full_frame) return c
+      return { ...c, bbox: box.map(v => v.toFixed(4)).join(' ') }
+    })
+  }, [procType, effectiveAoi])
 
   function handleProcTypeChange(type: string) {
     setProcType(type)
@@ -343,10 +379,20 @@ function ProcessModal({ theme: t, folderPath, downloaderType, onClose, onDone }:
   async function handleRun() {
     setStatus('running'); setMessage('Submitting…')
     try {
+      let submitConfig = procConfig
+      if (procType === 'ISCE_S1') {
+        submitConfig = { ...procConfig }
+        if (submitConfig.full_frame) {
+          submitConfig.bbox = null
+        } else if (typeof submitConfig.bbox === 'string' && submitConfig.bbox.trim()) {
+          const parsed = submitConfig.bbox.trim().split(/\s+/).map(Number).filter((n: number) => !isNaN(n))
+          submitConfig.bbox = parsed.length === 4 ? parsed : null
+        }
+      }
       const res = await fetch(`${API}/api/folder-process`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folder_path: folderPath, processor_type: procType, processor_config: procConfig, dry_run: dryRun }),
+        body: JSON.stringify({ folder_path: folderPath, processor_type: procType, processor_config: submitConfig, dry_run: dryRun }),
       })
       if (!res.ok) { const d = await res.json(); setStatus('error'); setMessage(d.detail ?? 'Error'); return }
       const { job_id } = await res.json()
@@ -363,6 +409,32 @@ function ProcessModal({ theme: t, folderPath, downloaderType, onClose, onDone }:
     } catch (e) { setStatus('error'); setMessage(String(e)) }
   }
 
+  const [sbatchOpen,   setSbatchOpen]   = useState(false)
+  const [sbatchText,   setSbatchText]   = useState('')
+  const [sbatchSaving, setSbatchSaving] = useState(false)
+  const [sbatchMsg,    setSbatchMsg]    = useState('')
+
+  function openSbatchModal() {
+    setSbatchMsg('')
+    fetch(`${API}/api/folder-sbatch-options?path=${encodeURIComponent(folderPath)}`)
+      .then(r => r.json())
+      .then(d => { setSbatchText(d.content ?? ''); setSbatchOpen(true) })
+      .catch(e => setSbatchMsg(String(e)))
+  }
+
+  function saveSbatchOptions() {
+    setSbatchSaving(true); setSbatchMsg('')
+    fetch(`${API}/api/folder-sbatch-options?path=${encodeURIComponent(folderPath)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: sbatchText }),
+    })
+      .then(r => r.json())
+      .then(d => setSbatchMsg(d.ok ? 'Saved.' : (d.detail ?? 'Error')))
+      .catch(e => setSbatchMsg(String(e)))
+      .finally(() => setSbatchSaving(false))
+  }
+
   const currentMeta = procOptions[procType]
   const inp: React.CSSProperties = {
     background: t.inputBg, border: `1px solid ${t.inputBorder}`,
@@ -374,14 +446,32 @@ function ProcessModal({ theme: t, folderPath, downloaderType, onClose, onDone }:
 
   function renderFieldInput(f: FieldMeta) {
     const val = procConfig[f.key] ?? f.default
-    const set = (v: any) => setProcConfig(c => ({ ...c, [f.key]: v }))
+    const set = (v: any) => {
+      if (f.key === 'full_frame') {
+        setProcConfig(c => {
+          const next = { ...c, full_frame: v }
+          if (!v && effectiveAoi) {
+            const box = wktToBbox(effectiveAoi)
+            if (box) next.bbox = box.map((n: number) => n.toFixed(4)).join(' ')
+          }
+          return next
+        })
+      } else {
+        setProcConfig(c => ({ ...c, [f.key]: v }))
+      }
+    }
     if (f.type === 'bool') return (
       <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
         <input type="checkbox" checked={!!val} onChange={e => set(e.target.checked)}
           style={{ accentColor: t.accent, width: 14, height: 14 }} />
-        <span style={{ color: t.text, fontSize: 11 }}>{val ? 'Yes' : 'No'}</span>
       </label>
     )
+    if (f.key === 'bbox') {
+      const disabled = !!procConfig.full_frame
+      return <input type="text" value={disabled ? '' : (val ?? '')} disabled={disabled}
+        onChange={e => set(e.target.value)}
+        style={{ ...inp, opacity: disabled ? 0.35 : 1, cursor: disabled ? 'not-allowed' : 'text' }} />
+    }
     if (f.type === 'select') return (
       <select value={val ?? ''} onChange={e => set(e.target.value)} style={inp}>
         {f.options!.map(o => <option key={o} value={o}>{o || '(any)'}</option>)}
@@ -431,6 +521,8 @@ function ProcessModal({ theme: t, folderPath, downloaderType, onClose, onDone }:
               const byKey = Object.fromEntries(currentMeta.fields.map(f => [f.key, f]))
               const grpFields = grp.fields.map(k => byKey[k]).filter(Boolean)
               if (!grpFields.length) return null
+              const isPathsGroup = grp.label.toLowerCase() === 'paths'
+              const isIsceProc   = procType === 'ISCE_S1'
               return (
                 <div key={grp.label}>
                   <div style={{
@@ -439,12 +531,39 @@ function ProcessModal({ theme: t, folderPath, downloaderType, onClose, onDone }:
                     paddingBottom: 4, borderBottom: `1px solid ${t.divider}`,
                   }}>{grp.label}</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    {grpFields.map(f => (
-                      <div key={f.key} title={f.hint}>
-                        <label style={lbl}>{f.label}</label>
-                        {renderFieldInput(f)}
+                    {/* workdir: read-only, auto-set to job folder */}
+                    {isPathsGroup && isIsceProc && (
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <label style={lbl}>workdir</label>
+                        <input readOnly value={folderPath} style={{ ...inp, color: t.textMuted, cursor: 'default' }} />
                       </div>
-                    ))}
+                    )}
+                    {grpFields.map(f => {
+                      if (f.key === 'hpc_mode' && isIsceProc) return (
+                        <div key={f.key} style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8 }} title={f.hint}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', flex: 1, fontSize: 11, color: t.text }}>
+                            <input type="checkbox" checked={!!procConfig.hpc_mode}
+                              onChange={e => setProcConfig(c => ({ ...c, hpc_mode: e.target.checked }))}
+                              style={{ accentColor: t.accent, width: 13, height: 13 }} />
+                            HPC mode (SLURM sbatch)
+                          </label>
+                          <button onClick={openSbatchModal} style={{
+                            padding: '3px 10px', fontSize: 10, borderRadius: 4,
+                            background: 'none', color: t.textMuted, border: `1px solid ${t.border}`,
+                            cursor: 'pointer',
+                          }}>Edit sbatch options…</button>
+                          {sbatchMsg && !sbatchOpen && (
+                            <span style={{ fontSize: 10, color: '#e57373', fontFamily: 'monospace' }}>{sbatchMsg}</span>
+                          )}
+                        </div>
+                      )
+                      return (
+                        <div key={f.key} title={f.hint}>
+                          <label style={lbl}>{f.label}</label>
+                          {renderFieldInput(f)}
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )
@@ -485,6 +604,50 @@ function ProcessModal({ theme: t, folderPath, downloaderType, onClose, onDone }:
           </div>
         </div>
       </div>
+
+      {/* sbatch options modal — z-index above ProcessModal (211) */}
+      {sbatchOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 220, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{
+            background: t.bg2, border: `1px solid ${t.border}`, borderRadius: 8,
+            padding: 16, display: 'flex', flexDirection: 'column', gap: 10,
+            width: 500, maxWidth: '95vw',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ color: t.text, fontWeight: 600, fontSize: 13 }}>sbatch options per step</span>
+              <button onClick={() => setSbatchOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 18 }}>×</button>
+            </div>
+            <span style={{ color: t.textMuted, fontSize: 10 }}>
+              JSON object mapping two-digit step number → <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>Slurmjob_Config</code> fields. <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>"default"</code> applies to any unlisted step; step keys override it. Available fields: <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>time, partition, nodes, ntasks, cpus_per_task, mem, account, qos, nodelist, gpus, mail_user</code>.
+            </span>
+            <textarea
+              value={sbatchText}
+              onChange={e => setSbatchText(e.target.value)}
+              rows={16}
+              spellCheck={false}
+              style={{
+                background: t.inputBg, border: `1px solid ${t.inputBorder}`,
+                color: t.text, borderRadius: 4, padding: '6px 8px',
+                fontSize: 11, fontFamily: 'monospace', resize: 'vertical',
+              }}
+            />
+            {sbatchMsg && (
+              <span style={{ fontSize: 10, color: sbatchMsg === 'Saved.' ? '#81c784' : '#e57373', fontFamily: 'monospace' }}>{sbatchMsg}</span>
+            )}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setSbatchOpen(false)} style={{
+                padding: '5px 14px', fontSize: 11, borderRadius: 4,
+                background: 'none', color: t.textMuted, border: `1px solid ${t.border}`, cursor: 'pointer',
+              }}>Close</button>
+              <button disabled={sbatchSaving} onClick={saveSbatchOptions} style={{
+                padding: '5px 14px', fontSize: 11, borderRadius: 4,
+                background: '#4a2500', color: '#ffcc80', border: '1px solid #e65100',
+                cursor: sbatchSaving ? 'default' : 'pointer', opacity: sbatchSaving ? 0.6 : 1,
+              }}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
@@ -1075,9 +1238,9 @@ function IfgViewerDrawer({ theme: t, folderPath, onClose, onRasterSelect, rightO
 
 interface Hyp3File { name: string; total: number; users: string[] }
 
-interface ProcessorPanelProps { theme: Theme; folderPath: string; processorType: string; onFolderRefresh: () => void; ifgViewerOpen: boolean; onViewIfgToggle: () => void }
+interface ProcessorPanelProps { theme: Theme; folderPath: string; processorType: string; aoiWkt: string | null; onFolderRefresh: () => void; ifgViewerOpen: boolean; onViewIfgToggle: () => void }
 
-function ProcessorPanel({ theme: t, folderPath, processorType, onFolderRefresh, ifgViewerOpen, onViewIfgToggle }: ProcessorPanelProps) {
+function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt, onFolderRefresh, ifgViewerOpen, onViewIfgToggle }: ProcessorPanelProps) {
   const [files,      setFiles]      = useState<Hyp3File[]>([])
   const [loading,    setLoading]    = useState(true)
   const [selected,   setSelected]   = useState('')
@@ -1093,7 +1256,7 @@ function ProcessorPanel({ theme: t, folderPath, processorType, onFolderRefresh, 
   const [analyzerMsg,      setAnalyzerMsg]      = useState('')
   const [analyzerStat,     setAnalyzerStat]     = useState<'idle' | 'ok' | 'error'>('idle')
 
-  const isLocal = processorType === 'ISCE_InSAR'
+  const isLocal = processorType === 'ISCE_S1'
 
   function loadFiles() {
     setLoading(true)
@@ -1149,7 +1312,10 @@ function ProcessorPanel({ theme: t, folderPath, processorType, onFolderRefresh, 
       .catch(e => { setAnalyzerStat('error'); setAnalyzerMsg(String(e)) })
   }
 
-  useEffect(() => { loadFiles() }, [folderPath])
+  useEffect(() => {
+    loadFiles()
+  }, [folderPath])
+
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
 
   function runAction(action: string) {
@@ -1201,6 +1367,7 @@ function ProcessorPanel({ theme: t, folderPath, processorType, onFolderRefresh, 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+
       {loading ? (
         <span style={{ color: t.textMuted, fontSize: 11 }}>Loading…</span>
       ) : files.length === 0 ? (
@@ -1796,13 +1963,14 @@ interface L2Props {
   cls:               string
   hidden:            boolean
   mapClickSignal:    number
+  aoiWkt:            string | null
   onClose:           () => void
   onFolderRefresh:   () => void
   onRasterSelect:    (overlay: RasterOverlay | null) => void
   rightOffset:       number
 }
 
-function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, onClose, onFolderRefresh, onRasterSelect, rightOffset }: L2Props) {
+function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWkt, onClose, onFolderRefresh, onRasterSelect, rightOffset }: L2Props) {
   const { width, onHandleMouseDown } = useResizable(240)
   const rc = ROLE_COLORS[role] ?? ROLE_FALLBACK
 
@@ -1826,6 +1994,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, onClo
   const [mintpyHasOverview, setMintpyHasOverview] = useState(false)
   const [mintpyHasNetwork,  setMintpyHasNetwork]  = useState(false)
   const [mintpyNetOpen,     setMintpyNetOpen]     = useState(false)
+  const [mintpyFolder,      setMintpyFolder]      = useState(job.path)
 
   // Close all L3/L4 sub-panels when the map is clicked
   useEffect(() => {
@@ -1862,6 +2031,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, onClo
         setMintpyHasData(d.has_velocity && tsList.length > 0)
         setMintpyHasOverview(!!d.has_overview)
         setMintpyHasNetwork(!!d.has_network)
+        if (d.mintpy_folder) setMintpyFolder(d.mintpy_folder)
       })
       .catch(() => {})
   }, [job.path, role])
@@ -1980,10 +2150,10 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, onClo
       {!hidden && mintpyNetOpen && (
         <NetworkEditor
           theme={t}
-          folderPath={job.path}
+          folderPath={mintpyFolder}
           onClose={() => setMintpyNetOpen(false)}
           onSaved={() => setMintpyNetOpen(false)}
-          overrideDataUrl={`${API}/api/mintpy-network-data?path=${encodeURIComponent(job.path)}`}
+          overrideDataUrl={`${API}/api/mintpy-network-data?path=${encodeURIComponent(mintpyFolder)}`}
           saveUrl="/api/mintpy-save-network"
           analyzerType={cls}
         />
@@ -2003,7 +2173,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, onClo
       {!hidden && mintpyOverviewOpen && (
         <MintpyOverviewDrawer
           theme={t}
-          folderPath={job.path}
+          folderPath={mintpyFolder}
           hidden={false}
           onClose={() => setMintpyOverviewOpen(false)}
           onRasterSelect={onRasterSelect}
@@ -2015,7 +2185,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, onClo
       {mintpyViewerEverOpen && (
         <MintpyViewerDrawer
           theme={t}
-          folderPath={job.path}
+          folderPath={mintpyFolder}
           tsList={mintpyTsList}
           hidden={hidden}
           onClose={() => { setMintpyViewerOpen(false); setMintpyViewerEverOpen(false) }}
@@ -2052,6 +2222,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, onClo
           theme={t}
           folderPath={job.path}
           downloaderType={job.workflow.downloader || cls}
+          aoiWkt={aoiWkt}
           onClose={() => setProcOpen(false)}
           onDone={() => { setProcOpen(false); loadDetails() }}
         />
@@ -2304,6 +2475,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, onClo
               theme={t}
               folderPath={job.path}
               processorType={cls}
+              aoiWkt={aoiWkt}
               onFolderRefresh={onFolderRefresh}
               ifgViewerOpen={ifgViewerOpen}
               onViewIfgToggle={() => setIfgViewerOpen(o => !o)}
@@ -2385,7 +2557,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, onClo
 
 // ── Main Drawer ───────────────────────────────────────────────────────────────
 
-export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, onClose, onRasterSelect }: Props) {
+export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiWkt, onClose, onRasterSelect }: Props) {
   const { width: l1Width, onHandleMouseDown: onL1Handle } = useResizable(260)
   const [jobs,    setJobs]    = useState<JobFolder[]>([])
   const [loading, setLoading] = useState(true)
@@ -2442,6 +2614,7 @@ export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, onCl
           cls={l2.cls}
           hidden={!l2Visible || minimized}
           mapClickSignal={mapClickSignal}
+          aoiWkt={aoiWkt}
           rightOffset={l1Width}
           onClose={() => { setL2(null); setL2Visible(false) }}
           onFolderRefresh={loadJobs}
