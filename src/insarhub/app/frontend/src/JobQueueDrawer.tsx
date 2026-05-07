@@ -449,7 +449,7 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
     const set = (v: any) => {
       if (f.key === 'full_frame') {
         setProcConfig(c => {
-          const next = { ...c, full_frame: v }
+          const next: Record<string, any> = { ...c, full_frame: v }
           if (!v && effectiveAoi) {
             const box = wktToBbox(effectiveAoi)
             if (box) next.bbox = box.map((n: number) => n.toFixed(4)).join(' ')
@@ -1240,7 +1240,7 @@ interface Hyp3File { name: string; total: number; users: string[] }
 
 interface ProcessorPanelProps { theme: Theme; folderPath: string; processorType: string; aoiWkt: string | null; onFolderRefresh: () => void; ifgViewerOpen: boolean; onViewIfgToggle: () => void }
 
-function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt, onFolderRefresh, ifgViewerOpen, onViewIfgToggle }: ProcessorPanelProps) {
+function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, onFolderRefresh, ifgViewerOpen, onViewIfgToggle }: ProcessorPanelProps) {
   const [files,      setFiles]      = useState<Hyp3File[]>([])
   const [loading,    setLoading]    = useState(true)
   const [selected,   setSelected]   = useState('')
