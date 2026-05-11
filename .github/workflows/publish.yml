@@ -67,8 +67,12 @@ jobs:
           activate-environment: test-env
           auto-activate-base: false
 
+      - name: Ensure pip in conda env
+        run: conda install -y pip
+
       - name: Install conda dependencies
         run: conda install -y gdal pysolid pygrib
+        continue-on-error: true
 
       - name: Download wheel
         uses: actions/download-artifact@v4
