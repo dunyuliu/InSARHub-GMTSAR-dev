@@ -682,9 +682,11 @@ Check documentation for how to setup .netrc file.\n""")
             tuple: (X, p) where X is the DEM array and p is the rasterio profile.
         """
         output_dir = Path(save_path).expanduser().resolve() if save_path else self.config.workdir
+        _dem_is_stack = (output_dir / "insarhub_config.json").exists()
 
         for key, results in self.active_results.items():
-            download_path = output_dir.joinpath(f'dem',f'p{key[0]}_f{key[1]}')
+            _dem_sub = Path() if _dem_is_stack else Path(f'p{key[0]}_f{key[1]}')
+            download_path = output_dir.joinpath('dem', _dem_sub)
             download_path.mkdir(exist_ok=True, parents=True)
             geom = shape(results[0].geometry)
             west_lon, south_lat, east_lon, north_lat =  geom.bounds

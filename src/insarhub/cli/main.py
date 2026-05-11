@@ -661,8 +661,11 @@ _SUBMIT_SKIP_FIELDS = {
     "name", "workdir", "pairs", "saved_job_path",
     "earthdata_credentials_pool",
     "name_prefix", "max_workers",
-    "hpc_mode", "dry_run", "sbatch_options_per_step",
+    "sbatch_options_per_step",
 }
+# Extra fields stripped when loading from a saved config file (runtime-only flags
+# that must not carry over from a previous run's saved state).
+_SAVED_CFG_SKIP = _SUBMIT_SKIP_FIELDS | {"hpc_mode", "dry_run"}
 
 # Fields handled by static flags or internal state in cmd_analyzer
 _ANALYZER_SKIP_FIELDS = {"name", "workdir", "debug"}
@@ -1228,9 +1231,10 @@ def cmd_downloader(args, extra_args: list[str]):
         else:
             scenes_by_stack[(0, 0)] = [p.properties["sceneName"] for p in active]
 
+        _dl_is_stack = (dl_workdir / "insarhub_config.json").exists()
         if isinstance(pairs, dict):
             for (path, frame), group_pairs in pairs.items():
-                subdir = dl_workdir / f"p{path}_f{frame}"
+                subdir = dl_workdir if _dl_is_stack else dl_workdir / f"p{path}_f{frame}"
                 subdir.mkdir(parents=True, exist_ok=True)
                 write_workflow_marker(subdir, downloader=type(downloader).name)
                 cfg = {k: v for k, v in asdict(downloader.config).items() if k != 'workdir'}
@@ -1462,8 +1466,9 @@ def _proc_submit(args, extra_args: list[str]):
         print(f"[INFO] Loaded saved config from {cfg_path or workdir}")
 
     # Parse extra_args as processor config overrides; explicit CLI args override saved config
-    # Strip metadata keys that are not dataclass fields
-    overrides: dict = {k: v for k, v in saved_cfg.items() if k not in ("processor_type", "name")}
+    # Strip metadata keys and runtime-only flags that must not carry over from saved state
+    overrides: dict = {k: v for k, v in saved_cfg.items()
+                       if k not in _SAVED_CFG_SKIP and k not in ("processor_type",)}
     config_cls = getattr(processor_cls, "default_config", None)
     if config_cls is not None and dataclasses.is_dataclass(config_cls):
         config_parser = _build_config_parser(config_cls, skip_fields=_SUBMIT_SKIP_FIELDS)
@@ -1751,7 +1756,7 @@ def _proc_local_submit(args, extra_args: list[str]):
 
     # ── Parse extra CLI flags as config overrides ──────────────────────────
     config_cls = getattr(processor_cls, "default_config", None)
-    overrides: dict = {k: v for k, v in saved_cfg.items() if k not in ("name",)}
+    overrides: dict = {k: v for k, v in saved_cfg.items() if k not in _SAVED_CFG_SKIP}
     if config_cls is not None and dataclasses.is_dataclass(config_cls):
         config_parser = _build_config_parser(config_cls, skip_fields=_SUBMIT_SKIP_FIELDS)
         config_ns, unknown = config_parser.parse_known_args(extra_args)

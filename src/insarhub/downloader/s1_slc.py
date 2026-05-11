@@ -87,7 +87,9 @@ class S1_SLC(ASF_Base_Downloader):
                 if stop_event is not None and stop_event.is_set():
                     tqdm.write("Orbit download stopped.")
                     break
-                download_path = (Path(save_dir) / 'slc') if save_dir else (Path(base_dir) / f'p{key[0]}_f{key[1]}' / 'slc')
+                _base = Path(base_dir)
+                _is_stack = (_base / "insarhub_config.json").exists()
+                download_path = (Path(save_dir) / 'slc') if save_dir else ((_base / 'slc') if _is_stack else (_base / f'p{key[0]}_f{key[1]}' / 'slc'))
                 download_path.mkdir(parents=True, exist_ok=True)
                 scene_name = result.properties['sceneName']
                 short_name = scene_name[:40] + "..."
