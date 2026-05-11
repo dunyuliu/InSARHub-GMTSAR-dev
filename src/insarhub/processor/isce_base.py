@@ -601,7 +601,11 @@ class ISCE_Base(LocalProcessor):
         if not self.jobs:
             raise ValueError("No jobs loaded. Call submit() or load a saved job file.")
 
-        hpc = getattr(self.config, "hpc_mode", False)
+        _has_slurm_ids = any(
+            meta.get("slurm_job_ids") or meta.get("slurm_job_id")
+            for meta in self.jobs.values()
+        )
+        hpc = getattr(self.config, "hpc_mode", False) or _has_slurm_ids
         active_slurm: set[str] = set()
         sacct_states: dict[str, str] = {}
         if hpc:
@@ -777,8 +781,16 @@ class ISCE_Base(LocalProcessor):
     # ── Cancel ────────────────────────────────────────────────────────────────
 
     def cancel(self) -> None:
-        """Cancel all running/pending jobs (HPC: scancel; local: SIGTERM by PID)."""
-        if getattr(self.config, "hpc_mode", False):
+        """Cancel all running/pending jobs (HPC: scancel; local: SIGTERM by PID).
+
+        HPC mode is auto-detected from slurm_job_ids in isce_jobs.json —
+        no need to pass --hpc-mode on the cancel command.
+        """
+        _has_slurm_ids = any(
+            meta.get("slurm_job_ids") or meta.get("slurm_job_id")
+            for meta in self.jobs.values()
+        )
+        if getattr(self.config, "hpc_mode", False) or _has_slurm_ids:
             all_ids: list[str] = []
             for meta in self.jobs.values():
                 ids = meta.get("slurm_job_ids") or (
