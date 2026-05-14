@@ -2,7 +2,10 @@
 
 InSARHub is a modular Python framework for automated InSAR and time-series processing.
 
-The primary goal of this package is to provide a streamlined and user-friendly InSAR processing experience across multiple satellite products.
+The primary goal of this package is to provide a streamlined and user-friendly InSAR processing experience across multiple satellite products. Two processing backends are supported:
+
+- **HyP3 (cloud)** — submit Sentinel-1 interferogram pairs to ASF HyP3 for cloud-based processing; no local SAR software required.
+- **ISCE2 (local / HPC)** — run ISCE2 `stackSentinel` locally or on a SLURM cluster directly from InSARHub; requires a separate ISCE2 installation.
 
 ## Table of Contents
 - [Web UI](#web-ui)
@@ -26,7 +29,7 @@ Open `http://localhost:8000` to access the UI.
 | Panel | What it does |
 |-------|-------------|
 | **Search & Download** | Draw an AOI on the map, search Sentinel-1 SLC stacks, download scenes and precise orbit files |
-| **Processor** | Build and edit the interferogram pair network with quality scoring; view S1 coherence decay maps; submit to HyP3; monitor and download results |
+| **Processor** | Build and edit the interferogram pair network with quality scoring; view S1 coherence decay maps; submit to HyP3 (cloud) or run ISCE2 locally / via SLURM; monitor and download results |
 | **Analyzer** | Run MintPy time-series analysis step by step; edit the network post-ingest; inspect diagnostic overview layers |
 | **Results Viewer** | Overlay the velocity map on the basemap; click any pixel to plot its displacement time series |
 
@@ -61,15 +64,25 @@ conda install gdal -c conda-forge
 pip install insarhub
 ```
 
-From source: 
+From source:
 
 ```bash
 git clone https://github.com/jldz9/InSARHub.git
 cd InSARHub
-conda env create -f environment.yml -n insarhub_dev 
+conda env create -f environment.yml -n insarhub_dev
 conda activate insarhub_dev
 pip install -e .
 ```
+
+**ISCE2 local processing** requires a separate ISCE2 environment. Use the provided environment file:
+
+```bash
+conda env create -f environment-isce2.yml -n insarhub_isce2
+conda activate insarhub_isce2
+pip install -e .
+```
+
+> ISCE2 must be installed and activated in the same environment. See the [ISCE2 installation guide](https://github.com/isce-framework/isce2) for details.
 
 ## Requirements
 - Python >=3.11,<3.13
@@ -149,27 +162,32 @@ from insarhub import Processor
     Processor.available()
     ```
 
-- Create Processor
+Two processors are available:
 
-    ```python
-    processor = Processor.create('Hyp3_InSAR', workdir='/your/work/path', pairs=pairs)
-    ```
+#### HyP3 (cloud)
 
-- Submit Jobs
-    ```python
-    jobs = processor.submit()
-    ```
+```python
+processor = Processor.create('Hyp3_S1', workdir='/your/work/path', pairs=pairs)
+jobs = processor.submit()
+jobs = processor.refresh()
+processor.download()
+```
 
-- Refresh Jobs
+#### ISCE2 (local / HPC)
 
-    ```python
-    jobs = processor.refresh()
-    ```
-- Download Succeeded Jobs
+Requires SLC `.SAFE` files already downloaded. Runs ISCE2 `stackSentinel` locally or submits each step to SLURM with `hpc_mode=True`.
 
-    ```python
-    processor.download()
-    ```
+```python
+from insarhub.config import ISCE_S1_Config
+
+cfg = ISCE_S1_Config(
+    workdir='/data/p100_f466',
+    bbox=[33.0, 38.0, -120.0, -115.0],   # [S, N, W, E]
+)
+processor = Processor.create('ISCE_S1', pairs=pairs, config=cfg)
+processor.submit()        # starts background execution
+processor.refresh()       # check step status
+```
 
 
 ### Analyzer
@@ -182,21 +200,23 @@ from insarhub import Analyzer
     Analyzer.available()
     ```
 
-- Create Analyzer
+Two analyzers are available, matched to the processor that generated the interferograms:
 
-    ```python
-    analyzer = Analyzer.create('Hyp3_SBAS', workdir="/your/work/dir")
-    ```
-- Prepare data
+#### HyP3 outputs
 
-    ```python
-    analyzer.prep_data()
-    ```
+```python
+analyzer = Analyzer.create('Hyp3_SBAS', workdir="/your/work/dir")
+analyzer.prep_data()   # unzip and clip HyP3 products
+analyzer.run()         # full MintPy SBAS pipeline
+```
 
-- Run time-series analysis
-    ```python
-    analyzer.run()
-    ```
+#### ISCE2 outputs
+
+```python
+analyzer = Analyzer.create('ISCE_SBAS', workdir="/your/work/dir")
+analyzer.prep_data()   # auto-discover ISCE2 interferograms and geometry
+analyzer.run()         # full MintPy SBAS pipeline
+```
 
 ## CLI
 
@@ -206,7 +226,7 @@ InSARHub includes a command-line interface for running the full pipeline without
 insarhub <command> [options]
 ```
 
-### End-to-end example
+### End-to-end example — HyP3 (cloud)
 
 ```bash
 # Search scenes and select interferogram pairs
@@ -218,13 +238,39 @@ insarhub downloader -N S1_SLC \
     --select-pairs
 
 # Submit pairs to HyP3 (auto-reads stack_p*_f*.json from workdir subfolders)
-insarhub processor -N Hyp3_InSAR  -w /data/bryce submit
+insarhub processor -N Hyp3_S1 -w /data/bryce submit
 
 # Wait for jobs and download results automatically
 insarhub processor -w /data/bryce watch
 
 # Run MintPy time-series analysis
 insarhub analyzer -N Hyp3_SBAS -w /data/bryce run
+```
+
+### End-to-end example — ISCE2 (local / HPC)
+
+```bash
+# Search and download SLC scenes + orbits
+insarhub downloader -N S1_SLC \
+    --AOI -113.05 37.74 -112.68 38.00 \
+    --start 2020-01-01 --end 2020-12-31 \
+    --stacks 100:466 \
+    -w /data/p100_f466 \
+    --select-pairs --download --orbits
+
+# Dry run to verify ISCE2 config before committing
+insarhub processor -N ISCE_S1 -w /data/p100_f466 \
+    --bbox 33.0 38.0 -120.0 -115.0 submit --dry-run
+
+# Run ISCE2 stackSentinel locally (background) or on SLURM (--hpc_mode True)
+insarhub processor -N ISCE_S1 -w /data/p100_f466 \
+    --bbox 33.0 38.0 -120.0 -115.0 submit
+
+# Monitor step progress
+insarhub processor -N ISCE_S1 -w /data/p100_f466 refresh
+
+# Run MintPy time-series analysis on ISCE2 outputs
+insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run
 ```
 
 ### Commands

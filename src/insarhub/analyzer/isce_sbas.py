@@ -28,6 +28,7 @@ Expected layout (produced by ISCE_S1 / stackSentinel):
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 from colorama import Fore
@@ -101,6 +102,47 @@ class ISCE_SBAS(Mintpy_SBAS_Base_Analyzer):
         app.run(steps=run_steps)
         if 'geocode' in run_steps:
             self._geocode_diagnostic_files(self.mintpy_dir)
+
+    def cleanup(self) -> None:
+        """Remove large ISCE2 intermediate directories and input data no longer needed
+        after MintPy has loaded all data into HDF5.
+
+        Removes under ``isce/``:
+          - ``coarse_interferograms/``
+          - ``ESD/``
+          - ``coreg_secondarys/``
+          - ``interferograms/``
+
+        Removes at workdir level:
+          - ``slc/``
+          - ``dem/``
+        """
+        if self.config.debug:
+            print(f"{Fore.YELLOW}Debug mode enabled. Skipping cleanup.{Fore.RESET}")
+            return
+
+        isce_subdirs = [
+            self.isce_dir / "coarse_interferograms",
+            self.isce_dir / "ESD",
+            self.isce_dir / "coreg_secondarys",
+            self.isce_dir / "interferograms",
+        ]
+        workdir_subdirs = [
+            self.workdir / "slc",
+            self.workdir / "dem",
+        ]
+
+        print(f"{Fore.CYAN}Cleaning up ISCE2 intermediate directories…{Fore.RESET}")
+        for folder in isce_subdirs + workdir_subdirs:
+            if folder.exists() and folder.is_dir():
+                try:
+                    shutil.rmtree(folder)
+                    print(f"  Removed: {folder.relative_to(self.workdir)}")
+                except Exception as e:
+                    print(f"{Fore.RED}  Failed to remove {folder}: {e}{Fore.RESET}")
+            else:
+                print(f"  Skipped (not found): {folder.relative_to(self.workdir)}")
+        print(f"{Fore.GREEN}Cleanup complete.{Fore.RESET}")
 
     # ── Path discovery ────────────────────────────────────────────────────────
 

@@ -1,5 +1,53 @@
 # Changelog
 
+## [0.3.0] - 2026-05-14
+
+### New Features
+
+- **ISCE_S1 local processor**: New processor backend that runs ISCE2 `stackSentinel` locally. Supports sequential local execution and SLURM HPC mode (`--hpc-mode`). Bounding box is auto-filled from the map AOI in the GUI.
+- **ISCE_SBAS analyzer**: New MintPy SBAS analyzer for ISCE2 `stackSentinel` outputs. `prep_data()` auto-discovers interferogram, geometry, baseline, and metadata paths; MintPy outputs written to `mintpy/` subdirectory.
+- **HPC mode (SLURM)**: ISCE_S1 can submit each processing step as a separate `sbatch` job. Per-step resource configuration via `sbatch_options.json`, editable in the GUI via **Sbatch Options** modal.
+- **Job Folders subfolder browser**: The Jobs drawer now lists both folders and files. Click any folder to navigate into it; click **↑ Up** to return to the parent. Breadcrumb path shown in the header.
+- **Cancel button for local processors**: A **Cancel** button appears in the ISCE_S1 processor panel to terminate the running background process (local) or `scancel` all active SLURM jobs (HPC).
+- **Refresh with per-command detail**: ISCE_S1 `refresh()` now shows per-command status (`cmd_NNNN RUNNING / SUCCEEDED / FAILED`) for multi-command steps, matching the CLI output.
+
+### Bug Fixes
+
+- **ISCE_S1 bbox not passed**: `Processor.create()` was calling `cls(cfg)` which mapped the config to the `pairs` argument in ISCE_S1's two-argument constructor. Fixed by detecting `pairs` in the constructor signature via `inspect.signature` and using keyword arguments.
+- **ISCE_SBAS diagnostic geocoding**: `avgPhaseVelocity.h5`, `numTriNonzeroIntAmbiguity.h5`, and `maskConnComp.h5` are now geocoded automatically after the `geocode` step. Existing radar-coordinate data is geocoded on demand in the render endpoint.
+- **ISCE_SBAS timeseries filter**: View Results now returns only `geo/geo_timeseries*.h5` (geocoded) when present, not the radar-coordinate `timeseries*.h5` files.
+- **ISCE_SBAS `.mintpy.cfg` path**: Analyzer route was writing `.mintpy.cfg` to the job folder root; ISCE_SBAS expects it at `mintpy/.mintpy.cfg`. Fixed by reading `analyzer.cfg_path` at runtime.
+- **ISCE_S1 submit via GUI missing sbatch options**: `_run_folder_process` now loads `sbatch_options.json` and calls `processor.submit()` directly for local processors, bypassing the HyP3-only `SubmitCommand`/`SaveJobsCommand` wrappers.
+- **cmd index parsing crash**: `int()` raised `ValueError` on malformed `cmd_????.done/fail` filenames. Fixed with a safe `_idx()` helper.
+- **Job Folders empty workdir path traversal**: An empty workdir in `browse-subfolders` resolved to CWD, allowing requests outside the workdir. Fixed with an early 400 response when workdir is not configured.
+- **Job Folders `has_children` OSError**: `subfolder.iterdir()` on restricted directories could raise `OSError`. Wrapped in `try/except`.
+
+## [0.2.5] - 2026-04-21
+
+### New Features
+
+- **SBAS network editor (GUI)**: Interactive baseline-time graph editor in the processor panel. Drag between scene nodes to create new pairs; click an existing edge to delete it; hover to inspect temporal baseline, perpendicular baseline, and quality score. Edges are colored by quality (green → yellow → red).
+- **Pair quality scoring**: Pre-processing interferogram quality assessment combining S1 global coherence decay models, WorldCover land-cover class fractions (stable, vegetation, forest), precipitation, snow cover, NDVI, and fire data. Quality scores drive edge colors in the network editor and can exclude bad-weather scenes automatically.
+- **Per-class coherence decay models**: `_coherence.py` fits separate exponential decay models per WorldCover land-cover class (stable, vegetation, forest, water). Per-class cache persisted to disk; prefetch runs before the pair loop to avoid warm-run stalls.
+- **Decay maps overlay (GUI)**: Seasonal S1 global coherence maps (γ∞ PS baseline, γ0 initial coherence, τ decay constant) can be overlaid on the main map directly from the processor panel for rapid site assessment before submitting jobs.
+- **`quick_overview` MintPy step**: Added as an optional step in the analyzer workflow to generate diagnostic map layers (coherence, phase velocity, unwrapping errors, connected-components mask) before full SBAS inversion.
+- **`avoid_low_quality_days` default changed to `True`**: Bad-weather scenes are now excluded from the pair network by default. Default precipitation threshold tightened to 25 mm (3-day accumulation). Weather/snow data fetched during filtering is seeded directly into the pair quality cache, eliminating duplicate API calls.
+- **API route refactor**: `api.py` split into separate route modules under `routes/` (`search`, `processor`, `analyzer`, `quality`, `render`, `folders`, `settings`) for easier maintenance.
+
+### Performance
+
+- **Parallel coherence prefetch**: S1 global coherence tile S3 downloads now run concurrently (up to 4 threads), followed by per-pair numpy evaluation in parallel (8 threads). Expected 4–6× speedup for stacks with 32 000+ pairs on first run; warm-cache runs unchanged.
+- **Smarter pair quality DB rebuilds**: DB only rebuilds when the scene set actually changes. Stores `_scene_names` for exact scene-set comparison; parameter changes (`dt_max`, `pb_max`, degree limits) no longer trigger a rebuild. Backward-compatible with old DBs (falls back to count comparison, migrates on next rebuild).
+
+### Bug Fixes
+
+- **Coherence scoring thresholds corrected** to Hanssen 2001 values: Good ≥ 0.60, Risky 0.30–0.60, Bad < 0.30 (was 0.65/0.35).
+- **matplotlib `Agg` backend**: Added `matplotlib.use('Agg')` before `pyplot` import in `tool.py` — fixes `RuntimeError: main thread is not in main loop` when plotting from FastAPI background threads.
+- **CDSE account validation**: Login credentials for the Copernicus Data Space Ecosystem are now validated on entry in the settings panel.
+- **Pair quality prefetch cache stall**: Per-class coherence S3 reads were blocking the first pair of each season on warm runs. Pre-fetching both overall and per-class maps before the pair loop fixes the 0% stall.
+
+---
+
 ## [0.2.4] - 2026-03-25
 
 ### New Features
@@ -90,7 +138,7 @@ First public release of **InSARHub** — a modular Python framework for automate
 - `S1_SLC`: Sentinel-1 SLC specialized downloader with orbit file (`sentineleof`) support
 
 #### Processor
-- `Hyp3_InSAR`: Submit, monitor, download, retry, and persist HyP3 InSAR jobs
+- `Hyp3_S1`: Submit, monitor, download, retry, and persist HyP3 InSAR jobs
 - Multi-account credential pool with automatic credit-aware job rotation
 - Batch job persistence (save/load JSON) for resumable workflows
 - `watch()` mode: polls job status and downloads succeeded outputs continuously
@@ -126,6 +174,7 @@ First public release of **InSARHub** — a modular Python framework for automate
 - Unified `CommandResult` pattern shared between CLI and Panel frontend
 
 
+[0.2.5]: https://github.com/jldz9/InSARHub/releases/tag/v0.2.5
 [0.2.4]: https://github.com/jldz9/InSARHub/releases/tag/v0.2.4
 [0.2.3]: https://github.com/jldz9/InSARHub/releases/tag/v0.2.3
 [0.2.1]: https://github.com/jldz9/InSARHub/releases/tag/v0.2.1
