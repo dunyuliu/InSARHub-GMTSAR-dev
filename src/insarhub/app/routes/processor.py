@@ -296,22 +296,15 @@ async def _run_local_action(job_id: str, req: LocalActionRequest):
             processor = proc_cls(pairs=pairs or [("_", "_")], config=cfg)
 
             if req.action == "refresh":
+                import io as _io, contextlib as _cl, re as _re
                 state._jobs[job_id]["message"] = "Refreshing job statuses…"
-                jobs = processor.refresh()
-                counts: dict[str, int] = {}
-                for meta in jobs.values():
-                    sc = meta.get("status", "UNKNOWN")
-                    counts[sc] = counts.get(sc, 0) + 1
-                total = sum(counts.values())
-                summary = f"{total} steps — " + ", ".join(
-                    f"{v} {k.lower()}" for k, v in sorted(counts.items())
-                )
-                lines = [summary]
-                for meta in sorted(jobs.values(), key=lambda m: m.get("step", "")):
-                    step = meta.get("step", meta.get("ref", ""))[:40]
-                    sc   = meta.get("status", "?")
-                    lines.append(f"  {step}  {sc}")
-                state._finish_job(job_id, status="done", message="\n".join(lines))
+                buf = _io.StringIO()
+                with _cl.redirect_stdout(buf):
+                    processor.refresh()
+                raw = buf.getvalue()
+                # strip ANSI colour codes for plain-text GUI display
+                clean = _re.sub(r'\x1b\[[0-9;]*m', '', raw).strip()
+                state._finish_job(job_id, status="done", message=clean)
 
             elif req.action == "retry":
                 state._jobs[job_id]["message"] = "Retrying failed pairs…"

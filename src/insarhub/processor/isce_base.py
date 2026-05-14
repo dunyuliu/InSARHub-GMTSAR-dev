@@ -840,24 +840,32 @@ class ISCE_Base(LocalProcessor):
                             cmd_st, cmd_color = _PENDING, Fore.YELLOW
                         print(f"      cmd_{i:04d}  {cmd_color}{cmd_st:<9}{Style.RESET_ALL}  [job {jid}]")
                 else:
-                    # Old HPC format or local mode: scan done/fail files
-                    def _idx(f):
-                        try: return int(f.stem.split("_", 1)[1])
-                        except (ValueError, IndexError): return None
-                    indices = sorted(
-                        i for i in (
-                            {_idx(f) for f in log_dir_p.glob("cmd_????.done")}
-                            | {_idx(f) for f in log_dir_p.glob("cmd_????.fail")}
-                        ) if i is not None
-                    )
-                    if len(indices) > 1:
-                        for i in indices:
+                    # Local mode: read script to get all commands, overlay done/fail
+                    script_path = Path(meta.get("script", ""))
+                    if script_path.exists():
+                        cmds = [
+                            l.strip() for l in script_path.read_text().splitlines()
+                            if l.strip() and not l.strip().startswith("#")
+                        ]
+                    else:
+                        cmds = []
+                    if len(cmds) > 1:
+                        # Find first command without a done/fail file (currently running)
+                        first_active = next(
+                            (i for i in range(len(cmds))
+                             if not (log_dir_p / f"cmd_{i:04d}.done").exists()
+                             and not (log_dir_p / f"cmd_{i:04d}.fail").exists()),
+                            None
+                        )
+                        for i in range(len(cmds)):
                             done_f = log_dir_p / f"cmd_{i:04d}.done"
                             fail_f = log_dir_p / f"cmd_{i:04d}.fail"
                             if done_f.exists():
                                 cmd_st, cmd_color = _SUCCEEDED, Fore.GREEN
                             elif fail_f.exists():
                                 cmd_st, cmd_color = _FAILED, Fore.RED
+                            elif status == _RUNNING and i == first_active:
+                                cmd_st, cmd_color = _RUNNING, Fore.CYAN
                             else:
                                 cmd_st, cmd_color = _PENDING, Fore.YELLOW
                             print(f"      cmd_{i:04d}  {cmd_color}{cmd_st:<9}{Style.RESET_ALL}")
