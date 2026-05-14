@@ -1,11 +1,11 @@
-<!DOCTYPE html><html lang="en" class="no-js"><head>
+<!DOCTYPE html><html lang="zh" class="no-js"><head>
     
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
       
       
-        <link rel="canonical" href="https://jldz9.github.io/InSARHub/dev/quickstart/running/">
+        <link rel="canonical" href="https://jldz9.github.io/InSARHub/dev/zh/quickstart/running/">
       
       
         <link rel="prev" href="../api_setup/">
@@ -15,13 +15,13 @@
       
       
         
-          <link rel="alternate" href="./" hreflang="en">
+          <link rel="alternate" href="../../../quickstart/running/" hreflang="en">
         
-          <link rel="alternate" href="../../zh/quickstart/running/" hreflang="zh">
+          <link rel="alternate" href="./" hreflang="zh">
         
       
       
-      <link rel="icon" href="../../assets/images/favicon.png">
+      <link rel="icon" href="../../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
@@ -30,10 +30,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -52,11 +52,13 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
     
-      <link rel="stylesheet" href="../../stylesheets/extra.css">
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -64,7 +66,7 @@
     
   
 
-  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+  <link href="../../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
             html.glightbox-open { overflow: initial; height: 100%; }
             .gslide-title { margin-top: 0px; user-select: text; }
             .gslide-desc { color: #666; user-select: text; }
@@ -93,8 +95,8 @@
     <div data-md-component="skip">
       
         
-        <a href="#modules" class="md-skip">
-          Skip to content
+        <a href="#_1" class="md-skip">
+          跳转至
         </a>
       
     </div>
@@ -113,8 +115,8 @@
   
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
-  <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="InSARHub" class="md-header__button md-logo" aria-label="InSARHub" data-md-component="logo">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../../" title="InSARHub" class="md-header__button md-logo" aria-label="InSARHub" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
@@ -174,20 +176,20 @@
       <div class="md-header__option">
   <div class="md-select">
     
-    <button class="md-header__button md-icon" aria-label="Select language">
+    <button class="md-header__button md-icon" aria-label="选择当前语言">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"></path></svg>
     </button>
     <div class="md-select__inner">
       <ul class="md-select__list">
         
           <li class="md-select__item">
-            <a href="./" hreflang="en" class="md-select__link">
+            <a href="../../../quickstart/running/" hreflang="en" class="md-select__link">
               English
             </a>
           </li>
         
           <li class="md-select__item">
-            <a href="../../zh/quickstart/running/" hreflang="zh" class="md-select__link">
+            <a href="./" hreflang="zh" class="md-select__link">
               中文
             </a>
           </li>
@@ -208,16 +210,16 @@
   <label class="md-search__overlay" for="__search"></label>
   <div class="md-search__inner" role="search">
     <form class="md-search__form" name="search">
-      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
       <label class="md-search__icon md-icon" for="__search">
         
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
         
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
       </label>
-      <nav class="md-search__options" aria-label="Search">
+      <nav class="md-search__options" aria-label="查找">
         
-        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
           
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
         </button>
@@ -230,7 +232,7 @@
       <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
         <div class="md-search-result" data-md-component="search-result">
           <div class="md-search-result__meta">
-            Initializing search
+            正在初始化搜索引擎
           </div>
           <ol class="md-search-result__list" role="presentation"></ol>
         </div>
@@ -242,7 +244,7 @@
     
     
       <div class="md-header__source">
-        <a href="https://github.com/jldz9/InSARHub" title="Go to repository" class="md-source" data-md-component="source">
+        <a href="https://github.com/jldz9/InSARHub" title="前往仓库" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
@@ -257,7 +259,7 @@
   
     
       
-<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
   <div class="md-grid">
     <ul class="md-tabs__list">
       
@@ -267,13 +269,13 @@
   
   
     <li class="md-tabs__item">
-      <a href="../.." class="md-tabs__link">
+      <a href="../../" class="md-tabs__link">
         
   
   
     
   
-  Home
+  主页
 
       </a>
     </li>
@@ -294,7 +296,7 @@
           
   
   
-  QuickStart
+  快速开始
 
         </a>
       </li>
@@ -314,7 +316,7 @@
           
   
   
-  Web UI
+  Web 界面
 
         </a>
       </li>
@@ -334,7 +336,7 @@
           
   
   
-  Advanced
+  高级
 
         </a>
       </li>
@@ -401,9 +403,9 @@
   
 
 
-<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="InSARHub" class="md-nav__button md-logo" aria-label="InSARHub" data-md-component="logo">
+    <a href="../../" title="InSARHub" class="md-nav__button md-logo" aria-label="InSARHub" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
@@ -413,7 +415,7 @@
   </label>
   
     <div class="md-nav__source">
-      <a href="https://github.com/jldz9/InSARHub" title="Go to repository" class="md-source" data-md-component="source">
+      <a href="https://github.com/jldz9/InSARHub" title="前往仓库" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
@@ -433,14 +435,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href="../../" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Home
+    主页
   
 
     
@@ -488,7 +490,7 @@
   <span class="md-ellipsis">
     
   
-    QuickStart
+    快速开始
   
 
     
@@ -504,7 +506,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    QuickStart
+    快速开始
   
 
           </label>
@@ -524,7 +526,7 @@
   <span class="md-ellipsis">
     
   
-    Installation
+    安装
   
 
     
@@ -552,7 +554,7 @@
   <span class="md-ellipsis">
     
   
-    API Setup
+    API 配置
   
 
     
@@ -601,7 +603,7 @@
   <span class="md-ellipsis">
     
   
-    Running
+    运行
   
 
     
@@ -617,7 +619,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Running
+    运行
   
 
           </label>
@@ -674,22 +676,22 @@
       
         
 
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+<nav class="md-nav md-nav--secondary" aria-label="目录">
   
   
   
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      Table of contents
+      目录
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#modules" class="md-nav__link">
+  <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Modules
+        模块
       
     </span>
   </a>
@@ -697,34 +699,34 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#workflow" class="md-nav__link">
+  <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Workflow
+        工作流程
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Workflow">
+    <nav class="md-nav" aria-label="工作流程">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#set-aoi" class="md-nav__link">
+  <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Set AOI
+        设置研究区域
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Set AOI">
+    <nav class="md-nav" aria-label="设置研究区域">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#bounding-box" class="md-nav__link">
+  <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Bounding box
+        边界框
       
     </span>
   </a>
@@ -732,10 +734,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#shapefiles" class="md-nav__link">
+  <a href="#shapefile" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Shapefiles
+        Shapefile
       
     </span>
   </a>
@@ -759,10 +761,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#searching" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Searching
+        搜索
       
     </span>
   </a>
@@ -770,10 +772,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#result-filtering" class="md-nav__link">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Result Filtering
+        结果筛选
       
     </span>
   </a>
@@ -781,10 +783,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#interferogram" class="md-nav__link">
+  <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Interferogram
+        干涉图
       
     </span>
   </a>
@@ -792,10 +794,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#time-series-analysis" class="md-nav__link">
+  <a href="#_8" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Time-series Analysis
+        时序分析
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        后处理
       
     </span>
   </a>
@@ -830,7 +843,7 @@
   <span class="md-ellipsis">
     
   
-    CLI
+    命令行
   
 
     
@@ -891,7 +904,7 @@
   <span class="md-ellipsis">
     
   
-    Web UI
+    Web 界面
   
 
     
@@ -907,7 +920,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Web UI
+    Web 界面
   
 
           </label>
@@ -927,7 +940,7 @@
   <span class="md-ellipsis">
     
   
-    Overview
+    概览
   
 
     
@@ -955,7 +968,7 @@
   <span class="md-ellipsis">
     
   
-    Search &amp; Download
+    搜索与下载
   
 
     
@@ -983,7 +996,7 @@
   <span class="md-ellipsis">
     
   
-    Processor
+    处理器
   
 
     
@@ -1011,7 +1024,7 @@
   <span class="md-ellipsis">
     
   
-    Analyzer
+    分析器
   
 
     
@@ -1039,7 +1052,7 @@
   <span class="md-ellipsis">
     
   
-    Results Viewer
+    结果查看器
   
 
     
@@ -1092,7 +1105,7 @@
   <span class="md-ellipsis">
     
   
-    Advanced
+    高级
   
 
     
@@ -1108,7 +1121,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Advanced
+    高级
   
 
           </label>
@@ -1128,7 +1141,7 @@
   <span class="md-ellipsis">
     
   
-    File Structure
+    文件结构
   
 
     
@@ -1156,7 +1169,7 @@
   <span class="md-ellipsis">
     
   
-    Downloader
+    下载器
   
 
     
@@ -1184,7 +1197,7 @@
   <span class="md-ellipsis">
     
   
-    Processor
+    处理器
   
 
     
@@ -1212,7 +1225,7 @@
   <span class="md-ellipsis">
     
   
-    Analyzer
+    分析器
   
 
     
@@ -1240,7 +1253,7 @@
   <span class="md-ellipsis">
     
   
-    Utilities
+    工具集
   
 
     
@@ -1268,7 +1281,7 @@
   <span class="md-ellipsis">
     
   
-    Pair Quality Scoring
+    配对质量评分
   
 
     
@@ -1296,7 +1309,7 @@
   <span class="md-ellipsis">
     
   
-    Frontend Reference
+    前端参考
   
 
     
@@ -1330,22 +1343,22 @@
                   <div class="md-sidebar__inner">
                     
 
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+<nav class="md-nav md-nav--secondary" aria-label="目录">
   
   
   
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      Table of contents
+      目录
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#modules" class="md-nav__link">
+  <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Modules
+        模块
       
     </span>
   </a>
@@ -1353,34 +1366,34 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#workflow" class="md-nav__link">
+  <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Workflow
+        工作流程
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Workflow">
+    <nav class="md-nav" aria-label="工作流程">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#set-aoi" class="md-nav__link">
+  <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Set AOI
+        设置研究区域
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Set AOI">
+    <nav class="md-nav" aria-label="设置研究区域">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#bounding-box" class="md-nav__link">
+  <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Bounding box
+        边界框
       
     </span>
   </a>
@@ -1388,10 +1401,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#shapefiles" class="md-nav__link">
+  <a href="#shapefile" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Shapefiles
+        Shapefile
       
     </span>
   </a>
@@ -1415,10 +1428,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#searching" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Searching
+        搜索
       
     </span>
   </a>
@@ -1426,10 +1439,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#result-filtering" class="md-nav__link">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Result Filtering
+        结果筛选
       
     </span>
   </a>
@@ -1437,10 +1450,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#interferogram" class="md-nav__link">
+  <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Interferogram
+        干涉图
       
     </span>
   </a>
@@ -1448,10 +1461,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#time-series-analysis" class="md-nav__link">
+  <a href="#_8" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Time-series Analysis
+        时序分析
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        后处理
       
     </span>
   </a>
@@ -1485,55 +1509,53 @@
 
   <h1>API</h1>
 
-<p>This section provides an overview of the complete InSAR time-series processing workflow using Python API, guiding you through each stage of the analysis pipeline.</p>
-<p><a href="https://colab.research.google.com/github/jldz9/InSARHub/blob/tutorial/insarhub_tutorial_v0.2.4.ipynb"><img alt="Try Live Demo" src="https://colab.research.google.com/assets/colab-badge.svg"></a></p>
-<h2 id="modules">Modules</h2>
-<p>The InSAR script is designed with three config-based main modules to cover the entire InSAR processing workflow:</p>
-<p><a class="md-button md-button--lg" href="../../advanced/downloader/">Downloader</a> <a class="md-button md-button--lg" href="../../advanced/processor/">Processor</a> <a class="md-button md-button--lg" href="../../advanced/analyzer/">Analyzer</a></p>
-<p>You can click on each module to view detailed information later. For now, let's begin by running the program using the basic example.</p>
-<h2 id="workflow">Workflow</h2>
-<p>The basic workflow of InSARHub can be briefly described as:</p>
+<p>本节介绍使用 Python API 进行完整 InSAR 时序处理流程的概述，引导您完成分析流程的每个阶段。</p>
+<p><a href="https://colab.research.google.com/github/jldz9/InSARHub/blob/tutorial/insarhub_tutorial_v0.2.4.ipynb"><img alt="在线演示" src="https://colab.research.google.com/assets/colab-badge.svg"></a></p>
+<h2 id="_1">模块</h2>
+<p>InSAR 脚本设计了三个基于配置的主要模块，覆盖完整的 InSAR 处理流程：</p>
+<p><a class="md-button md-button--lg" href="../../advanced/downloader/">下载器</a> <a class="md-button md-button--lg" href="../../advanced/processor/">处理器</a> <a class="md-button md-button--lg" href="../../advanced/analyzer/">分析器</a></p>
+<p>点击各模块可查看详细信息。现在，让我们从基本示例开始运行程序。</p>
+<h2 id="_2">工作流程</h2>
+<p>InSARHub 的基本工作流程可简要描述如下：</p>
 <div style="text-align: center;">
 <pre class="mermaid"><code>graph
-    A[Set AOI] --&gt; B[Searching];
-    B --&gt; C[Result Filtering];
-    C --&gt; D[Interferogram];
-    D --&gt; F[Time-series Analysis];
-    F --&gt; H[Post-Processing];
-    click A "#set-aoi" "Go to Set AOI section"
-    click B "#searching" "Go to the Searching section"
-    click C "#result-filtering" " Go to the Result Filtering section"
+    A[设置研究区域] --&gt; B[搜索];
+    B --&gt; C[结果筛选];
+    C --&gt; D[干涉图];
+    D --&gt; F[时序分析];
+    F --&gt; H[后处理];
+    click A "#set-aoi" "前往设置研究区域"
+    click B "#searching" "前往搜索部分"
+    click C "#result-filtering" "前往结果筛选部分"
     click D "#interferogram"
     click F "#time-series-analysis"
-    click H "#post-processing"
-
-</code></pre>
+    click H "#post-processing"</code></pre>
 </div>
 
-<h3 id="set-aoi">Set <abbr title="Area of interest">AOI</abbr></h3>
-<p>InSARHub allows to define the <abbr title="Area of interest">AOI</abbr> using <strong>bounding box</strong>, <strong>shapefiles</strong>, or <strong><abbr title="Well-known text representation of geometry">WKT</abbr></strong>:</p>
-<h4 id="bounding-box">Bounding box</h4>
+<h3 id="_3">设置研究区域</h3>
+<p>InSARHub 支持使用<strong>边界框</strong>、<strong>Shapefile</strong> 或 <strong><abbr title="几何图形的文本表示">WKT</abbr></strong> 定义研究区域（<abbr title="研究区域">AOI</abbr>）：</p>
+<h4 id="_4">边界框</h4>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">AOI</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mf">113.05</span><span class="p">,</span> <span class="mf">37.74</span><span class="p">,</span> <span class="o">-</span><span class="mf">112.68</span><span class="p">,</span> <span class="mf">38.00</span><span class="p">]</span>
 </span></code></pre></div>
-<details class="note">
-<summary>Note</summary>
-<p>The <abbr title="Area of interest">AOI</abbr> should be specified as <strong><em>[min_long, min_lat, max_long, max_lat]</em></strong> under <abbr title="Coordinate Reference System">CRS</abbr>: EPSG:4326 (WGS84)</p>
+<details class="注意">
+<summary>注意</summary>
+<p><abbr title="研究区域">AOI</abbr> 应在 <abbr title="坐标参考系统">CRS</abbr>: EPSG:4326 (WGS84) 下指定为 <strong><em>[最小经度, 最小纬度, 最大经度, 最大纬度]</em></strong></p>
 </details>
-<h4 id="shapefiles">Shapefiles</h4>
+<h4 id="shapefile">Shapefile</h4>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">AOI</span> <span class="o">=</span> <span class="s1">'path/to/your/shapefile.shp'</span>
 </span></code></pre></div>
-<h4 id="wkt"><abbr title="Well-known text representation of geometry">WKT</abbr></h4>
+<h4 id="wkt"><abbr title="几何图形的文本表示">WKT</abbr></h4>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">AOI</span> <span class="o">=</span> <span class="s1">'POLYGON((-113.05 37.74, -113.05 38.00, -112.68 38.00, -112.68 37.74, -113.05 37.74))'</span>
 </span></code></pre></div>
-<h3 id="searching">Searching</h3>
-<p>Once the <abbr title="Area of interest">AOI</abbr> is defined, you can perform searches using the Downloader.</p>
+<h3 id="_5">搜索</h3>
+<p>定义 <abbr title="研究区域">AOI</abbr> 后，可使用 Downloader 进行搜索。</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Downloader</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">AOI</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mf">113.05</span><span class="p">,</span> <span class="mf">37.74</span><span class="p">,</span> <span class="o">-</span><span class="mf">112.68</span><span class="p">,</span> <span class="mf">38.00</span><span class="p">]</span>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">s1</span> <span class="o">=</span> <span class="n">Downloader</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'S1_SLC'</span><span class="p">,</span> <span class="n">intersectsWith</span><span class="o">=</span><span class="n">AOI</span><span class="p">)</span>
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">results</span> <span class="o">=</span> <span class="n">s1</span><span class="o">.</span><span class="n">search</span><span class="p">()</span>
 </span></code></pre></div>
-<details class="output">
-<summary>Output</summary>
+<details class="输出">
+<summary>输出</summary>
 <div class="language-py highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">Searching</span> <span class="k">for</span> <span class="n">SLCs</span><span class="o">....</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="o">--</span> <span class="n">A</span> <span class="n">total</span> <span class="n">of</span> <span class="mi">991</span> <span class="n">results</span> <span class="n">found</span><span class="o">.</span> 
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
@@ -1541,160 +1563,140 @@
 </span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">you</span> <span class="n">would</span> <span class="n">like</span> <span class="n">to</span> <span class="n">download</span><span class="o">.</span> <span class="n">If</span> <span class="n">use</span> <span class="o">.</span><span class="n">download</span><span class="p">()</span> <span class="n">directly</span> <span class="n">will</span> <span class="n">create</span> <span class="n">subfolders</span> <span class="n">under</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">jldz9</span><span class="o">/</span><span class="n">dev</span><span class="o">/</span><span class="n">InSARHub</span> <span class="k">for</span> <span class="n">each</span> <span class="n">stack</span>
 </span></code></pre></div>
 </details>
-<h3 id="result-filtering">Result Filtering</h3>
-<p>Your <abbr title="Area of interest">AOI</abbr> probably spans multiple scenes. To view the search result footprints, you can use:
+<h3 id="_6">结果筛选</h3>
+<p><abbr title="研究区域">AOI</abbr> 可能跨越多个场景。使用以下命令查看搜索结果的覆盖范围：
 </p><div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">s1</span><span class="o">.</span><span class="n">footprint</span><span class="p">()</span>
 </span></code></pre></div>
-This will display a footprint map of the available Sentinel-1 scenes that covers the <abbr title="Area of interest">AOI</abbr>. The stack indicates the number of SAR scenes in that footprint. Because we have multiple stacks the graph will be a bit messy:<p></p>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/footprint.png" data-desc-position="bottom"><img alt="footprint" src="../fig/footprint.png" style="width:500px; display: block; margin: auto;"></a></p>
-<p>Let's check details of our SAR scene stacks and figure out which stack(s) we want to keep:
+这将显示覆盖 <abbr title="研究区域">AOI</abbr> 的 Sentinel-1 场景覆盖图。由于存在多个堆叠，图像可能较为复杂：<p></p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../quickstart/fig/footprint.png" data-desc-position="bottom"><img alt="footprint" src="../../../quickstart/fig/footprint.png" style="width:500px; display: block; margin: auto;"></a></p>
+<p>查看 SAR 场景堆叠的详细信息：
 </p><div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">s1</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
-</span></code></pre></div>
-This will output the summary of available Sentinel-1 scenes that cover the <abbr title="Area of interest">AOI</abbr>.<p></p>
-<details class="output">
-<summary>Output</summary>
+</span></code></pre></div><p></p>
+<details class="输出">
+<summary>输出</summary>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="o">===</span><span class="w"> </span>ASCENDING<span class="w"> </span>ORBITS<span class="w"> </span><span class="o">(</span><span class="m">14</span><span class="w"> </span>Stacks<span class="o">)</span><span class="w"> </span><span class="o">===</span>
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>relativeOrbit<span class="w"> </span><span class="m">20</span><span class="w"> </span>frame<span class="w"> </span><span class="m">117</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2015</span>-04-05<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2016</span>-11-19
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>relativeOrbit<span class="w"> </span><span class="m">20</span><span class="w"> </span>frame<span class="w"> </span><span class="m">118</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">156</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2016</span>-12-13<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2026</span>-02-24
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>relativeOrbit<span class="w"> </span><span class="m">20</span><span class="w"> </span>frame<span class="w"> </span><span class="m">119</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2015</span>-03-24<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2015</span>-12-25
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>relativeOrbit<span class="w"> </span><span class="m">20</span><span class="w"> </span>frame<span class="w"> </span><span class="m">120</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">12</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2014</span>-10-31<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2016</span>-09-14
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>relativeOrbit<span class="w"> </span><span class="m">20</span><span class="w"> </span>frame<span class="w"> </span><span class="m">121</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">6</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2015</span>-04-05<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2015</span>-08-27
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>relativeOrbit<span class="w"> </span><span class="m">20</span><span class="w"> </span>frame<span class="w"> </span><span class="m">122</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2016</span>-05-05<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2016</span>-11-19
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>relativeOrbit<span class="w"> </span><span class="m">20</span><span class="w"> </span>frame<span class="w"> </span><span class="m">123</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">151</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2016</span>-12-13<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2026</span>-02-24
-</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>relativeOrbit<span class="w"> </span><span class="m">93</span><span class="w"> </span>frame<span class="w"> </span><span class="m">116</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">85</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2014</span>-11-05<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2021</span>-12-16
-</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>relativeOrbit<span class="w"> </span><span class="m">93</span><span class="w"> </span>frame<span class="w"> </span><span class="m">117</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">25</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2015</span>-03-29<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2026</span>-03-01
-</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>relativeOrbit<span class="w"> </span><span class="m">93</span><span class="w"> </span>frame<span class="w"> </span><span class="m">118</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">5</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2016</span>-10-07<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2017</span>-01-11
-</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>relativeOrbit<span class="w"> </span><span class="m">93</span><span class="w"> </span>frame<span class="w"> </span><span class="m">119</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2017</span>-02-10<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2017</span>-02-10
-</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>relativeOrbit<span class="w"> </span><span class="m">93</span><span class="w"> </span>frame<span class="w"> </span><span class="m">120</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">14</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2015</span>-11-12<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2025</span>-07-04
-</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>relativeOrbit<span class="w"> </span><span class="m">93</span><span class="w"> </span>frame<span class="w"> </span><span class="m">121</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">85</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2014</span>-11-05<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2021</span>-12-16
-</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>relativeOrbit<span class="w"> </span><span class="m">93</span><span class="w"> </span>frame<span class="w"> </span><span class="m">122</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">22</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2025</span>-05-05<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2026</span>-03-01
-</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>
-</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="o">===</span><span class="w"> </span>DESCENDING<span class="w"> </span>ORBITS<span class="w"> </span><span class="o">(</span><span class="m">4</span><span class="w"> </span>Stacks<span class="o">)</span><span class="w"> </span><span class="o">===</span>
-</span><span id="__span-7-18"><a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a>relativeOrbit<span class="w"> </span><span class="m">100</span><span class="w"> </span>frame<span class="w"> </span><span class="m">464</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">119</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2015</span>-11-24<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2026</span>-02-23
-</span><span id="__span-7-19"><a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a>relativeOrbit<span class="w"> </span><span class="m">100</span><span class="w"> </span>frame<span class="w"> </span><span class="m">465</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2014</span>-11-29<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2017</span>-01-05
-</span><span id="__span-7-20"><a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a>relativeOrbit<span class="w"> </span><span class="m">100</span><span class="w"> </span>frame<span class="w"> </span><span class="m">466</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">161</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2017</span>-02-22<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2022</span>-07-02
-</span><span id="__span-7-21"><a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a>relativeOrbit<span class="w"> </span><span class="m">100</span><span class="w"> </span>frame<span class="w"> </span><span class="m">469</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">119</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2015</span>-11-24<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2026</span>-02-23
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>...
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="o">===</span><span class="w"> </span>DESCENDING<span class="w"> </span>ORBITS<span class="w"> </span><span class="o">(</span><span class="m">4</span><span class="w"> </span>Stacks<span class="o">)</span><span class="w"> </span><span class="o">===</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>relativeOrbit<span class="w"> </span><span class="m">100</span><span class="w"> </span>frame<span class="w"> </span><span class="m">464</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">119</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2015</span>-11-24<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2026</span>-02-23
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>relativeOrbit<span class="w"> </span><span class="m">100</span><span class="w"> </span>frame<span class="w"> </span><span class="m">466</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">161</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2017</span>-02-22<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2022</span>-07-02
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>...
 </span></code></pre></div>
 </details>
-<p>The program identified 18 potential stacks (14 ascending, 4 descending). We can narrowed the dataset to the descending track Path 100, Frame 466 in year 2020 by:</p>
+<p>程序识别出 18 个潜在堆叠。筛选至 2020 年降轨轨道 Path 100、Frame 466：</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">filter_results</span> <span class="o">=</span> <span class="n">s1</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">path_frame</span><span class="o">=</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span><span class="mi">466</span><span class="p">),</span> <span class="n">start</span><span class="o">=</span><span class="s1">'2020-01-01'</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">'2020-12-31'</span><span class="p">)</span>
 </span></code></pre></div>
-<p>Check back the footprint and summary:
-</p><div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">s1</span><span class="o">.</span><span class="n">footprint</span><span class="p">()</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="n">s1</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
-</span></code></pre></div>
-would return: <p></p>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/footprint_picked.png" data-desc-position="bottom"><img alt="filtered_results_footprint" src="../fig/footprint_picked.png" style="width:500px; display: block; margin: auto;"></a>
-</p><div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="o">===</span> <span class="n">DESCENDING</span> <span class="n">ORBITS</span> <span class="p">(</span><span class="mi">1</span> <span class="n">Stacks</span><span class="p">)</span> <span class="o">===</span>
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">Path</span> <span class="mi">100</span> <span class="n">Frame</span> <span class="mi">466</span> <span class="o">|</span> <span class="n">Count</span><span class="p">:</span> <span class="mi">30</span> <span class="o">|</span> <span class="mi">2020</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span> <span class="o">--&gt;</span> <span class="mi">2020</span><span class="o">-</span><span class="mi">12</span><span class="o">-</span><span class="mi">27</span>
+<p>使用 <code>download</code> 下载搜索到的 <abbr title="单视复数">SLC</abbr> 数据：
+</p><div class="language-text highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>s1.download()
 </span></code></pre></div><p></p>
-<p>Use <code>download</code> to download searched <abbr title="Single Look Complex">SLC</abbr> data
-</p><div class="language-text highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>s1.download()
+<p>使用 <code>reset</code> 恢复原始搜索结果：
+</p><div class="language-text highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>s1.reset()
 </span></code></pre></div><p></p>
-<p>Use <code>reset</code> to restore original search results. 
-</p><div class="language-text highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>s1.reset()
-</span></code></pre></div><p></p>
-<h3 id="interferogram">Interferogram</h3>
-<p>After locating SAR scene stack(s), generate unwrapped interferograms for time-series analysis. InSARHub supports two processing backends — select one below:</p>
+<h3 id="_7">干涉图</h3>
+<p>定位 SAR 场景堆叠后，下一步是生成解缠干涉图以准备时序分析。选择处理后端：</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="sentinel-1-hyp3" name="__tabbed_1" type="radio"><input id="sentinel-1-isce2" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="sentinel-1-hyp3">Sentinel-1 HyP3</label><label for="sentinel-1-isce2">Sentinel-1 ISCE2</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<p>Cloud-based processing via <a href="https://hyp3-docs.asf.alaska.edu/"><abbr title="Alaska Satellite Facility">ASF</abbr> HyP3</a> — no local ISCE2 required.</p>
-<p>Select interferogram pairs and submit to HyP3:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Processor</span>
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot_pair_network</span>
-</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>
-</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="n">pair_stacks</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">scene_bperp</span> <span class="o">=</span> <span class="n">s1</span><span class="o">.</span><span class="n">select_pairs</span><span class="p">(</span><span class="n">max_degree</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
-</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="n">fig</span> <span class="o">=</span> <span class="n">plot_pair_network</span><span class="p">(</span><span class="n">pair_stacks</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">scene_bperp</span><span class="p">)</span>
-</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="n">fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<p>基于云端的处理，通过 <a href="https://hyp3-docs.asf.alaska.edu/"><abbr title="Alaska Satellite Facility">ASF</abbr> HyP3</a> 进行，无需本地安装 ISCE2。</p>
+<p>选择干涉图配对并提交至 HyP3：</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Processor</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot_pair_network</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="n">pair_stacks</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">scene_bperp</span> <span class="o">=</span> <span class="n">s1</span><span class="o">.</span><span class="n">select_pairs</span><span class="p">(</span><span class="n">max_degree</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="n">fig</span> <span class="o">=</span> <span class="n">plot_pair_network</span><span class="p">(</span><span class="n">pair_stacks</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">scene_bperp</span><span class="p">)</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="n">fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </span></code></pre></div>
-<p>If the network looks healthy, submit the pairs:</p>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/ifgs_network.png" data-desc-position="bottom"><img alt="networks" auto_="auto;&quot;" margin:="margin:" src="../fig/ifgs_network.png"></a></p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">for</span> <span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">frame</span><span class="p">),</span> <span class="n">pairs</span> <span class="ow">in</span> <span class="n">pair_stacks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>    <span class="n">processor</span> <span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'Hyp3_S1'</span><span class="p">,</span> <span class="n">pairs</span><span class="o">=</span><span class="n">pairs</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="sa">f</span><span class="s1">'your/directory/p</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">_f</span><span class="si">{</span><span class="n">frame</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
-</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    <span class="n">processor</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>
-</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>    <span class="n">processor</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+<p>若网络连通性良好，提交配对：</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../quickstart/fig/ifgs_network.png" data-desc-position="bottom"><img alt="networks" auto_="auto;&quot;" margin:="margin:" src="../../../quickstart/fig/ifgs_network.png"></a></p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">for</span> <span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">frame</span><span class="p">),</span> <span class="n">pairs</span> <span class="ow">in</span> <span class="n">pair_stacks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>    <span class="n">processor</span> <span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'Hyp3_S1'</span><span class="p">,</span> <span class="n">pairs</span><span class="o">=</span><span class="n">pairs</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="sa">f</span><span class="s1">'your/directory/p</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">_f</span><span class="si">{</span><span class="n">frame</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>    <span class="n">processor</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>    <span class="n">processor</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
 </span></code></pre></div>
-<p>This generates <code>hyp3_jobs.json</code> in the work directory. Processing takes ~30 minutes per 100 interferograms.</p>
-<p>To check status and download results:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">processor_reload</span> <span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'Hyp3_S1'</span><span class="p">,</span> <span class="n">saved_job_path</span><span class="o">=</span><span class="s1">'your/directory/p100_f466/hyp3_jobs.json'</span><span class="p">)</span>
-</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="n">processor_reload</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
-</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="n">processor_reload</span><span class="o">.</span><span class="n">download</span><span class="p">()</span>
+<p>在工作目录中生成 <code>hyp3_jobs.json</code>。每 100 个干涉图处理约需 30 分钟。</p>
+<p>查看状态并下载结果：</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">processor_reload</span> <span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'Hyp3_S1'</span><span class="p">,</span> <span class="n">saved_job_path</span><span class="o">=</span><span class="s1">'your/directory/p100_f466/hyp3_jobs.json'</span><span class="p">)</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="n">processor_reload</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="n">processor_reload</span><span class="o">.</span><span class="n">download</span><span class="p">()</span>
 </span></code></pre></div>
-<details class="output">
-<summary>Output</summary>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>User: jldz9asf (65 jobs)
-</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
-</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>    JOB NAME                            JOB ID                                 STATUS
-</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>- ifg_20201016T133502_20201109T133501 961b4d1c-df15-4272-843f-390c98f14f50 | SUCCEEDED
-</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>- ifg_20200829T133500_20200910T133501 a449ebf8-1dbc-4a41-a1ae-a6d30deb1fd2 | SUCCEEDED
-</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>...
+<details class="输出">
+<summary>输出</summary>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>User: jldz9asf (65 jobs)
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    JOB NAME                            JOB ID                                 STATUS
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>- ifg_20201016T133502_20201109T133501 961b4d1c-df15-4272-843f-390c98f14f50 | SUCCEEDED
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>- ifg_20200829T133500_20200910T133501 a449ebf8-1dbc-4a41-a1ae-a6d30deb1fd2 | SUCCEEDED
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>...
 </span></code></pre></div>
 </details>
 </div>
 <div class="tabbed-block">
-<p>Local on-premise processing using <a href="https://github.com/isce-framework/isce2">ISCE2</a> <code>stackSentinel</code>. Requires ISCE2 installed (see <a href="../install/">Installation</a>) and <abbr title="Single Look Complex">SLC</abbr> <code>.SAFE</code> files downloaded first (<code>s1.download()</code>).</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Processor</span>
-</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ISCE_S1_Config</span>
-</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>
-</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="k">for</span> <span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">frame</span><span class="p">),</span> <span class="n">pairs</span> <span class="ow">in</span> <span class="n">pair_stacks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>    <span class="n">cfg</span> <span class="o">=</span> <span class="n">ISCE_S1_Config</span><span class="p">(</span>
-</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>        <span class="n">workdir</span><span class="o">=</span><span class="sa">f</span><span class="s1">'your/directory/p</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">_f</span><span class="si">{</span><span class="n">frame</span><span class="si">}</span><span class="s1">'</span><span class="p">,</span>
-</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>        <span class="n">bbox</span><span class="o">=</span><span class="p">[</span><span class="mf">37.74</span><span class="p">,</span> <span class="mf">38.00</span><span class="p">,</span> <span class="o">-</span><span class="mf">113.05</span><span class="p">,</span> <span class="o">-</span><span class="mf">112.68</span><span class="p">],</span>   <span class="c1"># [S, N, W, E]</span>
-</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>        <span class="n">slc_dir</span><span class="o">=</span><span class="sa">f</span><span class="s1">'your/directory/p</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">_f</span><span class="si">{</span><span class="n">frame</span><span class="si">}</span><span class="s1">/slc'</span><span class="p">,</span>
-</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>    <span class="p">)</span>
-</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>    <span class="n">processor</span> <span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE_S1'</span><span class="p">,</span> <span class="n">pairs</span><span class="o">=</span><span class="n">pairs</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">cfg</span><span class="p">)</span>
-</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>    <span class="n">processor</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>   <span class="c1"># starts processing in the background</span>
+<p>使用 <a href="https://github.com/isce-framework/isce2">ISCE2</a> <code>stackSentinel</code> 进行本地处理。需先安装 ISCE2（见<a href="../install/">安装说明</a>）并下载 <abbr title="单视复数">SLC</abbr> <code>.SAFE</code> 文件（使用 <code>s1.download()</code>）。</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Processor</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ISCE_S1_Config</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="k">for</span> <span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">frame</span><span class="p">),</span> <span class="n">pairs</span> <span class="ow">in</span> <span class="n">pair_stacks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    <span class="n">cfg</span> <span class="o">=</span> <span class="n">ISCE_S1_Config</span><span class="p">(</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>        <span class="n">workdir</span><span class="o">=</span><span class="sa">f</span><span class="s1">'your/directory/p</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">_f</span><span class="si">{</span><span class="n">frame</span><span class="si">}</span><span class="s1">'</span><span class="p">,</span>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>        <span class="n">bbox</span><span class="o">=</span><span class="p">[</span><span class="mf">37.74</span><span class="p">,</span> <span class="mf">38.00</span><span class="p">,</span> <span class="o">-</span><span class="mf">113.05</span><span class="p">,</span> <span class="o">-</span><span class="mf">112.68</span><span class="p">],</span>   <span class="c1"># [南, 北, 西, 东]</span>
+</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>        <span class="n">slc_dir</span><span class="o">=</span><span class="sa">f</span><span class="s1">'your/directory/p</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">_f</span><span class="si">{</span><span class="n">frame</span><span class="si">}</span><span class="s1">/slc'</span><span class="p">,</span>
+</span><span id="__span-15-9"><a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>    <span class="p">)</span>
+</span><span id="__span-15-10"><a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>    <span class="n">processor</span> <span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE_S1'</span><span class="p">,</span> <span class="n">pairs</span><span class="o">=</span><span class="n">pairs</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">cfg</span><span class="p">)</span>
+</span><span id="__span-15-11"><a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>    <span class="n">processor</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>   <span class="c1"># 在后台启动处理</span>
 </span></code></pre></div>
 <div class="admonition tip">
-<p class="admonition-title">Dry run first</p>
-<p>Add <code>dry_run=True</code> to <code>ISCE_S1_Config</code> to preview run scripts without executing.</p>
+<p class="admonition-title">建议先进行试运行</p>
+<p>在 <code>ISCE_S1_Config</code> 中添加 <code>dry_run=True</code> 可预览运行脚本和路径检查，而不执行任何操作。</p>
 </div>
-<p>Monitor progress and wait for completion:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">processor</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>                      <span class="c1"># prints step table</span>
-</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="n">processor</span><span class="o">.</span><span class="n">watch</span><span class="p">(</span><span class="n">refresh_interval</span><span class="o">=</span><span class="mi">120</span><span class="p">)</span>    <span class="c1"># blocks until all steps finish</span>
+<p>监控步骤进度并等待完成：</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="n">processor</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>                      <span class="c1"># 打印步骤状态表</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="n">processor</span><span class="o">.</span><span class="n">watch</span><span class="p">(</span><span class="n">refresh_interval</span><span class="o">=</span><span class="mi">120</span><span class="p">)</span>    <span class="c1"># 阻塞直到所有步骤完成</span>
 </span></code></pre></div>
-<details class="output">
-<summary>Output</summary>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>  STEP                                          STATUS
-</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>-----------------------------------------------------------------
-</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>  - run_01_unpack_topo_reference                SUCCEEDED
-</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>  - run_02_unpack_secondary_slc                 RUNNING
-</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>      cmd_0000  SUCCEEDED
-</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>      cmd_0001  RUNNING
-</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a>      cmd_0002  PENDING
-</span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>  - run_03_average_baseline                     PENDING
-</span><span id="__span-19-9"><a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>  ...
+<details class="输出">
+<summary>输出</summary>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>  STEP                                          STATUS
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>-----------------------------------------------------------------
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>  - run_01_unpack_topo_reference                SUCCEEDED
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>  - run_02_unpack_secondary_slc                 RUNNING
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>      cmd_0000  SUCCEEDED
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>      cmd_0001  RUNNING
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>      cmd_0002  PENDING
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>  - run_03_average_baseline                     PENDING
+</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>  ...
 </span></code></pre></div>
 </details>
-<p>Once all steps show <code>SUCCEEDED</code>, interferograms are in <code>workdir/isce/merged/interferograms/</code>.</p>
+<p>所有步骤显示 <code>SUCCEEDED</code> 后，干涉图位于 <code>workdir/isce/merged/interferograms/</code>。</p>
 </div>
 </div>
 </div>
-<h3 id="time-series-analysis">Time-series Analysis</h3>
-<p>After generating interferograms, run MintPy <abbr title="Small Baseline Subset">SBAS</abbr> time-series analysis using the matching analyzer:</p>
+<h3 id="_8">时序分析</h3>
+<p>生成干涉图后，使用对应的分析器运行 MintPy <abbr title="小基线集">SBAS</abbr> 时序分析：</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="sentinel-1-hyp3_1" name="__tabbed_2" type="radio"><input id="sentinel-1-isce2_1" name="__tabbed_2" type="radio"><div class="tabbed-labels"><label for="sentinel-1-hyp3_1">Sentinel-1 HyP3</label><label for="sentinel-1-isce2_1">Sentinel-1 ISCE2</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Analyzer</span>
-</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>
-</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="n">workdir</span> <span class="o">=</span> <span class="s1">'your/directory/p100_f466'</span>
-</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="n">analyzer</span> <span class="o">=</span> <span class="n">Analyzer</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'Hyp3_SBAS'</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">)</span>
-</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">prep_data</span><span class="p">()</span>
-</span><span id="__span-20-6"><a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Analyzer</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="n">workdir</span> <span class="o">=</span> <span class="s1">'your/directory/p100_f466'</span>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="n">analyzer</span> <span class="o">=</span> <span class="n">Analyzer</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'Hyp3_SBAS'</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">)</span>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">prep_data</span><span class="p">()</span>
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Analyzer</span>
-</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>
-</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="n">workdir</span> <span class="o">=</span> <span class="s1">'your/directory/p100_f466'</span>
-</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="n">analyzer</span> <span class="o">=</span> <span class="n">Analyzer</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE_SBAS'</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">)</span>
-</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">prep_data</span><span class="p">()</span>   <span class="c1"># auto-discovers ISCE2 outputs, writes mintpy/.mintpy.cfg</span>
-</span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>         <span class="c1"># all MintPy outputs written to workdir/mintpy/</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Analyzer</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="n">workdir</span> <span class="o">=</span> <span class="s1">'your/directory/p100_f466'</span>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="n">analyzer</span> <span class="o">=</span> <span class="n">Analyzer</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE_SBAS'</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">)</span>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">prep_data</span><span class="p">()</span>   <span class="c1"># 自动发现 ISCE2 输出，写入 mintpy/.mintpy.cfg</span>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>         <span class="c1"># 所有 MintPy 输出写入 workdir/mintpy/</span>
 </span></code></pre></div>
 </div>
 </div>
 </div>
+<h3 id="_9">后处理</h3>
+<p>通常由 MintPy 等分析器自动处理后处理步骤。</p>
 
 
 
@@ -1720,7 +1722,7 @@ would return: <p></p>
           <button type="button" class="md-top md-icon" data-md-component="top" hidden="">
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
-  Back to top
+  回到页面顶部
 </button>
         
       </main>
@@ -1775,10 +1777,10 @@ would return: <p></p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   

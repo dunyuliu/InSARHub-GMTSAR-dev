@@ -1,37 +1,39 @@
-<!DOCTYPE html><html lang="en" class="no-js"><head>
+<!DOCTYPE html><html lang="zh" class="no-js"><head>
     
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
       
       
-        <link rel="canonical" href="https://jldz9.github.io/InSARHub/dev/advanced/frontend/">
+        <link rel="canonical" href="https://jldz9.github.io/InSARHub/dev/zh/advanced/file_structure/">
       
       
-        <link rel="prev" href="../pair_quality/">
+        <link rel="prev" href="../../frontend/results/">
       
+      
+        <link rel="next" href="../downloader/">
       
       
         
-          <link rel="alternate" href="./" hreflang="en">
+          <link rel="alternate" href="../../../advanced/file_structure/" hreflang="en">
         
-          <link rel="alternate" href="../../zh/advanced/frontend/" hreflang="zh">
+          <link rel="alternate" href="./" hreflang="zh">
         
       
       
-      <link rel="icon" href="../../assets/images/favicon.png">
+      <link rel="icon" href="../../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>Frontend Reference - InSARHub</title>
+        <title>文件结构 - InSARHub</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -50,11 +52,13 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
     
-      <link rel="stylesheet" href="../../stylesheets/extra.css">
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -62,7 +66,7 @@
     
   
 
-  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+  <link href="../../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
             html.glightbox-open { overflow: initial; height: 100%; }
             .gslide-title { margin-top: 0px; user-select: text; }
             .gslide-desc { color: #666; user-select: text; }
@@ -91,8 +95,8 @@
     <div data-md-component="skip">
       
         
-        <a href="#frontend-reference" class="md-skip">
-          Skip to content
+        <a href="#_1" class="md-skip">
+          跳转至
         </a>
       
     </div>
@@ -111,8 +115,8 @@
   
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
-  <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="InSARHub" class="md-header__button md-logo" aria-label="InSARHub" data-md-component="logo">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../../" title="InSARHub" class="md-header__button md-logo" aria-label="InSARHub" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
@@ -132,7 +136,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Frontend Reference
+              文件结构
             
           </span>
         </div>
@@ -172,20 +176,20 @@
       <div class="md-header__option">
   <div class="md-select">
     
-    <button class="md-header__button md-icon" aria-label="Select language">
+    <button class="md-header__button md-icon" aria-label="选择当前语言">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"></path></svg>
     </button>
     <div class="md-select__inner">
       <ul class="md-select__list">
         
           <li class="md-select__item">
-            <a href="./" hreflang="en" class="md-select__link">
+            <a href="../../../advanced/file_structure/" hreflang="en" class="md-select__link">
               English
             </a>
           </li>
         
           <li class="md-select__item">
-            <a href="../../zh/advanced/frontend/" hreflang="zh" class="md-select__link">
+            <a href="./" hreflang="zh" class="md-select__link">
               中文
             </a>
           </li>
@@ -206,16 +210,16 @@
   <label class="md-search__overlay" for="__search"></label>
   <div class="md-search__inner" role="search">
     <form class="md-search__form" name="search">
-      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
       <label class="md-search__icon md-icon" for="__search">
         
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
         
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
       </label>
-      <nav class="md-search__options" aria-label="Search">
+      <nav class="md-search__options" aria-label="查找">
         
-        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
           
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
         </button>
@@ -228,7 +232,7 @@
       <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
         <div class="md-search-result" data-md-component="search-result">
           <div class="md-search-result__meta">
-            Initializing search
+            正在初始化搜索引擎
           </div>
           <ol class="md-search-result__list" role="presentation"></ol>
         </div>
@@ -240,7 +244,7 @@
     
     
       <div class="md-header__source">
-        <a href="https://github.com/jldz9/InSARHub" title="Go to repository" class="md-source" data-md-component="source">
+        <a href="https://github.com/jldz9/InSARHub" title="前往仓库" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
@@ -255,7 +259,7 @@
   
     
       
-<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
   <div class="md-grid">
     <ul class="md-tabs__list">
       
@@ -265,13 +269,13 @@
   
   
     <li class="md-tabs__item">
-      <a href="../.." class="md-tabs__link">
+      <a href="../../" class="md-tabs__link">
         
   
   
     
   
-  Home
+  主页
 
       </a>
     </li>
@@ -290,7 +294,7 @@
           
   
   
-  QuickStart
+  快速开始
 
         </a>
       </li>
@@ -310,7 +314,7 @@
           
   
   
-  Web UI
+  Web 界面
 
         </a>
       </li>
@@ -328,11 +332,11 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="../file_structure/" class="md-tabs__link">
+        <a href="./" class="md-tabs__link">
           
   
   
-  Advanced
+  高级
 
         </a>
       </li>
@@ -399,9 +403,9 @@
   
 
 
-<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="InSARHub" class="md-nav__button md-logo" aria-label="InSARHub" data-md-component="logo">
+    <a href="../../" title="InSARHub" class="md-nav__button md-logo" aria-label="InSARHub" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
@@ -411,7 +415,7 @@
   </label>
   
     <div class="md-nav__source">
-      <a href="https://github.com/jldz9/InSARHub" title="Go to repository" class="md-source" data-md-component="source">
+      <a href="https://github.com/jldz9/InSARHub" title="前往仓库" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
@@ -431,14 +435,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href="../../" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Home
+    主页
   
 
     
@@ -483,7 +487,7 @@
   <span class="md-ellipsis">
     
   
-    QuickStart
+    快速开始
   
 
     
@@ -499,7 +503,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    QuickStart
+    快速开始
   
 
           </label>
@@ -519,7 +523,7 @@
   <span class="md-ellipsis">
     
   
-    Installation
+    安装
   
 
     
@@ -547,7 +551,7 @@
   <span class="md-ellipsis">
     
   
-    API Setup
+    API 配置
   
 
     
@@ -593,7 +597,7 @@
   <span class="md-ellipsis">
     
   
-    Running
+    运行
   
 
     
@@ -609,7 +613,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Running
+    运行
   
 
           </label>
@@ -657,7 +661,7 @@
   <span class="md-ellipsis">
     
   
-    CLI
+    命令行
   
 
     
@@ -718,7 +722,7 @@
   <span class="md-ellipsis">
     
   
-    Web UI
+    Web 界面
   
 
     
@@ -734,7 +738,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Web UI
+    Web 界面
   
 
           </label>
@@ -754,7 +758,7 @@
   <span class="md-ellipsis">
     
   
-    Overview
+    概览
   
 
     
@@ -782,7 +786,7 @@
   <span class="md-ellipsis">
     
   
-    Search &amp; Download
+    搜索与下载
   
 
     
@@ -810,7 +814,7 @@
   <span class="md-ellipsis">
     
   
-    Processor
+    处理器
   
 
     
@@ -838,7 +842,7 @@
   <span class="md-ellipsis">
     
   
-    Analyzer
+    分析器
   
 
     
@@ -866,7 +870,7 @@
   <span class="md-ellipsis">
     
   
-    Results Viewer
+    结果查看器
   
 
     
@@ -922,7 +926,7 @@
   <span class="md-ellipsis">
     
   
-    Advanced
+    高级
   
 
     
@@ -938,7 +942,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Advanced
+    高级
   
 
           </label>
@@ -948,17 +952,44 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../file_structure/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    文件结构
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
   <span class="md-ellipsis">
     
   
-    File Structure
+    文件结构
   
 
     
@@ -967,6 +998,176 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        目录结构
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        各阶段文件
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="各阶段文件">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        第一阶段 — 配对选择
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-dem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        第一阶段 b — DEM 下载
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        第二阶段 — 任务提交
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        第三阶段 — 分析
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#json" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        主要 JSON 文件格式
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="主要 JSON 文件格式">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#insarhub_configjson" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        insarhub_config.json
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stack_ppath_fframejson" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        stack_p{path}_f{frame}.json
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hyp3_jobsjson" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hyp3_jobs.json
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        内部缓存文件
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="内部缓存文件">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#decay_maps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        decay_maps/
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -986,7 +1187,7 @@
   <span class="md-ellipsis">
     
   
-    Downloader
+    下载器
   
 
     
@@ -1014,7 +1215,7 @@
   <span class="md-ellipsis">
     
   
-    Processor
+    处理器
   
 
     
@@ -1042,7 +1243,7 @@
   <span class="md-ellipsis">
     
   
-    Analyzer
+    分析器
   
 
     
@@ -1070,7 +1271,7 @@
   <span class="md-ellipsis">
     
   
-    Utilities
+    工具集
   
 
     
@@ -1098,7 +1299,7 @@
   <span class="md-ellipsis">
     
   
-    Pair Quality Scoring
+    配对质量评分
   
 
     
@@ -1116,44 +1317,17 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Frontend Reference
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../frontend/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Frontend Reference
+    前端参考
   
 
     
@@ -1162,237 +1336,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
-      
-        <li class="md-nav__item">
-  <a href="#downloader-panel" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Downloader Panel
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Downloader Panel">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#config-tab" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Config Tab
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#actions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Actions
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#select-pairs-dialog" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Select Pairs Dialog
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#processor-panel" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Processor Panel
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Processor Panel">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#hyp3-job-files" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        HyP3 Job Files
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#actions_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Actions
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#analyzer-panel" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Analyzer Panel
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Analyzer Panel">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#step-checklist" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step Checklist
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#buttons" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Buttons
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#config-per-analyzer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Config (per-analyzer)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#mintpy-results-viewer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        MintPy Results Viewer
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="MintPy Results Viewer">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#timeseries-file-selector" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Timeseries File Selector
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#plot-button" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Plot Button
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#velocity-map" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Velocity Map
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#pixel-time-series" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Pixel Time Series
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#keyboard-mouse-reference" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Keyboard &amp; Mouse Reference
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1418,7 +1361,7 @@
                   <div class="md-sidebar__inner">
                     
 
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+<nav class="md-nav md-nav--secondary" aria-label="目录">
   
   
   
@@ -1427,27 +1370,38 @@
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      Table of contents
+      目录
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#downloader-panel" class="md-nav__link">
+  <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Downloader Panel
+        目录结构
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Downloader Panel">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        各阶段文件
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="各阶段文件">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#config-tab" class="md-nav__link">
+  <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Config Tab
+        第一阶段 — 配对选择
       
     </span>
   </a>
@@ -1455,10 +1409,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#actions" class="md-nav__link">
+  <a href="#b-dem" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Actions
+        第一阶段 b — DEM 下载
       
     </span>
   </a>
@@ -1466,10 +1420,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#select-pairs-dialog" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Select Pairs Dialog
+        第二阶段 — 任务提交
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        第三阶段 — 分析
       
     </span>
   </a>
@@ -1482,22 +1447,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#processor-panel" class="md-nav__link">
+  <a href="#json" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Processor Panel
+        主要 JSON 文件格式
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Processor Panel">
+    <nav class="md-nav" aria-label="主要 JSON 文件格式">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#hyp3-job-files" class="md-nav__link">
+  <a href="#insarhub_configjson" class="md-nav__link">
     <span class="md-ellipsis">
       
-        HyP3 Job Files
+        insarhub_config.json
       
     </span>
   </a>
@@ -1505,10 +1470,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#actions_1" class="md-nav__link">
+  <a href="#stack_ppath_fframejson" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Actions
+        stack_p{path}_f{frame}.json
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hyp3_jobsjson" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hyp3_jobs.json
       
     </span>
   </a>
@@ -1521,44 +1497,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#analyzer-panel" class="md-nav__link">
+  <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Analyzer Panel
+        内部缓存文件
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Analyzer Panel">
+    <nav class="md-nav" aria-label="内部缓存文件">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#step-checklist" class="md-nav__link">
+  <a href="#decay_maps" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step Checklist
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#buttons" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Buttons
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#config-per-analyzer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Config (per-analyzer)
+        decay_maps/
       
     </span>
   </a>
@@ -1567,78 +1521,6 @@
         
       </ul>
     </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#mintpy-results-viewer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        MintPy Results Viewer
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="MintPy Results Viewer">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#timeseries-file-selector" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Timeseries File Selector
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#plot-button" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Plot Button
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#velocity-map" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Velocity Map
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#pixel-time-series" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Pixel Time Series
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#keyboard-mouse-reference" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Keyboard &amp; Mouse Reference
-      
-    </span>
-  </a>
   
 </li>
       
@@ -1662,291 +1544,240 @@
   
 
 
-<h1 id="frontend-reference">Frontend Reference</h1>
-<p>Detailed reference for every panel in the InSARHub web interface.</p>
-<h2 id="downloader-panel">Downloader Panel</h2>
-<p>Open by clicking the <strong>Downloader</strong> tag on a job folder.</p>
-<h3 id="config-tab">Config Tab</h3>
-<p>Shows the downloader configuration stored in <code>insarhub_config.json</code>. Click any row to copy the value.</p>
-<h3 id="actions">Actions</h3>
-<table>
-<thead>
-<tr>
-<th>Button</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>View Network</strong></td>
-<td>Display the interferometric network graph</td>
-</tr>
-<tr>
-<td><strong>View Pairs</strong></td>
-<td>List all selected interferogram pairs</td>
-</tr>
-<tr>
-<td><strong>Select Pairs</strong></td>
-<td>Open the pair selection dialog — configure <code>dt_targets</code>, tolerances, and degree limits</td>
-</tr>
-<tr>
-<td><strong>Download</strong></td>
-<td>Download all available HyP3 interferograms to disk</td>
-</tr>
-<tr>
-<td><strong>Submit</strong></td>
-<td>Submit selected pairs to the processor (HyP3)</td>
-</tr>
-</tbody>
-</table>
-<h3 id="select-pairs-dialog">Select Pairs Dialog</h3>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>dt targets</strong></td>
-<td>Comma-separated temporal baselines (days) to target, e.g. <code>12, 24, 48</code></td>
-</tr>
-<tr>
-<td><strong>dt tolerance</strong></td>
-<td>Allowed deviation from each target (days)</td>
-</tr>
-<tr>
-<td><strong>dt max</strong></td>
-<td>Maximum temporal baseline (days)</td>
-</tr>
-<tr>
-<td><strong>Min / Max degree</strong></td>
-<td>Min and max connections per scene in the network</td>
-</tr>
-<tr>
-<td><strong>Force connect</strong></td>
-<td>Ensure no isolated scenes in the network</td>
-</tr>
-</tbody>
-</table>
+<h1 id="_1">文件结构</h1>
+<p>InSARHub 在流程推进过程中会向磁盘写入一组一致的文件。每个阶段都会在工作目录中添加文件 — 从配对选择到分析，始终使用同一文件夹，因此可以通过查看哪些文件存在来判断文件夹的处理进度。</p>
 <hr>
-<h2 id="processor-panel">Processor Panel</h2>
-<p>Open by clicking the <strong>Processor</strong> tag on a job folder.</p>
-<h3 id="hyp3-job-files">HyP3 Job Files</h3>
-<p>Lists all <code>hyp3_jobs.json</code> files in the folder. Select one to act on it.</p>
-<h3 id="actions_1">Actions</h3>
-<table>
-<thead>
-<tr>
-<th>Button</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Refresh</strong></td>
-<td>Poll HyP3 for current job statuses</td>
-</tr>
-<tr>
-<td><strong>Retry</strong></td>
-<td>Re-submit any failed jobs</td>
-</tr>
-<tr>
-<td><strong>Download</strong></td>
-<td>Download all succeeded interferograms</td>
-</tr>
-<tr>
-<td><strong>Stop</strong></td>
-<td>Cancel an in-progress download</td>
-</tr>
-</tbody>
-</table>
-<hr>
-<h2 id="analyzer-panel">Analyzer Panel</h2>
-<p>Open by clicking the <strong>Analyzer</strong> tag on a job folder.</p>
-<h3 id="step-checklist">Step Checklist</h3>
-<p>Each MintPy processing step is shown with a checkbox. Select the steps you want to run:</p>
-<table>
-<thead>
-<tr>
-<th>Step</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>prep_data</code></td>
-<td>Prepare and clip HyP3 products, write <code>mintpy.cfg</code></td>
-</tr>
-<tr>
-<td><code>load_data</code></td>
-<td>Load interferograms into MintPy HDF5 stack</td>
-</tr>
-<tr>
-<td><code>modify_network</code></td>
-<td>Remove low-coherence interferograms</td>
-</tr>
-<tr>
-<td><code>reference_point</code></td>
-<td>Select a stable reference pixel</td>
-</tr>
-<tr>
-<td><code>quick_overview</code></td>
-<td>Generate diagnostic overview layers (coherence, phase velocity, unwrapping errors, connected component mask) — enables the <strong>Overview</strong> button</td>
-</tr>
-<tr>
-<td><code>invert_network</code></td>
-<td>SBAS inversion → timeseries</td>
-</tr>
-<tr>
-<td><code>correct_LOD</code></td>
-<td>Correct local oscillator drift</td>
-</tr>
-<tr>
-<td><code>correct_SET</code></td>
-<td>Solid Earth tide correction</td>
-</tr>
-<tr>
-<td><code>correct_troposphere</code></td>
-<td>Tropospheric delay correction</td>
-</tr>
-<tr>
-<td><code>deramp</code></td>
-<td>Remove ramp signal</td>
-</tr>
-<tr>
-<td><code>correct_topography</code></td>
-<td>DEM error correction</td>
-</tr>
-<tr>
-<td><code>residual_RMS</code></td>
-<td>Compute residual RMS</td>
-</tr>
-<tr>
-<td><code>reference_date</code></td>
-<td>Set reference date</td>
-</tr>
-<tr>
-<td><code>velocity</code></td>
-<td>Estimate linear velocity map</td>
-</tr>
-<tr>
-<td><code>geocode</code></td>
-<td>Geocode results to geographic coordinates</td>
-</tr>
-<tr>
-<td><code>hdfeos5</code></td>
-<td>Export to HDF-EOS5 format</td>
-</tr>
-</tbody>
-</table>
-<h3 id="buttons">Buttons</h3>
-<table>
-<thead>
-<tr>
-<th>Button</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>All / None</strong></td>
-<td>Select or deselect all steps</td>
-</tr>
-<tr>
-<td><strong>Config</strong></td>
-<td>Open Settings → Analyzer tab for this analyzer type</td>
-</tr>
-<tr>
-<td><strong>Run N steps</strong></td>
-<td>Run the selected steps in order</td>
-</tr>
-<tr>
-<td><strong>Stop</strong></td>
-<td>Cancel after the current step finishes</td>
-</tr>
-<tr>
-<td><strong>Cleanup</strong></td>
-<td>Remove temporary directories and zip archives</td>
-</tr>
-</tbody>
-</table>
-<h3 id="config-per-analyzer">Config (per-analyzer)</h3>
-<p>Each analyzer type stores its own configuration independently. Changes to <code>Hyp3_SBAS</code> config never affect <code>Mintpy_SBAS_Base</code> config and vice versa. Open via the <strong>Config</strong> button or Settings → Analyzer tab.</p>
-<hr>
-<h2 id="mintpy-results-viewer">MintPy Results Viewer</h2>
-<p>Available after the <code>velocity</code> step completes. Click <strong>View Results</strong> in the Analyzer panel.</p>
-<h3 id="timeseries-file-selector">Timeseries File Selector</h3>
-<p>Lists all available <code>timeseries*.h5</code> files in the folder, ordered by quality:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>timeseries_ERA5_ramp_demErr.h5   ← best (all corrections applied)
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>timeseries_ERA5_ramp.h5
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>timeseries_ERA5_demErr.h5
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>timeseries_ERA5.h5
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>timeseriesResidual_ramp.h5
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>timeseriesResidual.h5
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>timeseries.h5                    ← raw (no corrections)
+<h2 id="_2">目录结构</h2>
+<p><strong>单堆叠（平铺）运行</strong> — 仅找到一个轨道/帧时，所有文件直接写入 <code>workdir/</code>：</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>workdir/
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── insarhub_config.json               # 流程配置（随每个阶段累积）
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── stack_p0_f0.json                   # 配对、基线、场景、质量评分
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── network_p0_f0.png                  # 干涉图网络图像
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── dem_p0_f0.tif                      # DEM 栅格（下载器 dem 后）
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── hyp3_jobs.json                     # 已提交任务 ID（处理器提交后）
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── hyp3_retry_jobs_*.json             # 重试批次（处理器重试后）
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>├── .mintpy.cfg                        # InSARHub 写入的 MintPy 配置（分析器初始化后）
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>├── .insarhub_cache.json               # 处理器结果缓存（文件名 + 输出目录）
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>├── .insarhub_quality_cache.json       # 天气、积雪、土地覆盖、相干性特征缓存
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>├── .insarhub_pair_quality_db.json     # 所有 N×(N-1)/2 场景配对的预评分质量
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>├── decay_maps/                        # S1 相干性像素衰减 GeoTIFF（每季一个）
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>│   ├── S1_coherence_decay_winter_vv.tif
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>│   ├── S1_coherence_decay_spring_vv.tif
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│   ├── S1_coherence_decay_summer_vv.tif
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>│   └── S1_coherence_decay_fall_vv.tif
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>├── tmp/                               # 解压的 zip 内容（清理时删除）
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>└── clip/                              # AOI 裁剪数据（清理时删除）
 </span></code></pre></div>
-<p>Select the file to use for pixel time series extraction, then click <strong>Plot</strong>.</p>
-<h3 id="plot-button">Plot Button</h3>
-<p>Clicking <strong>Plot</strong>:</p>
-<ol>
-<li>Renders the velocity map as a colored PNG overlay on the map (colorscale auto-scaled to 98th percentile of data)</li>
-<li>Arms map-click for time series extraction using the selected timeseries file</li>
-</ol>
-<h3 id="velocity-map">Velocity Map</h3>
-<ul>
-<li>Color scale: blue = subsidence, red = uplift, symmetric range scaled to 98th percentile</li>
-<li>Zero-displacement pixels are transparent</li>
-<li>Opacity: 85%</li>
-</ul>
-<h3 id="pixel-time-series">Pixel Time Series</h3>
-<p>Click any point on the velocity overlay to extract and plot the displacement time series for that pixel.</p>
-<ul>
-<li>Displacement is shown in <strong>mm</strong>, relative to the first acquisition date (first date = 0)</li>
-<li>Dates are shown on the X axis</li>
-<li>The chart follows the app's dark/light theme</li>
-</ul>
+<p><strong>多堆叠运行</strong> — 搜索覆盖多个轨道/帧时，每个组获得自己的 <code>p{path}_f{frame}/</code> 子文件夹，结构与单堆叠布局完全相同。</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>workdir/
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>├── p100_f466/                    # 每个轨道/帧组一个子文件夹
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>│   ├── insarhub_config.json
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>│   ├── stack_p100_f466.json
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>│   ├── .insarhub_quality_cache.json
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>│   ├── .insarhub_pair_quality_db.json
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>│   ├── decay_maps/
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>│   └── ...
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>├── p93_f121/
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>│   └── ...
+</span></code></pre></div>
+<p>MintPy 输入（<code>inputs/ifgramStack.h5</code> 等）和输出（<code>timeseries*.h5</code>、<code>velocity.h5</code>、<code>velocity.tif</code> 等）均由 MintPy 写入，此处不再列出。详情请参阅 <a href="https://mintpy.readthedocs.io">MintPy 文档</a>。</p>
 <hr>
-<h2 id="keyboard-mouse-reference">Keyboard &amp; Mouse Reference</h2>
+<h2 id="_3">各阶段文件</h2>
+<h3 id="_4">第一阶段 — 配对选择</h3>
+<p>由 <code>insarhub downloader --select-pairs</code> 或 GUI <strong>选择配对</strong> 产生。</p>
 <table>
 <thead>
 <tr>
-<th>Action</th>
-<th>Result</th>
+<th>文件</th>
+<th>说明</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Click map (box mode, 1st)</td>
-<td>Set first corner of AOI</td>
+<td><code>insarhub_config.json</code></td>
+<td>下载器类型和设置</td>
 </tr>
 <tr>
-<td>Click map (box mode, 2nd)</td>
-<td>Complete AOI box</td>
+<td><code>stack_p{path}_f{frame}.json</code></td>
+<td>选定配对、垂直基线、场景列表和配对质量评分</td>
 </tr>
 <tr>
-<td>Double-click map (polygon mode)</td>
-<td>Close polygon</td>
+<td><code>network_p{path}_f{frame}.png</code></td>
+<td>干涉图网络图 — 节点为场景，边为配对，按质量评分着色</td>
 </tr>
 <tr>
-<td>Click velocity overlay</td>
-<td>Extract pixel time series</td>
+<td><code>.insarhub_quality_cache.json</code></td>
+<td>配对评分期间获取的天气、积雪和相干性数据</td>
 </tr>
 <tr>
-<td>Click footprint</td>
-<td>Open scene detail panel</td>
+<td><code>.insarhub_pair_quality_db.json</code></td>
+<td>所有 N×(N−1)/2 场景组合的预评分质量</td>
 </tr>
 <tr>
-<td>Scroll</td>
-<td>Zoom map</td>
-</tr>
-<tr>
-<td>Drag</td>
-<td>Pan map</td>
+<td><code>decay_maps/</code></td>
+<td>从 AWS S3 缓存的 S1 全球相干性像素衰减 GeoTIFF（每季一个）</td>
 </tr>
 </tbody>
 </table>
+<h3 id="b-dem">第一阶段 b — DEM 下载</h3>
+<p>由 <code>insarhub downloader dem</code> 产生。可选 — 仅在配准需要本地 DEM 时使用。</p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dem_p{path}_f{frame}.tif</code></td>
+<td>覆盖堆叠 AOI 的合并重投影 DEM 栅格</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_5">第二阶段 — 任务提交</h3>
+<p>由 <code>insarhub processor submit</code> 或 GUI <strong>处理</strong> 产生。</p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>insarhub_config.json</code></td>
+<td>更新了处理器类型和设置</td>
+</tr>
+<tr>
+<td><code>hyp3_jobs.json</code></td>
+<td>按账户分组的 HyP3 任务 ID</td>
+</tr>
+<tr>
+<td><code>hyp3_retry_jobs_{timestamp}.json</code></td>
+<td>重试批次的任务 ID（每次<strong>重试</strong>时写入）</td>
+</tr>
+<tr>
+<td><code>.insarhub_cache.json</code></td>
+<td>每次<strong>检查</strong>后更新，包含已成功文件名和输出目录</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_6">第三阶段 — 分析</h3>
+<p>由 <code>insarhub analyzer run</code> 或 GUI <strong>运行分析器</strong> 产生。</p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>insarhub_config.json</code></td>
+<td>更新了分析器类型</td>
+</tr>
+<tr>
+<td><code>.mintpy.cfg</code></td>
+<td>InSARHub 写入的 MintPy <code>smallbaselineApp</code> 配置</td>
+</tr>
+<tr>
+<td><code>tmp/</code></td>
+<td>解压的 HyP3 产品内容（临时）</td>
+</tr>
+<tr>
+<td><code>clip/</code></td>
+<td>AOI 裁剪后的干涉图（临时）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>清理后：</strong><code>tmp/</code> 和 <code>clip/</code> 被删除。<code>insarhub_config.json</code>、<code>.mintpy.cfg</code> 和所有 MintPy 输出被保留。</p>
+<hr>
+<h2 id="json">主要 JSON 文件格式</h2>
+<h3 id="insarhub_configjson"><code>insarhub_config.json</code></h3>
+<p>随每个阶段运行而累积的中央流程配置。所有键均为可选 — 仅包含已执行阶段的内容。</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="p">{</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">"downloader"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"S1_SLC"</span><span class="p">,</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="nt">"config"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">      </span><span class="nt">"start"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2020-01-01"</span><span class="p">,</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">      </span><span class="nt">"end"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2020-12-31"</span><span class="p">,</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">      </span><span class="nt">"relativeOrbit"</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span><span class="p">,</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">      </span><span class="nt">"frame"</span><span class="p">:</span><span class="w"> </span><span class="mi">466</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">  </span><span class="p">},</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">  </span><span class="nt">"processor"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">    </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Hyp3_S1"</span><span class="p">,</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">    </span><span class="nt">"config"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">      </span><span class="nt">"phase_filter_parameter"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.6</span><span class="p">,</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">      </span><span class="nt">"looks"</span><span class="p">:</span><span class="w"> </span><span class="s2">"20x4"</span>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="w">  </span><span class="p">},</span>
+</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="w">  </span><span class="nt">"analyzer"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Hyp3_SBAS"</span>
+</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="p">}</span>
+</span></code></pre></div>
+<h3 id="stack_ppath_fframejson"><code>stack_p{path}_f{frame}.json</code></h3>
+<p>一个轨道/帧组的配对网络和质量评分。</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">"pairs"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="p">[</span><span class="s2">"S1A_IW_SLC__1SDV_20200101"</span><span class="p">,</span><span class="w"> </span><span class="s2">"S1A_IW_SLC__1SDV_20200113"</span><span class="p">],</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="p">[</span><span class="s2">"S1A_IW_SLC__1SDV_20200113"</span><span class="p">,</span><span class="w"> </span><span class="s2">"S1A_IW_SLC__1SDV_20200125"</span><span class="p">]</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="p">],</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="nt">"baselines"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="nt">"S1A_IW_SLC__1SDV_20200101"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="nt">"S1A_IW_SLC__1SDV_20200113"</span><span class="p">:</span><span class="w"> </span><span class="mf">12.4</span><span class="p">,</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="nt">"S1A_IW_SLC__1SDV_20200125"</span><span class="p">:</span><span class="w"> </span><span class="mf">-5.8</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">  </span><span class="p">},</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">  </span><span class="nt">"scenes"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">    </span><span class="s2">"S1A_IW_SLC__1SDV_20200101"</span><span class="p">,</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">    </span><span class="s2">"S1A_IW_SLC__1SDV_20200113"</span><span class="p">,</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">    </span><span class="s2">"S1A_IW_SLC__1SDV_20200125"</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">  </span><span class="p">],</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">  </span><span class="nt">"pair_quality"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">    </span><span class="nt">"scores"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">      </span><span class="nt">"S1A_..._20200101,S1A_..._20200113"</span><span class="p">:</span><span class="w"> </span><span class="mf">87.5</span>
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">  </span><span class="p">}</span>
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="p">}</span>
+</span></code></pre></div>
+<h3 id="hyp3_jobsjson"><code>hyp3_jobs.json</code></h3>
+<p>按账户分组的已保存 HyP3 任务 ID 及输出目录。</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">{</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">"job_ids"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nt">"username1"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"job-id-aaa"</span><span class="p">,</span><span class="w"> </span><span class="s2">"job-id-bbb"</span><span class="p">],</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nt">"username2"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"job-id-ccc"</span><span class="p">]</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="p">},</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="nt">"out_dir"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/data/bryce/p100_f466"</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="p">}</span>
+</span></code></pre></div>
+<hr>
+<h2 id="_7">内部缓存文件</h2>
+<p>这些点文件由程序自动写入，可以安全删除 — InSARHub 会在下次运行时重新生成。</p>
+<h3 id="decay_maps"><code>decay_maps/</code></h3>
+<p>从 AWS S3 缓存的 S1 全球相干性像素衰减 GeoTIFF，每季一个三波段文件：</p>
+<table>
+<thead>
+<tr>
+<th>波段</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>γ∞ — 永久散射体相干性基底</td>
+</tr>
+<tr>
+<td>2</td>
+<td>γ0 — t = 0 时的初始相干性</td>
+</tr>
+<tr>
+<td>3</td>
+<td>τ — 去相干时间常数（天）</td>
+</tr>
+</tbody>
+</table>
+<p>这些文件在进程重启后仍保留，因此每个 AOI 每季只查询一次 S3。删除它们可强制从 S3 重新下载。</p>
 
 
 
@@ -1972,7 +1803,7 @@
           <button type="button" class="md-top md-icon" data-md-component="top" hidden="">
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
-  Back to top
+  回到页面顶部
 </button>
         
       </main>
@@ -2027,10 +1858,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   
