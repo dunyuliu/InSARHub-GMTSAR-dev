@@ -73,14 +73,32 @@ class FeatureAssembler:
     # ── AOI-level helpers ─────────────────────────────────────────────────────
 
     def _load_coh_cache(self) -> dict:
-        """Load S1 coherence entries from CacheManager into a flat dict."""
+        """Load S1 coherence entries from CacheManager into a flat dict.
+
+        None entries (failed S3 fetches) and failed pair estimates are stripped
+        so transient failures from a previous session are retried rather than
+        treated as permanent blacklists.
+        """
         cached = self._cache.get("s1_coherence", "map") or {}
-        return dict(cached)
+        return {
+            k: v for k, v in cached.items()
+            if v is not None
+            and not (isinstance(v, dict) and v.get("coherence_source") == "failed")
+        }
 
     def _save_coh_cache(self) -> None:
-        """Persist the in-memory coherence cache back to CacheManager."""
-        if self._coh_cache:
-            self._cache.set("s1_coherence", "map", dict(self._coh_cache))
+        """Persist the in-memory coherence cache back to CacheManager.
+
+        None values (failed S3 fetches) are not written to disk — they suppress
+        retries within the current session only, not across sessions.
+        """
+        to_save = {
+            k: v for k, v in self._coh_cache.items()
+            if v is not None
+            and not (isinstance(v, dict) and v.get("coherence_source") == "failed")
+        }
+        if to_save:
+            self._cache.set("s1_coherence", "map", to_save)
 
     def _load_ndvi_cache(self) -> dict:
         """Load NDVI entries from CacheManager into the in-memory dict."""

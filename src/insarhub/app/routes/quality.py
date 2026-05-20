@@ -28,11 +28,28 @@ async def get_pair_quality(path: str, force_refresh: bool = False):
     path          : absolute path to a job folder
     force_refresh : if true, ignore the on-disk cache and re-fetch all data
     """
+    import json as _json
     from pathlib import Path
 
     folder = Path(path).expanduser().resolve()
     if not folder.exists():
         raise HTTPException(status_code=404, detail=f"Folder not found: {path}")
+
+    # Require AOI before quality scoring — without intersectsWith the coherence
+    # model silently uses a fallback AOI and caches wrong decay maps to disk.
+    _cfg_file = folder / "insarhub_config.json"
+    _has_aoi = False
+    if _cfg_file.exists():
+        try:
+            _cfg = _json.loads(_cfg_file.read_text())
+            _has_aoi = bool(_cfg.get("downloader", {}).get("config", {}).get("intersectsWith"))
+        except Exception:
+            pass
+    if not _has_aoi:
+        raise HTTPException(
+            status_code=400,
+            detail="AOI not configured. Run pair selection first to record the study area.",
+        )
 
     def _run():
         import json

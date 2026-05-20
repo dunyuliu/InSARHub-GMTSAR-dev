@@ -828,10 +828,27 @@ def _fetch_season_decay_maps(
     if save_dir is not None:
         maps_from_disk = _load_decay_maps_from_tif(save_dir, season, pol)
         if maps_from_disk is not None:
-            _log.debug("Loaded coherence decay map from disk: %s/%s", season, pol)
-            if cache is not None:
-                cache[cache_key] = maps_from_disk
-            return maps_from_disk, "s3"
+            # Guard against stale TIFs written for a different AOI (e.g. when
+            # quality scoring ran before intersectsWith was set and the fallback
+            # AOI was used instead).  Validate that the TIF's geographic extent
+            # contains the current centroid before accepting it.
+            tfm = maps_from_disk["transform"]   # [a, b, c, d, e, f]
+            H, W = maps_from_disk["shape"]
+            west, north = tfm[2], tfm[5]
+            east  = west  + W * tfm[0]
+            south = north + H * tfm[4]          # tfm[4] is negative
+            if west <= lon <= east and south <= lat <= north:
+                _log.debug("Loaded coherence decay map from disk: %s/%s", season, pol)
+                if cache is not None:
+                    cache[cache_key] = maps_from_disk
+                return maps_from_disk, "s3"
+            tif_path = _decay_maps_tif_path(save_dir, season, pol)
+            _log.warning(
+                "Stale decay map %s covers (%.2f–%.2f°E, %.2f–%.2f°N) but AOI "
+                "centroid is (%.4f°E, %.4f°N) — deleting and re-fetching from S3.",
+                tif_path.name, west, east, south, north, lon, lat,
+            )
+            tif_path.unlink(missing_ok=True)
 
     # ── 3. S3 fetch ───────────────────────────────────────────────────────
     maps = _fit_pixel_decay_maps(aoi_wkt, season, pol)
