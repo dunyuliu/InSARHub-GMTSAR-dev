@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/frontend/fig/overview_light.png" width="900" alt="InSARHub">
+</p>
+
 # InSARHub
 
 InSARHub is a modular Python framework for automated InSAR and time-series processing.
@@ -22,7 +26,7 @@ InSARHub includes a **self-hosted web interface** that covers the full InSAR wor
 insarhub-app
 ```
 
-Open `http://localhost:8000` to access the UI.
+Open `http://localhost:8080` to access the UI.
 
 ### Features
 
@@ -36,12 +40,6 @@ Open `http://localhost:8000` to access the UI.
 All data stays on your machine — InSARHub runs a local FastAPI server and delivers a modern React frontend directly in your browser.
 
 See the [Web UI documentation](https://jldz9.github.io/InSARHub/) for a full walkthrough.
-
-<picture>
-  <source media="(prefers-color-scheme: dark)"  srcset="docs/frontend/fig/overview_dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="docs/frontend/fig/overview_light.png">
-  <img alt="InSARHub Web UI" src="docs/frontend/fig/overview_light.png" width="100%">
-</picture>
 
 <picture>
   <source media="(prefers-color-scheme: dark)"  srcset="docs/frontend/fig/network_modify_dark.gif">
