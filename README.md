@@ -33,9 +33,9 @@ See the [Web UI documentation](https://jldz9.github.io/InSARHub/) for a full wal
 Draw an AOI on the interactive map, set a date range and orbit filters, and search ASF for Sentinel-1 SLC stacks. InSARHub groups results by track/frame and downloads scenes and precise orbit files automatically.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)"  srcset="docs/frontend/fig/search_dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="docs/frontend/fig/search_light.png">
-  <img alt="Search & Download" src="docs/frontend/fig/search_light.png" width="100%">
+  <source media="(prefers-color-scheme: dark)"  srcset="docs/frontend/fig/overview_dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/frontend/fig/overview_light.png">
+  <img alt="Search & Download" src="docs/frontend/fig/overview_light.png" width="100%">
 </picture>
 
 ### Pair Selection & Quality Scoring
