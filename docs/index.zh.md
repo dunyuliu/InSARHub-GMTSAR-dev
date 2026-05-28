@@ -11,6 +11,13 @@ InSARHub 是一个开源软件包，旨在支持完整的 InSAR 处理流程。
 InSARHub Web UI — 在同一平台上搜索、下载、处理和可视化 InSAR 数据。
 ///
 
+## 支持的卫星
+
+| 卫星 | 模式 | 下载器 | 处理器 | 分析器 | 后端 |
+|------|------|--------|--------|--------|------|
+| Sentinel-1 | IW SLC | `S1_SLC` | `Hyp3_S1` | `Hyp3_SBAS` | 云端（ASF HyP3） |
+| Sentinel-1 | IW SLC | `S1_SLC` | `ISCE_S1` | `ISCE_SBAS` | 本地 / HPC（ISCE2） |
+
 本文档假设您对以下内容有基本了解：
 
 - [Python](https://www.w3schools.com/python/)

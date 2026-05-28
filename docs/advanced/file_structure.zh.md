@@ -25,6 +25,8 @@ workdir/
 │   ├── S1_coherence_decay_spring_vv.tif
 │   ├── S1_coherence_decay_summer_vv.tif
 │   └── S1_coherence_decay_fall_vv.tif
+├── hyp3/                              # HyP3 下载的 ZIP 产品（处理器下载后）
+│   └── S1AA_*_INT20_*.zip
 ├── tmp/                               # 解压的 zip 内容（清理时删除）
 └── clip/                              # AOI 裁剪数据（清理时删除）
 ```
@@ -163,7 +165,7 @@ MintPy 输入（`inputs/ifgramStack.h5` 等）和输出（`timeseries*.h5`、`ve
     "username1": ["job-id-aaa", "job-id-bbb"],
     "username2": ["job-id-ccc"]
   },
-  "out_dir": "/data/bryce/p100_f466"
+  "out_dir": "/data/bryce/p100_f466/hyp3"
 }
 ```
 

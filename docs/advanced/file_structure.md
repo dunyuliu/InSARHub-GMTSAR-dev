@@ -25,6 +25,8 @@ workdir/
 │   ├── S1_coherence_decay_spring_vv.tif
 │   ├── S1_coherence_decay_summer_vv.tif
 │   └── S1_coherence_decay_fall_vv.tif
+├── hyp3/                              # HyP3 downloaded ZIP products (after processor download)
+│   └── S1AA_*_INT20_*.zip
 ├── tmp/                               # extracted zip contents  (removed by cleanup)
 └── clip/                              # AOI-clipped data        (removed by cleanup)
 ```
@@ -194,7 +196,7 @@ Saved HyP3 job IDs grouped by account, plus the output directory.
     "username1": ["job-id-aaa", "job-id-bbb"],
     "username2": ["job-id-ccc"]
   },
-  "out_dir": "/data/bryce/p100_f466"
+  "out_dir": "/data/bryce/p100_f466/hyp3"
 }
 ```
 
@@ -213,7 +215,7 @@ Written by the processor after a **Check** or **Download** action. Stores the li
   "filenames": [
     "S1AA_20200101T000000_20200113T000000_VVP012_INT20_G_ueF_1234.zip"
   ],
-  "out_dir": "/data/bryce/p100_f466"
+  "out_dir": "/data/bryce/p100_f466/hyp3"
 }
 ```
 

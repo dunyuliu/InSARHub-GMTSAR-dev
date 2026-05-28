@@ -187,7 +187,7 @@ insarhub processor [--list-processors] <action> [options]
     | `--list-options` | — | 打印所有配置字段 |
     | `-w`, `--workdir` | cwd | 工作目录 |
     | `--config` | `<workdir>/insarhub_config.json` | 已保存配置的路径；省略值则使用默认路径 |
-    | `--credential-pool` | `~/.credit_pool` | 用于多账户提交的 JSON `{username: password}` |
+    | `--credential-pool` | `~/.credit_pool` | 每行一条 `username:password` 的纯文本文件，用于多账户提交 |
     | `--name-prefix` | `ifg` | 作业名称前缀 |
     | `--max-workers` | `4` | 并行提交工作线程数 |
     | `--dry-run` | — | 打印将要提交的内容，但不实际发送作业 |
@@ -276,7 +276,7 @@ insarhub processor [--list-processors] <action> [options]
 
     | 标志 | 默认值 | 描述 |
     |------|---------|-------------|
-    | `--credential-pool` | `~/.credit_pool` | 用于多账户的 JSON `{username: password}` |
+    | `--credential-pool` | `~/.credit_pool` | 每行一条 `username:password` 的纯文本文件，用于多账户 |
 
     ```bash
     insarhub processor credits
@@ -428,7 +428,7 @@ insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [option
 
     ### run
 
-    运行分析工作流。省略 `--step` 则运行完整流程（`prep` + 所有 MintPy 步骤）。
+    运行分析工作流。省略 `--step` 则运行完整流程（`prep_data` + 所有 MintPy 步骤）。
 
     ```bash
     insarhub analyzer -N Hyp3_SBAS -w /data/bryce run [--step STEP...] [--debug]
@@ -442,8 +442,8 @@ insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [option
 
     | 步骤关键字 | 描述 |
     |---|---|
-    | `prep` | 解压/裁剪 HyP3 产品，写入 MintPy 配置 |
-    | `all` | `prep` + 所有 MintPy 步骤（默认） |
+    | `prep_data` | 解压/裁剪 HyP3 产品，写入 MintPy 配置 |
+    | `all` | `prep_data` + 所有 MintPy 步骤（默认） |
     | `load_data` | 将干涉图和几何数据加载到 MintPy HDF5 中 |
     | `modify_network` | 应用网络修改规则 |
     | `reference_point` | 选择参考像素 |
@@ -466,7 +466,7 @@ insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [option
     insarhub analyzer -N Hyp3_SBAS -w /data/bryce run
 
     # 仅执行 prep
-    insarhub analyzer -N Hyp3_SBAS -w /data/bryce run --step prep
+    insarhub analyzer -N Hyp3_SBAS -w /data/bryce run --step prep_data
 
     # 单个步骤
     insarhub analyzer -N Hyp3_SBAS -w /data/bryce run --step velocity
@@ -519,7 +519,7 @@ insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [option
 
     ### run
 
-    运行分析工作流。省略 `--step` 则运行完整流程（`prep` + 所有 MintPy 步骤）。
+    运行分析工作流。省略 `--step` 则运行完整流程（`prep_data` + 所有 MintPy 步骤）。
 
     ```bash
     insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run [--step STEP...] [--debug]
@@ -533,8 +533,8 @@ insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [option
 
     | 步骤关键字 | 描述 |
     |---|---|
-    | `prep` | 自动发现 ISCE2 输出，写入 MintPy 配置 |
-    | `all` | `prep` + 所有 MintPy 步骤（默认） |
+    | `prep_data` | 自动发现 ISCE2 输出，写入 MintPy 配置 |
+    | `all` | `prep_data` + 所有 MintPy 步骤（默认） |
     | `load_data` | 将干涉图和几何数据加载到 MintPy HDF5 中 |
     | `modify_network` | 应用网络修改规则 |
     | `reference_point` | 选择参考像素 |
@@ -557,7 +557,7 @@ insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [option
     insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run
 
     # 仅执行 prep
-    insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run --step prep
+    insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run --step prep_data
 
     # 单个步骤
     insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run --step velocity

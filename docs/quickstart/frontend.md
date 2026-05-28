@@ -10,14 +10,14 @@ After installing InSARHub, start the web server with:
 insarhub-app
 ```
 
-Then open **[http://127.0.0.1:8000](http://127.0.0.1:8000)** in your browser.
+Then open **[http://127.0.0.1:8080](http://127.0.0.1:8080)** in your browser.
 
 Options:
 
 ```bash
 insarhub-app -w /data/bryce    # set working directory
 insarhub-app --host 0.0.0.0   # expose to your local network
-insarhub-app --port 8080       # change port
+insarhub-app --port 9090       # change port
 insarhub-app --version         # print version and exit
 ```
 

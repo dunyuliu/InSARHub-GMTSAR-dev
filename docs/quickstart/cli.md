@@ -187,7 +187,7 @@ insarhub processor [--list-processors] <action> [options]
     | `--list-options` | — | Print all config fields |
     | `-w`, `--workdir` | cwd | Working directory |
     | `--config` | `<workdir>/insarhub_config.json` | Path to saved config; omit value to use default path |
-    | `--credential-pool` | `~/.credit_pool` | JSON `{username: password}` for multi-account submission |
+    | `--credential-pool` | `~/.credit_pool` | Path to a plain-text file with one `username:password` per line for multi-account submission |
     | `--name-prefix` | `ifg` | Job name prefix |
     | `--max-workers` | `4` | Parallel submission workers |
     | `--dry-run` | — | Print what would be submitted without sending jobs |
@@ -276,7 +276,7 @@ insarhub processor [--list-processors] <action> [options]
 
     | Flag | Default | Description |
     |------|---------|-------------|
-    | `--credential-pool` | `~/.credit_pool` | JSON `{username: password}` for multiple accounts |
+    | `--credential-pool` | `~/.credit_pool` | Path to a plain-text file with one `username:password` per line for multiple accounts |
 
     ```bash
     insarhub processor credits
@@ -428,7 +428,7 @@ Any field shown by `--list-options` can be overridden on the command line before
 
     ### run
 
-    Run the analysis workflow. Omitting `--step` runs the full pipeline (`prep` + all MintPy steps).
+    Run the analysis workflow. Omitting `--step` runs the full pipeline (`prep_data` + all MintPy steps).
 
     ```bash
     insarhub analyzer -N Hyp3_SBAS -w /data/bryce run [--step STEP...] [--debug]
@@ -442,8 +442,8 @@ Any field shown by `--list-options` can be overridden on the command line before
 
     | Step keyword | Description |
     |---|---|
-    | `prep` | Unzip and clip HyP3 products, write MintPy config |
-    | `all` | `prep` + all MintPy steps (default) |
+    | `prep_data` | Unzip and clip HyP3 products, write MintPy config |
+    | `all` | `prep_data` + all MintPy steps (default) |
     | `load_data` | Load interferograms and geometry into MintPy HDF5 |
     | `modify_network` | Apply network modification rules |
     | `reference_point` | Select reference pixel |
@@ -466,7 +466,7 @@ Any field shown by `--list-options` can be overridden on the command line before
     insarhub analyzer -N Hyp3_SBAS -w /data/bryce run
 
     # Prep only
-    insarhub analyzer -N Hyp3_SBAS -w /data/bryce run --step prep
+    insarhub analyzer -N Hyp3_SBAS -w /data/bryce run --step prep_data
 
     # Single step
     insarhub analyzer -N Hyp3_SBAS -w /data/bryce run --step velocity
@@ -519,7 +519,7 @@ Any field shown by `--list-options` can be overridden on the command line before
 
     ### run
 
-    Run the analysis workflow. Omitting `--step` runs the full pipeline (`prep` + all MintPy steps).
+    Run the analysis workflow. Omitting `--step` runs the full pipeline (`prep_data` + all MintPy steps).
 
     ```bash
     insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run [--step STEP...] [--debug]
@@ -533,8 +533,8 @@ Any field shown by `--list-options` can be overridden on the command line before
 
     | Step keyword | Description |
     |---|---|
-    | `prep` | Auto-discover ISCE2 outputs, write MintPy config |
-    | `all` | `prep` + all MintPy steps (default) |
+    | `prep_data` | Auto-discover ISCE2 outputs, write MintPy config |
+    | `all` | `prep_data` + all MintPy steps (default) |
     | `load_data` | Load interferograms and geometry into MintPy HDF5 |
     | `modify_network` | Apply network modification rules |
     | `reference_point` | Select reference pixel |
@@ -557,7 +557,7 @@ Any field shown by `--list-options` can be overridden on the command line before
     insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run
 
     # Prep only
-    insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run --step prep
+    insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run --step prep_data
 
     # Single step
     insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run --step velocity

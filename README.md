@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="docs/frontend/fig/overview_light.png" width="900" alt="InSARHub">
-</p>
-
 # InSARHub
 
 InSARHub is a modular Python framework for automated InSAR and time-series processing.
@@ -28,24 +24,41 @@ insarhub-app
 
 Open `http://localhost:8080` to access the UI.
 
-### Features
-
-| Panel | What it does |
-|-------|-------------|
-| **Search & Download** | Draw an AOI on the map, search Sentinel-1 SLC stacks, download scenes and precise orbit files |
-| **Processor** | Build and edit the interferogram pair network with quality scoring; view S1 coherence decay maps; submit to HyP3 (cloud) or run ISCE2 locally / via SLURM; monitor and download results |
-| **Analyzer** | Run MintPy time-series analysis step by step; edit the network post-ingest; inspect diagnostic overview layers |
-| **Results Viewer** | Overlay the velocity map on the basemap; click any pixel to plot its displacement time series |
-
 All data stays on your machine — InSARHub runs a local FastAPI server and delivers a modern React frontend directly in your browser.
 
 See the [Web UI documentation](https://jldz9.github.io/InSARHub/) for a full walkthrough.
+
+### Search & Download
+
+Draw an AOI on the interactive map, set a date range and orbit filters, and search ASF for Sentinel-1 SLC stacks. InSARHub groups results by track/frame and downloads scenes and precise orbit files automatically.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)"  srcset="docs/frontend/fig/search_dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/frontend/fig/search_light.png">
+  <img alt="Search & Download" src="docs/frontend/fig/search_light.png" width="100%">
+</picture>
+
+### Pair Selection & Quality Scoring
+
+Build the interferogram network interactively. Pairs are colored by score so weak connections stand out immediately. Adjust temporal or perpendicular baseline limits and drag nodes/edges to refine the network live.
 
 <picture>
   <source media="(prefers-color-scheme: dark)"  srcset="docs/frontend/fig/network_modify_dark.gif">
   <source media="(prefers-color-scheme: light)" srcset="docs/frontend/fig/network_modify_light.gif">
   <img alt="Pair Network Editor" src="docs/frontend/fig/network_modify_light.gif" width="100%">
 </picture>
+
+### Processor
+
+Submit the selected pairs to HyP3 (cloud, no local SAR software needed) or run ISCE2 `stackSentinel` locally or via SLURM. Monitor job status, download results, and retry failed jobs from the same panel.
+
+### Analyzer
+
+Run MintPy SBAS time-series analysis step by step. Edit the network post-ingest, inspect diagnostic overview layers, and export velocity and displacement maps when done.
+
+### Results Viewer
+
+Overlay the LOS velocity map on the basemap and click any pixel to plot its full displacement time series.
 
 ---
 
