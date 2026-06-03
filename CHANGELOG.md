@@ -31,6 +31,7 @@
 - **Subfolder navigation** (`JobQueueDrawer`) — click any folder to drill into subfolders; `↑` button to go up. Resets to workdir root on workdir change. Uses `/api/browse-subfolders` endpoint.
 - **Cancel button** (`JobQueueDrawer`) — Cancel action added for local ISCE jobs.
 - **Modern folder picker** (`settings.py`) — Windows/WSL now uses `IFileOpenDialog` COM API via embedded C# in PowerShell. Fixes: DPI blurriness on 2K monitors, Chinese character paths.
+- Add nyan cat
 
 ### Network Graph (`utils/tool.py`)
 
