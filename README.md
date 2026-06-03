@@ -2,7 +2,7 @@
 
 InSARHub is a modular Python framework for automated InSAR and time-series processing.
 
-The primary goal of this package is to provide a streamlined and user-friendly InSAR processing experience across multiple satellite products. Satellites InSARHub currently supports: 
+The primary goal of this package is to provide a streamlined and user-friendly InSAR processing experience across multiple satellite products. InSARHub currently supports: 
 
 | Satellite | Mode | Download | IFG Generation | Timeseries Analysis |
 |-----------|------|----------|----------------|---------------------|

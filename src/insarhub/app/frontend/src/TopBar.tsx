@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { Theme } from './theme'
 import { Icons } from './assets/icons'
 
@@ -29,8 +29,82 @@ export default function TopBar({
   theme: t, onThemeToggle, onFiltersOpen, hasActiveFilters, onJobsOpen, jobsOpen, onSettingsOpen,
 }: Props) {
   const [wktInput, setWktInput] = useState(aoiWkt ?? '')
+  const [eggClicks, setEggClicks]     = useState(0)
+  const [unlocked, setUnlocked]       = useState(false)
+  const [waveCount, setWaveCount]     = useState(0)
+  const NYAN_GIFS = ['/nyan.gif', '/nyan2.gif', '/nyan3.gif', '/nyan4.gif', '/nyan5.gif', '/nyan6.gif']
+  const [cats, setCats] = useState<{ id: number; top: number; gif: string }[]>([])
+  const catId       = useRef(0)
+  const audioRef    = useRef<HTMLAudioElement | null>(null)
+  const unlockedAt  = useRef<number>(0)
+
+  function startMusic() {
+    if (audioRef.current) return
+    const audio = new Audio('/nyan-music.mp3')
+    audio.loop   = true
+    audio.volume = 0
+    audio.play().catch(() => {})
+    audioRef.current = audio
+    const target = 0.5
+    const step   = target / 40          // reach target over 40 ticks
+    const timer  = setInterval(() => {
+      if (!audioRef.current) { clearInterval(timer); return }
+      const next = Math.min(audioRef.current.volume + step, target)
+      audioRef.current.volume = next
+      if (next >= target) clearInterval(timer)
+    }, 80)                              // 40 × 80ms ≈ 3.2s fade-in
+  }
+
+  function stopMusic() {
+    if (!audioRef.current) return
+    audioRef.current.pause()
+    audioRef.current.currentTime = 0
+    audioRef.current = null
+  }
+
+  function spawnWave(count: number) {
+    for (let i = 0; i < count; i++) {
+      const top   = Math.random() * (window.innerHeight - 80)
+      const gif   = NYAN_GIFS[Math.floor(Math.random() * NYAN_GIFS.length)]
+      const id    = catId.current++
+      const delay = i * 30
+      setTimeout(() => {
+        setCats(prev => [...prev, { id, top, gif }])
+        setTimeout(() => setCats(prev => prev.filter(c => c.id !== id)), 2500)
+      }, delay)
+    }
+  }
+
+  function handleBrandClick() {
+    if (unlocked) {
+      const next = waveCount + 1
+      setWaveCount(next)
+      spawnWave(next)
+      if (Date.now() - unlockedAt.current > 500) startMusic()
+      return
+    }
+    const next = eggClicks + 1
+    if (next >= 7) {
+      setEggClicks(0)
+      setUnlocked(true)
+      setWaveCount(1)
+      unlockedAt.current = Date.now()
+      spawnWave(1)
+    } else {
+      setEggClicks(next)
+    }
+  }
 
   useEffect(() => { setWktInput(aoiWkt ?? '') }, [aoiWkt])
+
+  useEffect(() => {
+    if (unlocked && cats.length === 0) {
+      stopMusic()
+      setUnlocked(false)
+      setWaveCount(0)
+      setEggClicks(0)
+    }
+  }, [cats.length, unlocked])
 
   function handleWktBlur() {
     if (wktInput.trim()) onAoiWktChange(wktInput.trim())
@@ -55,8 +129,46 @@ export default function TopBar({
       display: 'flex', alignItems: 'center', gap: 10, padding: '6px 14px',
       height: 48,
     }}>
+      <style>{`
+        @keyframes insarFringe {
+          0%   { color: #7c3aed; text-shadow: 0 0 8px #7c3aed; }
+          17%  { color: #ef4444; text-shadow: 0 0 8px #ef4444; }
+          34%  { color: #f59e0b; text-shadow: 0 0 8px #f59e0b; }
+          50%  { color: #22c55e; text-shadow: 0 0 8px #22c55e; }
+          67%  { color: #06b6d4; text-shadow: 0 0 8px #06b6d4; }
+          84%  { color: #3b82f6; text-shadow: 0 0 8px #3b82f6; }
+          100% { color: #7c3aed; text-shadow: 0 0 8px #7c3aed; }
+        }
+        .insar-egg { animation: insarFringe 0.6s linear infinite; }
+        @keyframes nyanFly {
+          0%   { transform: translateX(-60px); }
+          100% { transform: translateX(110vw); }
+        }
+        .nyan-cat { animation: nyanFly 2.8s linear forwards; }
+      `}</style>
+
+      {/* Nyan Cat easter egg */}
+      {cats.map(cat => (
+        <div key={cat.id} className="nyan-cat" style={{
+          position: 'fixed', top: cat.top, left: 0,
+          zIndex: 9999, pointerEvents: 'none',
+          display: 'flex', alignItems: 'center',
+        }}>
+          <img src={cat.gif} style={{ height: 56, imageRendering: 'pixelated', flexShrink: 0 }} />
+        </div>
+      ))}
+
       {/* Brand */}
-      <span style={{ fontWeight: 800, fontSize: 17, color: t.accent, marginRight: 6, whiteSpace: 'nowrap' }}>
+      <span
+        className={cats.length > 0 ? 'insar-egg' : ''}
+        onClick={handleBrandClick}
+        style={{
+          fontWeight: 800, fontSize: 17,
+          color: cats.length > 0 ? undefined : t.accent,
+          marginRight: 6, whiteSpace: 'nowrap',
+          cursor: 'pointer', userSelect: 'none',
+        }}
+      >
         InSARHub
       </span>
 
