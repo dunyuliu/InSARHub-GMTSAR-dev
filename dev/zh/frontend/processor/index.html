@@ -1542,6 +1542,10 @@
 <hr>
 <h2 id="_4">查看数据</h2>
 <p>干涉图下载完成后，点击处理器面板中的<strong>查看数据</strong>打开数据浏览器。这列出了从下载的 <code>.zip</code> 压缩包中提取的所有 HyP3 产品文件，并可直接在地图上叠加显示。</p>
+<div class="admonition warning">
+<p class="admonition-title">不支持 ISCE2</p>
+<p><strong>查看数据</strong>仅适用于 HyP3 输出。ISCE2 干涉图存储在雷达（距离/方位角）坐标系中，在 MintPy 完成地理编码之前不具备地理坐标系统，无法直接叠加显示。请使用<strong>分析器</strong>面板对 ISCE2 结果进行地理编码和查看。</p>
+</div>
 <figure>
 <p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../frontend/fig/view_data_button_light.png#only-light" data-desc-position="bottom"><img alt="查看数据按钮" class="doc-img" src="../../../frontend/fig/view_data_button_light.png#only-light" style="width: 60%"></a>
 <a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../frontend/fig/view_data_button_dark.png#only-dark" data-desc-position="bottom"><img alt="查看数据按钮" class="doc-img" src="../../../frontend/fig/view_data_button_dark.png#only-dark" style="width: 60%"></a></p>
@@ -1595,44 +1599,68 @@
 <hr>
 <h2 id="_5">提交任务</h2>
 <p>配对网络审核满意后，点击<strong>处理</strong>打开处理器选择对话框。</p>
-<!-- screenshot: click process button -->
 <figure>
 <p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../frontend/fig/process_button_light.png#only-light" data-desc-position="bottom"><img alt="处理按钮" class="doc-img" src="../../../frontend/fig/process_button_light.png#only-light" style="width: 60%"></a>
 <a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../frontend/fig/process_button_dark.png#only-dark" data-desc-position="bottom"><img alt="处理按钮" class="doc-img" src="../../../frontend/fig/process_button_dark.png#only-dark" style="width: 60%"></a></p>
 <figcaption>
-<p>点击<strong>处理</strong>将干涉图配对提交至 HyP3。</p>
+<p>点击<strong>处理</strong>打开处理器选择对话框。</p>
 </figcaption>
 </figure>
-<!-- screenshot: processor selection dialog -->
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="hyp3" name="__tabbed_1" type="radio"><input id="isce2" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="hyp3">HyP3</label><label for="isce2">ISCE2</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
 <figure>
 <p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../frontend/fig/processor_dialog_light.png#only-light" data-desc-position="bottom"><img alt="处理器选择" class="doc-img" src="../../../frontend/fig/processor_dialog_light.png#only-light" style="width: 60%"></a>
 <a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../frontend/fig/processor_dialog_dark.png#only-dark" data-desc-position="bottom"><img alt="处理器选择" class="doc-img" src="../../../frontend/fig/processor_dialog_dark.png#only-dark" style="width: 60%"></a></p>
 <figcaption>
-<p>处理器选择对话框。选择处理器（例如 <code>Hyp3_S1</code>）并确认以将所有配对提交至 HyP3。</p>
+<p>选择 <code>Hyp3_S1</code> 通过 ASF HyP3 进行云端处理。</p>
 </figcaption>
 </figure>
+<p>选择 <code>Hyp3_S1</code> 并确认，将所有配对提交至 ASF HyP3 云端处理。无需本地 SAR 软件。</p>
 <div class="admonition tip">
 <p class="admonition-title">提交前先测试</p>
-<p>对于向外部服务器提交任务，在处理器对话框中勾选<strong>试运行</strong>，可在不提交真实任务的情况下验证环境和凭据。成功的试运行输出类似于：</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>[Dry run] Would submit 65 pairs via Hyp3_S1 from p93_f121
-</span></code></pre></div>
-<p>建议在首次提交前执行此操作以确保一切配置正确。</p>
+<p>在对话框中勾选<strong>试运行</strong>，可在不提交真实任务的情况下验证凭据。成功的试运行输出类似于：
+</p><div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>[Dry run] Would submit 65 pairs via Hyp3_S1 from p93_f121
+</span></code></pre></div><p></p>
 </div>
-<p>有关所有处理器参数和选项的完整说明，请参阅<a href="../../advanced/processor/">处理器参考</a>。</p>
-<p>任务成功提交后，任务文件夹面板中会出现带有处理器名称的<strong>处理器</strong>标签，表示该堆叠的 HyP3 处理已激活。</p>
-<!-- screenshot: processor tab appears -->
+<p>提交成功后，任务文件夹抽屉中会出现<strong>处理器</strong>标签。</p>
 <figure>
 <p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../frontend/fig/processor_tab_light.png#only-light" data-desc-position="bottom"><img alt="处理器标签" class="doc-img" src="../../../frontend/fig/processor_tab_light.png#only-light" style="width: 60%"></a>
 <a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../frontend/fig/processor_tab_dark.png#only-dark" data-desc-position="bottom"><img alt="处理器标签" class="doc-img" src="../../../frontend/fig/processor_tab_dark.png#only-dark" style="width: 60%"></a></p>
 <figcaption>
-<p>任务成功提交后，任务文件夹面板中出现<strong>处理器</strong>标签。</p>
+<p>任务成功提交后出现<strong>处理器</strong>标签。</p>
 </figcaption>
 </figure>
+</div>
+<div class="tabbed-block">
+<figure>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../frontend/fig/processor_dialog_ISCE_light.png#only-light" data-desc-position="bottom"><img alt="处理器选择" class="doc-img" src="../../../frontend/fig/processor_dialog_ISCE_light.png#only-light" style="width: 60%"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../frontend/fig/processor_dialog_ISCE_dark.png#only-dark" data-desc-position="bottom"><img alt="处理器选择" class="doc-img" src="../../../frontend/fig/processor_dialog_ISCE_dark.png#only-dark" style="width: 60%"></a></p>
+<figcaption>
+<p>选择 <code>ISCE_S1</code> 通过 ISCE2 进行本地 / HPC 处理。</p>
+</figcaption>
+</figure>
+<p>选择 <code>ISCE_S1</code> 并配置所需参数 — 边界框（南北西东）、SLC 目录，以及可选的 HPC 模式。点击<strong>提交</strong>在后台本地启动 <code>stackSentinel</code>，或启用 <strong>HPC 模式</strong>将步骤提交至 SLURM。</p>
+<div class="admonition tip">
+<p class="admonition-title">先执行试运行</p>
+<p>启用<strong>试运行</strong>可预览运行脚本并验证路径，而不实际执行。建议在首次真实提交前执行。</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">需要 SLC 文件</p>
+<p>ISCE2 在本地处理 SLC <code>.SAFE</code> 文件。提交前请确保场景已下载到 SLC 目录。</p>
+</div>
+<p>提交成功后，任务文件夹抽屉中会出现<strong>处理器</strong>标签。</p>
+</div>
+</div>
+</div>
+<p>有关所有参数的完整说明，请参阅<a href="../../advanced/processor/">处理器参考</a>。</p>
 <hr>
 <h2 id="_6">监控任务</h2>
-<p>任务提交后，任务文件会自动保存到任务文件夹，下次打开处理器面板时默认加载。即使关闭应用程序后也可恢复监控。</p>
-<p>处理器面板顶部的下拉菜单列出了任务文件夹下找到的所有任务文件，包括初始提交文件（<code>hyp3_jobs.json</code>）和后续<strong>重试</strong>操作生成的重试文件。从列表中选择不同文件可检查或监控特定提交。</p>
-<p>点击<strong>刷新</strong>检查 HyP3 所有已提交任务的最新状态。每个任务显示以下状态之一：</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="hyp3_1" name="__tabbed_2" type="radio"><input id="isce2_1" name="__tabbed_2" type="radio"><div class="tabbed-labels"><label for="hyp3_1">HyP3</label><label for="isce2_1">ISCE2</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p>任务文件（<code>hyp3_jobs.json</code>）自动保存到任务文件夹。面板顶部下拉菜单列出所有任务文件，包括重试文件。选择文件可检查特定提交。</p>
+<p>点击<strong>刷新</strong>从 HyP3 获取最新状态：</p>
 <table>
 <thead>
 <tr>
@@ -1643,7 +1671,7 @@
 <tbody>
 <tr>
 <td><code>RUNNING</code></td>
-<td>任务正在 HyP3 上积极处理</td>
+<td>任务正在 HyP3 上处理</td>
 </tr>
 <tr>
 <td><code>SUCCEEDED</code></td>
@@ -1655,17 +1683,53 @@
 </tr>
 </tbody>
 </table>
-<!-- screenshot: job status list -->
 <figure>
 <p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../frontend/fig/processor_status_light.png#only-light" data-desc-position="bottom"><img alt="任务状态" class="doc-img" src="../../../frontend/fig/processor_status_light.png#only-light" style="width: 80%"></a>
 <a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../frontend/fig/processor_status_dark.png#only-dark" data-desc-position="bottom"><img alt="任务状态" class="doc-img" src="../../../frontend/fig/processor_status_dark.png#only-dark" style="width: 80%"></a></p>
 <figcaption>
-<p>处理器任务面板</p>
+<p>处理器任务面板（HyP3 任务状态）。</p>
 </figcaption>
 </figure>
-<p>如有任务显示 <code>FAILED</code>，点击<strong>重试</strong>重新提交。任务显示 <code>SUCCEEDED</code> 后，点击<strong>下载</strong>将处理好的干涉图获取到工作目录。</p>
+<p>如有任务显示 <code>FAILED</code>，点击<strong>重试</strong>重新提交。全部显示 <code>SUCCEEDED</code> 后，点击<strong>下载</strong>获取干涉图。</p>
+</div>
+<div class="tabbed-block">
+<p>点击<strong>刷新</strong>从磁盘读取当前步骤和命令状态：</p>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RUNNING</code></td>
+<td>步骤正在执行</td>
+</tr>
+<tr>
+<td><code>SUCCEEDED</code></td>
+<td>步骤成功完成</td>
+</tr>
+<tr>
+<td><code>FAILED</code></td>
+<td>步骤失败 — 点击<strong>重试</strong>重新运行</td>
+</tr>
+<tr>
+<td><code>PENDING</code></td>
+<td>步骤等待前序步骤完成</td>
+</tr>
+</tbody>
+</table>
+<p>每个步骤可能包含多个命令（如每个 SLC 一个）。展开步骤可查看逐命令状态。</p>
+<p>如有步骤显示 <code>FAILED</code>，点击<strong>重试</strong>重新运行。点击<strong>取消</strong>可停止本地进程或取消 SLURM 任务。</p>
+</div>
+</div>
+</div>
 <hr>
 <h2 id="_7">其他操作</h2>
+<div class="tabbed-set tabbed-alternate" data-tabs="3:2"><input checked="checked" id="hyp3_2" name="__tabbed_3" type="radio"><input id="isce2_2" name="__tabbed_3" type="radio"><div class="tabbed-labels"><label for="hyp3_2">HyP3</label><label for="isce2_2">ISCE2</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
 <table>
 <thead>
 <tr>
@@ -1675,25 +1739,60 @@
 </thead>
 <tbody>
 <tr>
+<td><strong>刷新</strong></td>
+<td>从 HyP3 获取最新任务状态</td>
+</tr>
+<tr>
 <td><strong>重试</strong></td>
-<td>将所有失败任务重新提交至 HyP3</td>
+<td>重新提交所有失败任务</td>
 </tr>
 <tr>
 <td><strong>下载</strong></td>
-<td>将所有成功的干涉图下载到工作目录</td>
+<td>下载所有成功的干涉图</td>
 </tr>
 <tr>
 <td><strong>监控</strong></td>
-<td>持续轮询 HyP3 直到所有任务完成，然后自动下载</td>
+<td>持续轮询 HyP3 直到所有任务完成后自动下载</td>
 </tr>
 <tr>
 <td><strong>积分</strong></td>
-<td>查看剩余的 HyP3 处理积分</td>
+<td>查看剩余 HyP3 处理积分</td>
 </tr>
 </tbody>
 </table>
+</div>
+<div class="tabbed-block">
+<table>
+<thead>
+<tr>
+<th>按钮</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>刷新</strong></td>
+<td>从磁盘读取步骤/命令状态</td>
+</tr>
+<tr>
+<td><strong>重试</strong></td>
+<td>重新运行所有失败步骤</td>
+</tr>
+<tr>
+<td><strong>取消</strong></td>
+<td>停止本地进程或取消 SLURM 任务</td>
+</tr>
+<tr>
+<td><strong>监控</strong></td>
+<td>持续轮询步骤状态直到所有步骤完成</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
 <hr>
-<p>所有任务成功且干涉图下载完成后，前往分析器面板运行 InSAR 时序分析。</p>
+<p>处理完成且干涉图就绪后，前往分析器面板运行 InSAR 时序分析。</p>
 <p><a class="md-button" href="../analyzer/">分析器</a></p>
 
 

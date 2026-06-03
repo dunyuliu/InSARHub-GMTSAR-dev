@@ -1576,7 +1576,10 @@
 <p>InSARHub 在流程推进过程中会向磁盘写入一组一致的文件。每个阶段都会在工作目录中添加文件 — 从配对选择到分析，始终使用同一文件夹，因此可以通过查看哪些文件存在来判断文件夹的处理进度。</p>
 <hr>
 <h2 id="_2">目录结构</h2>
-<p><strong>HyP3 流程（单堆叠）</strong> — 仅找到一个轨道/帧时，所有文件直接写入 <code>workdir/</code>：</p>
+<p>单堆叠布局 — 仅找到一个轨道/帧时，所有文件直接写入 <code>workdir/</code>：</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="hyp3" name="__tabbed_1" type="radio"><input id="isce2" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="hyp3">HyP3</label><label for="isce2">ISCE2</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>workdir/
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── insarhub_config.json               # 流程配置（随每个阶段累积）
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── stack_p0_f0.json                   # 配对、基线、场景、质量评分
@@ -1590,15 +1593,16 @@
 </span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>│   └── S1_coherence_decay_*.tif
 </span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>├── hyp3/                              # HyP3 下载的 ZIP 产品（处理器下载后）
 </span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>│   └── S1AA_*_INT20_*.zip
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>├── mintpy/                            # MintPy 分析输出（分析器运行后）
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│   ├── .mintpy.cfg
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>│   ├── inputs/
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>│   ├── geo/
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>│   ├── tmp/                           # 解压的 zip 内容（清理时删除）
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>│   ├── clip/                          # AOI 裁剪后的干涉图（清理时删除）
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>│   └── timeseries*.h5, velocity.h5, ...
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>└── mintpy/                            # MintPy 分析输出（分析器运行后）
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    ├── .mintpy.cfg
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    ├── inputs/
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    ├── geo/
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    ├── tmp/                           # 解压的 zip 内容（清理时删除）
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    ├── clip/                          # AOI 裁剪后的干涉图（清理时删除）
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    └── timeseries*.h5, velocity.h5, ...
 </span></code></pre></div>
-<p><strong>ISCE2 流程（单堆叠）</strong>：</p>
+</div>
+<div class="tabbed-block">
 <div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>workdir/
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>├── insarhub_config.json
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>├── stack_p0_f0.json
@@ -1625,6 +1629,9 @@
 </span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>    ├── geo/
 </span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>    └── timeseries*.h5, velocity.h5, ...
 </span></code></pre></div>
+</div>
+</div>
+</div>
 <p><strong>多堆叠运行</strong> — 搜索覆盖多个轨道/帧时，每个组获得自己的 <code>p{path}_f{frame}/</code> 子文件夹，结构与对应单堆叠布局完全相同。</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>workdir/
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>├── p100_f466/                    # 每个轨道/帧组一个子文件夹

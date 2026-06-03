@@ -1540,6 +1540,10 @@
 <hr>
 <h2 id="view-data">View Data</h2>
 <p>Once interferograms have been downloaded, click <strong>View Data</strong> in the Processor panel to open the data browser. This lists all HyP3 product files extracted from the downloaded <code>.zip</code> archives and lets you overlay any of them directly on the map.</p>
+<div class="admonition warning">
+<p class="admonition-title">ISCE2 not supported</p>
+<p><strong>View Data</strong> is only available for HyP3 outputs. ISCE2 interferograms are stored in radar (range/azimuth) coordinates and do not have a geographic coordinate system until geocoded by MintPy. Use the <strong>Analyzer</strong> panel to geocode and view ISCE2 results.</p>
+</div>
 <figure>
 <p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/view_data_button_light.png#only-light" data-desc-position="bottom"><img alt="View Data Button" class="doc-img" src="../fig/view_data_button_light.png#only-light" style="width: 60%"></a>
 <a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/view_data_button_dark.png#only-dark" data-desc-position="bottom"><img alt="View Data Button" class="doc-img" src="../fig/view_data_button_dark.png#only-dark" style="width: 60%"></a></p>
@@ -1593,44 +1597,68 @@
 <hr>
 <h2 id="submitting-jobs">Submitting Jobs</h2>
 <p>Once the pair network is reviewed and satisfactory, click <strong>Process</strong> to open the processor selection dialog.</p>
-<!-- screenshot: click process button -->
 <figure>
 <p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/process_button_light.png#only-light" data-desc-position="bottom"><img alt="Process Button" class="doc-img" src="../fig/process_button_light.png#only-light" style="width: 60%"></a>
 <a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/process_button_dark.png#only-dark" data-desc-position="bottom"><img alt="Process Button" class="doc-img" src="../fig/process_button_dark.png#only-dark" style="width: 60%"></a></p>
 <figcaption>
-<p>Click <strong>Process</strong> to submit interferogram pairs to HyP3.</p>
+<p>Click <strong>Process</strong> to open the processor selection dialog.</p>
 </figcaption>
 </figure>
-<!-- screenshot: processor selection dialog -->
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="hyp3" name="__tabbed_1" type="radio"><input id="isce2" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="hyp3">HyP3</label><label for="isce2">ISCE2</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
 <figure>
 <p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/processor_dialog_light.png#only-light" data-desc-position="bottom"><img alt="Processor Selection" class="doc-img" src="../fig/processor_dialog_light.png#only-light" style="width: 60%"></a>
 <a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/processor_dialog_dark.png#only-dark" data-desc-position="bottom"><img alt="Processor Selection" class="doc-img" src="../fig/processor_dialog_dark.png#only-dark" style="width: 60%"></a></p>
 <figcaption>
-<p>Processor selection dialog. Choose a processor (e.g. <code>Hyp3_S1</code>) and confirm to submit all pairs to HyP3.</p>
+<p>Select <code>Hyp3_S1</code> for cloud processing via ASF HyP3.</p>
 </figcaption>
 </figure>
+<p>Select <code>Hyp3_S1</code> and confirm to submit all pairs to ASF HyP3 for cloud processing. No local SAR software required.</p>
 <div class="admonition tip">
 <p class="admonition-title">Test before submitting</p>
-<p>For submitting jobs to an external server, check <strong>Dry Run</strong> in the processor dialog to validate your environment and credentials without submitting real jobs. A successful dry run produces output similar to:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>[Dry run] Would submit 65 pairs via Hyp3_S1 from p93_f121
-</span></code></pre></div>
-<p>This is recommended before your first submission to ensure everything is configured correctly.</p>
+<p>Check <strong>Dry Run</strong> in the dialog to validate credentials without submitting real jobs. A successful dry run produces:
+</p><div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>[Dry run] Would submit 65 pairs via Hyp3_S1 from p93_f121
+</span></code></pre></div><p></p>
 </div>
-<p>For a full description of all processor parameters and options, see the <a href="../../advanced/processor/">Processor Reference</a>.</p>
-<p>Once jobs are successfully submitted, a <strong>Processor</strong> tag with your processor name will appear in the job folder panel, indicating that HyP3 processing is active for this stack.</p>
-<!-- screenshot: processor tab appears -->
+<p>Once submitted, a <strong>Processor</strong> tag appears on the job folder in the drawer.</p>
 <figure>
 <p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/processor_tab_light.png#only-light" data-desc-position="bottom"><img alt="Processor Tab" class="doc-img" src="../fig/processor_tab_light.png#only-light" style="width: 60%"></a>
 <a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/processor_tab_dark.png#only-dark" data-desc-position="bottom"><img alt="Processor Tab" class="doc-img" src="../fig/processor_tab_dark.png#only-dark" style="width: 60%"></a></p>
 <figcaption>
-<p>The <strong>Processor</strong> tab appears in the job folder panel after jobs are successfully submitted.</p>
+<p>The <strong>Processor</strong> tag appears after jobs are successfully submitted.</p>
 </figcaption>
 </figure>
+</div>
+<div class="tabbed-block">
+<figure>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/processor_dialog_ISCE_light.png#only-light" data-desc-position="bottom"><img alt="Processor Selection" class="doc-img" src="../fig/processor_dialog_ISCE_light.png#only-light" style="width: 60%"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/processor_dialog_ISCE_dark.png#only-dark" data-desc-position="bottom"><img alt="Processor Selection" class="doc-img" src="../fig/processor_dialog_ISCE_dark.png#only-dark" style="width: 60%"></a></p>
+<figcaption>
+<p>Select <code>ISCE_S1</code> for local / HPC processing via ISCE2.</p>
+</figcaption>
+</figure>
+<p>Select <code>ISCE_S1</code> and configure the required parameters — bounding box (<code>S N W E</code>), SLC directory, and optionally HPC mode. Click <strong>Submit</strong> to start <code>stackSentinel</code> locally in the background, or submit steps to SLURM with <strong>HPC Mode</strong> enabled.</p>
+<div class="admonition tip">
+<p class="admonition-title">Dry run first</p>
+<p>Enable <strong>Dry Run</strong> to preview run scripts and verify paths without executing. Recommended before the first real submission.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">SLC files required</p>
+<p>ISCE2 processes SLC <code>.SAFE</code> files locally. Make sure scenes are downloaded to the SLC directory before submitting.</p>
+</div>
+<p>Once submitted, a <strong>Processor</strong> tag appears on the job folder in the drawer.</p>
+</div>
+</div>
+</div>
+<p>For a full description of all parameters, see the <a href="../../advanced/processor/">Processor Reference</a>.</p>
 <hr>
 <h2 id="monitoring-jobs">Monitoring Jobs</h2>
-<p>Once jobs are submitted, a job file is automatically saved to the job folder and loaded by default the next time you open the Processor panel. This allows you to resume monitoring even after closing the application.</p>
-<p>A drop-down menu at the top of the Processor panel lists all job files found under the job folder, including the initial submission file (<code>hyp3_jobs.json</code>) and any retry files generated by subsequent <strong>Retry</strong> actions (e.g. <code>hyp3_retry_jobs_20260306t095505.json</code>). Select a different file from the list to inspect or monitor a specific submission.</p>
-<p>Click <strong>Refresh</strong> to check the latest status of all submitted jobs from HyP3. Each job displays one of the following statuses:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="hyp3_1" name="__tabbed_2" type="radio"><input id="isce2_1" name="__tabbed_2" type="radio"><div class="tabbed-labels"><label for="hyp3_1">HyP3</label><label for="isce2_1">ISCE2</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p>A job file (<code>hyp3_jobs.json</code>) is saved to the job folder automatically. A drop-down at the top of the panel lists all job files, including retry files (e.g. <code>hyp3_retry_jobs_*.json</code>). Select a file to inspect a specific submission.</p>
+<p>Click <strong>Refresh</strong> to poll the latest statuses from HyP3:</p>
 <table>
 <thead>
 <tr>
@@ -1641,7 +1669,7 @@
 <tbody>
 <tr>
 <td><code>RUNNING</code></td>
-<td>Job is actively being processed on HyP3</td>
+<td>Job is actively processing on HyP3</td>
 </tr>
 <tr>
 <td><code>SUCCEEDED</code></td>
@@ -1653,17 +1681,53 @@
 </tr>
 </tbody>
 </table>
-<!-- screenshot: job status list -->
 <figure>
 <p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/processor_status_light.png#only-light" data-desc-position="bottom"><img alt="Job Status" class="doc-img" src="../fig/processor_status_light.png#only-light" style="width: 80%"></a>
 <a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/processor_status_dark.png#only-dark" data-desc-position="bottom"><img alt="Job Status" class="doc-img" src="../fig/processor_status_dark.png#only-dark" style="width: 80%"></a></p>
 <figcaption>
-<p>The processor job panel</p>
+<p>The processor job panel showing HyP3 job statuses.</p>
 </figcaption>
 </figure>
-<p>If any jobs have <code>FAILED</code>, click <strong>Retry</strong> to resubmit them. Once jobs show <code>SUCCEEDED</code>, click <strong>Download</strong> to fetch the processed interferograms to the work directory.</p>
+<p>If any jobs show <code>FAILED</code>, click <strong>Retry</strong> to resubmit them. Once all show <code>SUCCEEDED</code>, click <strong>Download</strong> to fetch the interferograms.</p>
+</div>
+<div class="tabbed-block">
+<p>Click <strong>Refresh</strong> to read the current step and command statuses from disk:</p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RUNNING</code></td>
+<td>Step is actively executing</td>
+</tr>
+<tr>
+<td><code>SUCCEEDED</code></td>
+<td>Step completed successfully</td>
+</tr>
+<tr>
+<td><code>FAILED</code></td>
+<td>Step failed — click <strong>Retry</strong> to re-run</td>
+</tr>
+<tr>
+<td><code>PENDING</code></td>
+<td>Step is waiting for a prior step to finish</td>
+</tr>
+</tbody>
+</table>
+<p>Each step may contain multiple commands (e.g. one per SLC). Per-command status is shown when a step is expanded.</p>
+<p>If any steps show <code>FAILED</code>, click <strong>Retry</strong> to re-run them. Click <strong>Cancel</strong> to stop a running local process or scancel active SLURM jobs.</p>
+</div>
+</div>
+</div>
 <hr>
 <h2 id="other-actions">Other Actions</h2>
+<div class="tabbed-set tabbed-alternate" data-tabs="3:2"><input checked="checked" id="hyp3_2" name="__tabbed_3" type="radio"><input id="isce2_2" name="__tabbed_3" type="radio"><div class="tabbed-labels"><label for="hyp3_2">HyP3</label><label for="isce2_2">ISCE2</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
 <table>
 <thead>
 <tr>
@@ -1673,16 +1737,20 @@
 </thead>
 <tbody>
 <tr>
+<td><strong>Refresh</strong></td>
+<td>Poll HyP3 for latest job statuses</td>
+</tr>
+<tr>
 <td><strong>Retry</strong></td>
-<td>Resubmit all failed jobs to HyP3</td>
+<td>Resubmit all failed jobs</td>
 </tr>
 <tr>
 <td><strong>Download</strong></td>
-<td>Download all succeeded interferograms to the work directory</td>
+<td>Download all succeeded interferograms</td>
 </tr>
 <tr>
 <td><strong>Watch</strong></td>
-<td>Continuously poll HyP3 until all jobs complete, then download automatically</td>
+<td>Poll HyP3 continuously until all jobs complete, then download automatically</td>
 </tr>
 <tr>
 <td><strong>Credits</strong></td>
@@ -1690,8 +1758,39 @@
 </tr>
 </tbody>
 </table>
+</div>
+<div class="tabbed-block">
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Refresh</strong></td>
+<td>Read step/command statuses from disk</td>
+</tr>
+<tr>
+<td><strong>Retry</strong></td>
+<td>Re-run all failed steps</td>
+</tr>
+<tr>
+<td><strong>Cancel</strong></td>
+<td>Stop running local process or scancel SLURM jobs</td>
+</tr>
+<tr>
+<td><strong>Watch</strong></td>
+<td>Poll step statuses until all steps complete</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
 <hr>
-<p>Once all jobs have succeeded and interferograms are downloaded, proceed to the Analyzer panel to run time-series InSAR analysis.</p>
+<p>Once processing is complete and interferograms are ready, proceed to the Analyzer panel to run time-series InSAR analysis.</p>
 <p><a class="md-button" href="../analyzer/">Analyzer</a></p>
 
 
