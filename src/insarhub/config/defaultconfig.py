@@ -310,7 +310,7 @@ class Hyp3_S1_Config(Hyp3_Base_Config):
          "fields": ["include_dem", "include_look_vectors", "include_inc_map",
                     "include_los_displacement", "include_wrapped_phase", "include_displacement_maps"]},
         {"label": "Job",
-         "fields": ["skip_existing", "submission_chunk_size"]},
+         "fields": ["skip_existing", "submission_chunk_size", "max_workers"]},
     ]
     _ui_fields: ClassVar[dict] = {
         "looks":                    {"type": "select", "options": ["20x4", "10x2"],
@@ -331,6 +331,9 @@ class Hyp3_S1_Config(Hyp3_Base_Config):
         "submission_chunk_size":    {"type": "number", "min": 1, "max": 500, "step": 1,
                                      "default": 200,
                                      "hint": "Jobs per API batch request"},
+        "max_workers":              {"type": "number", "min": 1, "max": 16, "step": 1,
+                                     "default": 4,
+                                     "hint": "Parallel download threads for completed job outputs (default 4)"},
     }
     # ─────────────────────────────────────────────────────────────────────────
 
