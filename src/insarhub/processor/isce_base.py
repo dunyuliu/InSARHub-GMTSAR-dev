@@ -1501,7 +1501,10 @@ class ISCE_Base(LocalProcessor):
         print(f"{Fore.YELLOW}Retrying {len(to_retry)} step(s) "
               f"from {first_failed}…{Style.RESET_ALL}")
 
-        hpc_mode = getattr(self.config, "hpc_mode", False)
+        hpc_mode = getattr(self.config, "hpc_mode", False) or any(
+            m.get("slurm_job_ids") or m.get("hpc_manager") or m.get("hpc_array")
+            for m in self.jobs.values()
+        )
         dry_run  = getattr(self.config, "dry_run", False)
         if hpc_mode or dry_run:
             self._step_executor(to_retry)

@@ -1847,11 +1847,21 @@ def _proc_local_submit(args, extra_args: list[str]):
 def _load_local_processor(processor_name: str, workdir: Path, jobs_path: Path,
                            hpc_mode: bool = False, dry_run: bool = False):
     """Instantiate a local processor from a saved jobs file without needing pairs."""
+    import dataclasses
     from insarhub import Processor
     processor_cls = Processor._registry[processor_name]
     cfg_cls = getattr(processor_cls, "default_config", None)
-    cfg = cfg_cls(workdir=str(workdir), saved_job_path=str(jobs_path),
-                  hpc_mode=hpc_mode, dry_run=dry_run) if cfg_cls else None
+    if cfg_cls is not None:
+        saved_cfg = _read_proc_config_from_folder(workdir)
+        overrides = {k: v for k, v in saved_cfg.items() if k not in _SAVED_CFG_SKIP}
+        overrides["workdir"] = str(workdir)
+        overrides["saved_job_path"] = str(jobs_path)
+        overrides["hpc_mode"] = hpc_mode or bool(saved_cfg.get("hpc_mode", False))
+        overrides["dry_run"] = dry_run
+        valid = {f.name for f in dataclasses.fields(cfg_cls)}
+        cfg = cfg_cls(**{k: v for k, v in overrides.items() if k in valid})
+    else:
+        cfg = None
     saved = json.loads(jobs_path.read_text())
     pairs = [(j["step"], j["step"]) for j in saved.get("jobs", {}).values()]
     return processor_cls(pairs=pairs or [("_", "_")], config=cfg)
