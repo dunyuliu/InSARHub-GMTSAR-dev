@@ -129,9 +129,13 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
         analyzer_name = type(self).name
         current_path  = os.environ.get("PATH", "")
 
+        step_args = ""
+        if steps:
+            step_args = " --step " + " ".join(steps)
+
         body = "\n".join([
             f'export PATH="{current_path}"',
-            f"{insarhub_bin} analyzer -N {analyzer_name} -w {self.workdir} run",
+            f"{insarhub_bin} analyzer -N {analyzer_name} -w {self.workdir} run{step_args}",
         ])
 
         lines = ["#!/bin/bash"] + slurm_cfg.to_header_lines() + ["", body, ""]

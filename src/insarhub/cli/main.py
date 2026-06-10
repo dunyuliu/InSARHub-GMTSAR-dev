@@ -2049,6 +2049,14 @@ def _az_run(args, extra_args: list[str]):
         analyzer = Analyzer.create(args.analyzer_name, workdir=analysis_dir, **overrides)
 
         step_num = 1
+        hpc = getattr(analyzer.config, "hpc_mode", False)
+
+        # HPC mode: submit everything (prep_data + MintPy steps) as a single sbatch job
+        if hpc:
+            hpc_steps = (["prep_data"] if run_prep else []) + (mintpy_steps or [])
+            analyzer.submit_hpc(steps=hpc_steps or None)
+            continue
+
         if run_prep:
             print(f"\nStep {step_num}/{total}: prep_data")
             step_num += 1
@@ -2056,12 +2064,6 @@ def _az_run(args, extra_args: list[str]):
             _fail(result, f"prep_data {tag}".strip())
             if mintpy_steps is None:
                 continue  # only 'prep_data' was requested for this dir
-
-        # HPC mode: submit all MintPy steps as a single sbatch job
-        if getattr(analyzer.config, "hpc_mode", False):
-            if mintpy_steps:
-                analyzer.submit_hpc(steps=mintpy_steps)
-            continue
 
         for step in (mintpy_steps or []):
             print(f"\nStep {step_num}/{total}: {step}")
