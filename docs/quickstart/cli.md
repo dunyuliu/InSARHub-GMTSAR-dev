@@ -132,6 +132,7 @@ insarhub downloader -N S1_SLC \
 | `-d`, `--download` | — | Download scenes after search |
 | `-O`, `--orbit-files [PATH]` | — | Download orbit files. Omit `PATH` to save alongside scenes (one subfolder per stack); provide `PATH` to collect all orbit files into that directory |
 | `--workers` | `3` | Parallel download workers |
+| `--no-verify-ssl` | — | Disable SSL certificate verification for ASF downloads. Use this if ASF's certificate has expired and downloads fail with an SSL error |
 | `--footprint` | `<workdir>/footprint.png` | Save a footprint map image to this path |
 
 ```bash
@@ -226,9 +227,11 @@ insarhub processor [--list-processors] <action> [options]
     |------|---------|-------------|
     | `-w`, `--workdir` | cwd | Working directory |
     | `--job-file` | `<workdir>/hyp3_jobs.json` | Path to saved job IDs JSON |
+    | `-r`, `--recursive` | off | Recursively search workdir for all `hyp3*.json` files (including retry files) |
 
     ```bash
     insarhub processor refresh -w /data/bryce
+    insarhub processor refresh -w /data/bryce -r   # search all subdirs including retry files
     ```
 
     #### download
@@ -239,9 +242,12 @@ insarhub processor [--list-processors] <action> [options]
     |------|---------|-------------|
     | `-w`, `--workdir` | cwd | Working directory |
     | `--job-file` | `<workdir>/hyp3_jobs.json` | Path to saved job IDs JSON |
+    | `--max-workers` | saved config | Parallel download threads (overrides saved config) |
+    | `-r`, `--recursive` | off | Recursively search workdir for all `hyp3*.json` files (including retry files) |
 
     ```bash
     insarhub processor download -w /data/bryce
+    insarhub processor download -w /data/bryce -r --max-workers 8
     ```
 
     #### retry
@@ -252,9 +258,11 @@ insarhub processor [--list-processors] <action> [options]
     |------|---------|-------------|
     | `-w`, `--workdir` | cwd | Working directory |
     | `--job-file` | auto | Saved job file |
+    | `-r`, `--recursive` | off | Recursively search workdir for all `hyp3*.json` files (including retry files) |
 
     ```bash
     insarhub processor retry -w /data/bryce
+    insarhub processor retry -w /data/bryce -r
     ```
 
     #### watch
@@ -265,9 +273,11 @@ insarhub processor [--list-processors] <action> [options]
     |------|---------|-------------|
     | `--interval` | `300` | Seconds between polls |
     | `-w`, `--workdir` | cwd | Working directory |
+    | `-r`, `--recursive` | off | Recursively search workdir for all `hyp3*.json` files (including retry files) |
 
     ```bash
     insarhub processor watch -w /data/bryce --interval 600
+    insarhub processor watch -w /data/bryce --interval 600 -r
     ```
 
     #### credits

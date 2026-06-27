@@ -11,10 +11,10 @@ Pipeline subcommands
 insarhub downloader -N S1_SLC --AOI -113.05 37.74 -112.68 38.00 --start 2021-01-01 --end 2022-01-01
 insarhub downloader ... --select-pairs --download --orbit-files
 insarhub processor -N Hyp3_S1 -w /data/bryce submit
-insarhub processor -N Hyp3_S1 -w /data/bryce refresh
-insarhub processor -N Hyp3_S1 -w /data/bryce download
-insarhub processor -N Hyp3_S1 -w /data/bryce retry
-insarhub processor -N Hyp3_S1 -w /data/bryce watch --interval 300
+insarhub processor -N Hyp3_S1 -w /data/bryce refresh [-r]
+insarhub processor -N Hyp3_S1 -w /data/bryce download [-r]
+insarhub processor -N Hyp3_S1 -w /data/bryce retry [-r]
+insarhub processor -N Hyp3_S1 -w /data/bryce watch --interval 300 [-r]
 insarhub processor -N Hyp3_S1 -w /data/bryce credits
 insarhub processor -N ISCE2      -w /data/bryce run    (local — not yet implemented)
 insarhub analyzer   -N Hyp3_SBAS -w /data/bryce run
@@ -107,6 +107,8 @@ def create_parser() -> argparse.ArgumentParser:
     )
     g_dl.add_argument("-w", "--workdir", metavar="PATH",
                       help="Working directory (default: current directory)")
+    g_dl.add_argument("--no-verify-ssl", action="store_true", dest="no_verify_ssl",
+                      help="Disable SSL certificate verification (use if ASF cert is expired)")
     g_dl.add_argument("--config", metavar="PATH", nargs="?", const="__default__", default=None,
                       help="Path to a saved downloader config JSON; "
                            "omit the value to use <workdir>/insarhub_config.json")
@@ -176,10 +178,10 @@ def create_parser() -> argparse.ArgumentParser:
             "Select a processor with -N and run an action.\n"
             "\nHyP3 (online) processor actions:\n"
             "  submit           Submit pairs to HyP3\n"
-            "  refresh          Pull latest job statuses\n"
-            "  download         Download completed outputs\n"
-            "  retry            Resubmit failed jobs\n"
-            "  watch            Poll until all jobs complete\n"
+            "  refresh          Pull latest job statuses  [-r to search recursively incl. retry files]\n"
+            "  download         Download completed outputs [-r to search recursively incl. retry files]\n"
+            "  retry            Resubmit failed jobs       [-r to search recursively incl. retry files]\n"
+            "  watch            Poll until all jobs complete [-r to search recursively incl. retry files]\n"
             "  credits          Show remaining HyP3 credits\n"
             "\nLocal processor actions (ISCE_S1):\n"
             "  submit           Submit pairs to local ISCE2 processor (runs in background)\n"
@@ -251,16 +253,22 @@ def create_parser() -> argparse.ArgumentParser:
     # --- refresh  (HyP3) ---------------------------------------------- #
     p_proc_refresh = proc_sub.add_parser("refresh", help="Refresh HyP3 job statuses")
     _add_job_file(p_proc_refresh)
+    p_proc_refresh.add_argument("-r", "--recursive", action="store_true",
+                                help="Recursively search workdir for hyp3*.json job files")
 
     # --- download  (HyP3) --------------------------------------------- #
     p_proc_dl = proc_sub.add_parser("download", help="Download completed HyP3 job outputs")
     _add_job_file(p_proc_dl)
     p_proc_dl.add_argument("--max-workers", metavar="INT", type=int, default=None,
                            help="Parallel download workers (overrides saved config)")
+    p_proc_dl.add_argument("-r", "--recursive", action="store_true",
+                           help="Recursively search workdir for hyp3*.json job files")
 
     # --- retry  (HyP3) ------------------------------------------------- #
     p_proc_retry = proc_sub.add_parser("retry", help="Resubmit failed HyP3 jobs")
     _add_job_file(p_proc_retry)
+    p_proc_retry.add_argument("-r", "--recursive", action="store_true",
+                              help="Recursively search workdir for hyp3*.json job files")
 
     # --- watch  (HyP3) ------------------------------------------------- #
     p_proc_watch = proc_sub.add_parser(
@@ -268,6 +276,8 @@ def create_parser() -> argparse.ArgumentParser:
     _add_job_file(p_proc_watch)
     p_proc_watch.add_argument("--interval", metavar="SEC", type=int, default=300,
                               help="Seconds between refreshes (default: 300)")
+    p_proc_watch.add_argument("-r", "--recursive", action="store_true",
+                              help="Recursively search workdir for hyp3*.json job files")
 
     # --- credits  (HyP3) ----------------------------------------------- #
     p_proc_credits = proc_sub.add_parser("credits", help="Show remaining HyP3 processing credits")
@@ -521,12 +531,13 @@ def _resolve_workdir(raw: str | None) -> Path:
     return Path(raw).expanduser().resolve() if raw else Path.cwd()
 
 
-def _find_job_files(job_dir: Path, override: str | None = None) -> list[Path]:
+def _find_job_files(job_dir: Path, override: str | None = None,
+                    include_retry: bool = False) -> list[Path]:
     """Return all hyp3*.json job files in job_dir, or just the override file if given."""
     if override:
         return [Path(override).expanduser().resolve()]
     return sorted(p for p in job_dir.glob("hyp3*.json")
-                  if not p.name.startswith("hyp3_retry_"))
+                  if include_retry or not p.name.startswith("hyp3_retry_"))
 
 
 def _load_credential_pool(path: str | None) -> dict | None:
@@ -549,18 +560,23 @@ def _fail(result, label: str):
         sys.exit(1)
 
 
-def _iter_job_dirs(workdir: Path, job_file_override: str | None) -> list[Path]:
+def _iter_job_dirs(workdir: Path, job_file_override: str | None,
+                   recursive: bool = False) -> list[Path]:
     """
     Return the list of directories to operate on for lifecycle commands.
 
     Resolution order:
       1. --job-file given  → parent directory of that file only
-      2. workdir has insarhub_config.json  → workdir itself (already a stack dir)
-      3. p*_f* subdirs that contain any hyp3*.json  → each subdir
-      4. workdir itself  (flat / single-group case)
+      2. recursive=True    → all dirs under workdir that contain hyp3*.json
+      3. workdir has insarhub_config.json  → workdir itself (already a stack dir)
+      4. p*_f* subdirs that contain any hyp3*.json  → each subdir
+      5. workdir itself  (flat / single-group case)
     """
     if job_file_override:
         return [Path(job_file_override).expanduser().resolve().parent]
+    if recursive:
+        dirs = sorted({p.parent for p in workdir.rglob("hyp3*.json")})
+        return dirs if dirs else [workdir]
     if (workdir / "insarhub_config.json").exists():
         return [workdir]
     subdirs = sorted(
@@ -1191,6 +1207,10 @@ def cmd_downloader(args, extra_args: list[str]):
             stacks_filter = list(zip([int(x) for x in _ro], [int(x) for x in _fr]))
 
     overrides["workdir"] = workdir
+    if getattr(args, "no_verify_ssl", False):
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        overrides["ssl_verify"] = False
 
     downloader = Downloader.create(args.downloader_name,
                                    **{k: v for k, v in overrides.items()
@@ -1589,8 +1609,8 @@ def _proc_refresh(args):
     from insarhub.commands import RefreshCommand
     processor_name = getattr(args, "processor_name", "Hyp3_S1")
     workdir = _resolve_workdir(args.workdir)
-    for job_dir in _iter_job_dirs(workdir, args.job_file):
-        for jf in _find_job_files(job_dir, args.job_file):
+    for job_dir in _iter_job_dirs(workdir, args.job_file, recursive=getattr(args, "recursive", False)):
+        for jf in _find_job_files(job_dir, args.job_file, include_retry=getattr(args, "recursive", False)):
             tag = f"[{job_dir.name}/{jf.name}] " if job_dir != workdir else f"[{jf.name}] "
             print(f"{tag}Refreshing…")
             processor = _load_hyp3_processor(job_dir, job_file=jf, processor_name=processor_name)
@@ -1601,8 +1621,8 @@ def _proc_download_results(args):
     from insarhub.commands import RefreshCommand, DownloadResultsCommand
     processor_name = getattr(args, "processor_name", "Hyp3_S1")
     workdir = _resolve_workdir(args.workdir)
-    for job_dir in _iter_job_dirs(workdir, args.job_file):
-        for jf in _find_job_files(job_dir, args.job_file):
+    for job_dir in _iter_job_dirs(workdir, args.job_file, recursive=getattr(args, "recursive", False)):
+        for jf in _find_job_files(job_dir, args.job_file, include_retry=getattr(args, "recursive", False)):
             tag = f"[{job_dir.name}/{jf.name}] " if job_dir != workdir else f"[{jf.name}] "
             print(f"{tag}Downloading results…")
             processor = _load_hyp3_processor(job_dir, job_file=jf, processor_name=processor_name,
@@ -1615,8 +1635,8 @@ def _proc_retry(args):
     from insarhub.commands import RetryCommand
     processor_name = getattr(args, "processor_name", "Hyp3_S1")
     workdir = _resolve_workdir(args.workdir)
-    for job_dir in _iter_job_dirs(workdir, args.job_file):
-        for jf in _find_job_files(job_dir, args.job_file):
+    for job_dir in _iter_job_dirs(workdir, args.job_file, recursive=getattr(args, "recursive", False)):
+        for jf in _find_job_files(job_dir, args.job_file, include_retry=getattr(args, "recursive", False)):
             tag = f"[{job_dir.name}/{jf.name}] " if job_dir != workdir else f"[{jf.name}] "
             print(f"{tag}Retrying failed jobs…")
             processor = _load_hyp3_processor(job_dir, job_file=jf, processor_name=processor_name)
@@ -1635,8 +1655,8 @@ def _proc_watch(args):
     from insarhub.processor.hyp3_base import Hyp3Base
     entries: list[tuple[Path, Path, Hyp3Base]] = []
     processor_name = getattr(args, "processor_name", "Hyp3_S1")
-    for job_dir in _iter_job_dirs(workdir, args.job_file):
-        for jf in _find_job_files(job_dir, args.job_file):
+    for job_dir in _iter_job_dirs(workdir, args.job_file, recursive=getattr(args, "recursive", False)):
+        for jf in _find_job_files(job_dir, args.job_file, include_retry=getattr(args, "recursive", False)):
             entries.append((job_dir, jf, _load_hyp3_processor(job_dir, job_file=jf,
                                                                processor_name=processor_name)))
 

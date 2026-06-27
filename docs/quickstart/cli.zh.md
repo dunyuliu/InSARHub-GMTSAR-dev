@@ -132,6 +132,7 @@ insarhub downloader -N S1_SLC \
 | `-d`, `--download` | — | 搜索后下载场景 |
 | `-O`, `--orbit-files [PATH]` | — | 下载轨道文件。省略 `PATH` 则保存在场景旁边（每个堆叠一个子文件夹）；提供 `PATH` 则将所有轨道文件收集到该目录 |
 | `--workers` | `3` | 并行下载工作线程数 |
+| `--no-verify-ssl` | — | 禁用 ASF 下载的 SSL 证书验证。当 ASF 证书过期导致下载失败时使用 |
 | `--footprint` | `<workdir>/footprint.png` | 将覆盖范围地图图像保存到此路径 |
 
 ```bash
@@ -226,9 +227,11 @@ insarhub processor [--list-processors] <action> [options]
     |------|---------|-------------|
     | `-w`, `--workdir` | cwd | 工作目录 |
     | `--job-file` | `<workdir>/hyp3_jobs.json` | 已保存作业 ID JSON 文件路径 |
+    | `-r`, `--recursive` | 关闭 | 递归搜索 workdir 下所有 `hyp3*.json` 文件（含重试文件） |
 
     ```bash
     insarhub processor refresh -w /data/bryce
+    insarhub processor refresh -w /data/bryce -r   # 递归搜索所有子目录及重试文件
     ```
 
     #### download
@@ -239,9 +242,12 @@ insarhub processor [--list-processors] <action> [options]
     |------|---------|-------------|
     | `-w`, `--workdir` | cwd | 工作目录 |
     | `--job-file` | `<workdir>/hyp3_jobs.json` | 已保存作业 ID JSON 文件路径 |
+    | `--max-workers` | 已保存配置 | 并行下载线程数（覆盖已保存配置） |
+    | `-r`, `--recursive` | 关闭 | 递归搜索 workdir 下所有 `hyp3*.json` 文件（含重试文件） |
 
     ```bash
     insarhub processor download -w /data/bryce
+    insarhub processor download -w /data/bryce -r --max-workers 8
     ```
 
     #### retry
@@ -252,9 +258,11 @@ insarhub processor [--list-processors] <action> [options]
     |------|---------|-------------|
     | `-w`, `--workdir` | cwd | 工作目录 |
     | `--job-file` | 自动 | 已保存的作业文件 |
+    | `-r`, `--recursive` | 关闭 | 递归搜索 workdir 下所有 `hyp3*.json` 文件（含重试文件） |
 
     ```bash
     insarhub processor retry -w /data/bryce
+    insarhub processor retry -w /data/bryce -r
     ```
 
     #### watch
@@ -265,9 +273,11 @@ insarhub processor [--list-processors] <action> [options]
     |------|---------|-------------|
     | `--interval` | `300` | 轮询间隔（秒） |
     | `-w`, `--workdir` | cwd | 工作目录 |
+    | `-r`, `--recursive` | 关闭 | 递归搜索 workdir 下所有 `hyp3*.json` 文件（含重试文件） |
 
     ```bash
     insarhub processor watch -w /data/bryce --interval 600
+    insarhub processor watch -w /data/bryce --interval 600 -r
     ```
 
     #### credits

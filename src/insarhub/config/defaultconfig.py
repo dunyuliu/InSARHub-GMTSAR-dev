@@ -56,6 +56,7 @@ class ASF_Base_Config:
     maxResults: int | None = None
     granule_names: str | list[str] | None = None
     workdir: Path | str = field(default_factory=lambda: Path.cwd())
+    ssl_verify: bool = True
 
     # ── UI metadata consumed by the API / settings panel ─────────────────────
     _ui_groups: ClassVar[list] = [

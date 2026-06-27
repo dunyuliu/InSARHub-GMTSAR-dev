@@ -113,6 +113,7 @@ Check documentation for how to setup .netrc file.\n""")
                 _password = getpass.getpass("Enter your ASF password: ")
                 try:
                     self._session = asf.ASFSession().auth_with_creds(_username, _password)
+                    self._session.verify = self.config.ssl_verify
                 except ASFAuthenticationError:
                     print(f"{Fore.RED}Authentication failed. Please check your credentials and try again.\n")
                     continue
@@ -125,6 +126,7 @@ Check documentation for how to setup .netrc file.\n""")
                 break
         else:
             self._session = asf.ASFSession()
+            self._session.verify = self.config.ssl_verify
        
     def _check_netrc(self, keyword: str) -> bool:
         """Check if .netrc file exists in the home directory with the specified keyword.
@@ -877,6 +879,7 @@ Check documentation for how to setup .netrc file.\n""")
             thread_session = asf.ASFSession()
             thread_session.cookies.update(self.session.cookies)
             thread_session.headers.update(self.session.headers)
+            thread_session.verify = self.config.ssl_verify
 
             for attempt in range(1, 4):
                 if stop_event.is_set():
