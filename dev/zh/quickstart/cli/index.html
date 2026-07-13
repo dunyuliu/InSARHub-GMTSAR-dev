@@ -2453,7 +2453,7 @@
 <td>下载轨道文件。省略 <code>PATH</code> 则保存在场景旁边（每个堆叠一个子文件夹）；提供 <code>PATH</code> 则将所有轨道文件收集到该目录</td>
 </tr>
 <tr>
-<td><code>--workers</code></td>
+<td><code>--worker</code></td>
 <td><code>3</code></td>
 <td>并行下载工作线程数</td>
 </tr>
@@ -2555,7 +2555,7 @@
 <td>作业名称前缀</td>
 </tr>
 <tr>
-<td><code>--max-workers</code></td>
+<td><code>--worker</code></td>
 <td><code>4</code></td>
 <td>并行提交工作线程数</td>
 </tr>
@@ -2649,7 +2649,7 @@
 <td>已保存作业 ID JSON 文件路径</td>
 </tr>
 <tr>
-<td><code>--max-workers</code></td>
+<td><code>--worker</code></td>
 <td>已保存配置</td>
 <td>并行下载线程数（覆盖已保存配置）</td>
 </tr>
@@ -2661,7 +2661,7 @@
 </tbody>
 </table>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>download<span class="w"> </span>-w<span class="w"> </span>/data/bryce
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>download<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-r<span class="w"> </span>--max-workers<span class="w"> </span><span class="m">8</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>download<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-r<span class="w"> </span>--worker<span class="w"> </span><span class="m">8</span>
 </span></code></pre></div>
 <h4 id="retry">retry</h4>
 <p>重新提交所有失败的 <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> 作业。</p>

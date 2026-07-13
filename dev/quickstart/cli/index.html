@@ -2451,7 +2451,7 @@
 <td>Download orbit files. Omit <code>PATH</code> to save alongside scenes (one subfolder per stack); provide <code>PATH</code> to collect all orbit files into that directory</td>
 </tr>
 <tr>
-<td><code>--workers</code></td>
+<td><code>--worker</code></td>
 <td><code>3</code></td>
 <td>Parallel download workers</td>
 </tr>
@@ -2553,7 +2553,7 @@
 <td>Job name prefix</td>
 </tr>
 <tr>
-<td><code>--max-workers</code></td>
+<td><code>--worker</code></td>
 <td><code>4</code></td>
 <td>Parallel submission workers</td>
 </tr>
@@ -2647,7 +2647,7 @@
 <td>Path to saved job IDs JSON</td>
 </tr>
 <tr>
-<td><code>--max-workers</code></td>
+<td><code>--worker</code></td>
 <td>saved config</td>
 <td>Parallel download threads (overrides saved config)</td>
 </tr>
@@ -2659,7 +2659,7 @@
 </tbody>
 </table>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>download<span class="w"> </span>-w<span class="w"> </span>/data/bryce
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>download<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-r<span class="w"> </span>--max-workers<span class="w"> </span><span class="m">8</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>download<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-r<span class="w"> </span>--worker<span class="w"> </span><span class="m">8</span>
 </span></code></pre></div>
 <h4 id="retry">retry</h4>
 <p>Resubmit all failed <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> jobs.</p>
