@@ -131,7 +131,7 @@ insarhub downloader -N S1_SLC \
 |------|---------|-------------|
 | `-d`, `--download` | — | Download scenes after search |
 | `-O`, `--orbit-files [PATH]` | — | Download orbit files. Omit `PATH` to save alongside scenes (one subfolder per stack); provide `PATH` to collect all orbit files into that directory |
-| `--workers` | `3` | Parallel download workers |
+| `--worker` | `3` | Parallel download workers |
 | `--no-verify-ssl` | — | Disable SSL certificate verification for ASF downloads. Use this if ASF's certificate has expired and downloads fail with an SSL error |
 | `--footprint` | `<workdir>/footprint.png` | Save a footprint map image to this path |
 
@@ -190,7 +190,7 @@ insarhub processor [--list-processors] <action> [options]
     | `--config` | `<workdir>/insarhub_config.json` | Path to saved config; omit value to use default path |
     | `--credential-pool` | `~/.credit_pool` | Path to a plain-text file with one `username:password` per line for multi-account submission |
     | `--name-prefix` | `ifg` | Job name prefix |
-    | `--max-workers` | `4` | Parallel submission workers |
+    | `--worker` | `4` | Parallel submission workers |
     | `--dry-run` | — | Print what would be submitted without sending jobs |
     | `--pairs-file` | auto | Pairs JSON from `downloader --select-pairs` |
     | `--pairs` | — | Inline pairs as `"reference,secondary"` strings |
@@ -242,12 +242,12 @@ insarhub processor [--list-processors] <action> [options]
     |------|---------|-------------|
     | `-w`, `--workdir` | cwd | Working directory |
     | `--job-file` | `<workdir>/hyp3_jobs.json` | Path to saved job IDs JSON |
-    | `--max-workers` | saved config | Parallel download threads (overrides saved config) |
+    | `--worker` | saved config | Parallel download threads (overrides saved config) |
     | `-r`, `--recursive` | off | Recursively search workdir for all `hyp3*.json` files (including retry files) |
 
     ```bash
     insarhub processor download -w /data/bryce
-    insarhub processor download -w /data/bryce -r --max-workers 8
+    insarhub processor download -w /data/bryce -r --worker 8
     ```
 
     #### retry

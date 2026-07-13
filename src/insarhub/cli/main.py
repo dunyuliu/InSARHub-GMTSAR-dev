@@ -9,8 +9,9 @@ classes are used by the Panel frontend, so there is no duplicated business logic
 Pipeline subcommands
 --------------------
 insarhub downloader -N S1_SLC --AOI -113.05 37.74 -112.68 38.00 --start 2021-01-01 --end 2022-01-01
-insarhub downloader ... --select-pairs --download --orbit-files
-insarhub processor -N Hyp3_S1 -w /data/bryce submit
+insarhub downloader ... --select-pairs --download --orbit-files --worker 8
+insarhub processor -N Hyp3_S1 -w /data/bryce submit --worker 4
+insarhub processor -N ISCE_S1 -w /data/bryce --hpc-mode submit --worker 7
 insarhub processor -N Hyp3_S1 -w /data/bryce refresh [-r]
 insarhub processor -N Hyp3_S1 -w /data/bryce download [-r]
 insarhub processor -N Hyp3_S1 -w /data/bryce retry [-r]
@@ -158,7 +159,7 @@ def create_parser() -> argparse.ArgumentParser:
                         help="Download orbit files. Optionally specify a save directory, e.g. -O orbits/ (default: workdir)")
     g_down.add_argument("--merge", action="store_true",
                         help="Download all stacks into workdir/merged/slc/ instead of per-stack subdirs")
-    g_down.add_argument("--workers", metavar="INT", type=int, default=_DL["max_workers"],
+    g_down.add_argument("--worker", metavar="INT", type=int, default=_DL["max_workers"],
                         help=f"Parallel download workers (default: {_DL['max_workers']})")
     g_down.add_argument("--footprint", metavar="PATH",
                         help="Save footprint map image to this path")
@@ -233,8 +234,9 @@ def create_parser() -> argparse.ArgumentParser:
                        help="JSON {username: password} for multi-account HyP3 submission")
     g_sub.add_argument("--name-prefix", metavar="STR", default="ifg",
                        help="Job name prefix (default: ifg)")
-    g_sub.add_argument("--max-workers", metavar="INT", type=int, default=4,
-                       help="Parallel submission workers (default: 4)")
+    g_sub.add_argument("--worker", metavar="INT", type=int, default=None,
+                       help="Workers: in HPC mode = max concurrent SLURM jobs; "
+                            "otherwise = parallel threads per step (default: 4 / 12)")
     g_sub.add_argument("--dry-run", action="store_true",
                        help="Print what would be submitted without sending any jobs to HyP3")
     g_sub_pairs = p_proc_submit.add_argument_group(
@@ -259,7 +261,7 @@ def create_parser() -> argparse.ArgumentParser:
     # --- download  (HyP3) --------------------------------------------- #
     p_proc_dl = proc_sub.add_parser("download", help="Download completed HyP3 job outputs")
     _add_job_file(p_proc_dl)
-    p_proc_dl.add_argument("--max-workers", metavar="INT", type=int, default=None,
+    p_proc_dl.add_argument("--worker", metavar="INT", type=int, default=None,
                            help="Parallel download workers (overrides saved config)")
     p_proc_dl.add_argument("-r", "--recursive", action="store_true",
                            help="Recursively search workdir for hyp3*.json job files")
@@ -1339,14 +1341,14 @@ def cmd_downloader(args, extra_args: list[str]):
         if merge:
             merged_dir = workdir / "merged"
             print(f"[merge] Downloading all stacks → {merged_dir}/slc/")
-            dl_kwargs: dict = {"max_workers": args.workers, "merge": True}
+            dl_kwargs: dict = {"max_workers": args.worker, "merge": True}
             result = DownloadScenesCommand(downloader, **dl_kwargs).run()
             _fail(result, "download")
             if args.orbit_files and hasattr(downloader, "download_orbit"):
                 print("[merge] Downloading orbit files → merged/slc/")
                 downloader.download_orbit(save_dir=str(merged_dir))
         else:
-            dl_kwargs = {"max_workers": args.workers}
+            dl_kwargs = {"max_workers": args.worker}
             orbit_handled = False
             if hasattr(downloader, "download") and "download_orbit" in downloader.download.__code__.co_varnames:
                 dl_kwargs["download_orbit"] = bool(args.orbit_files)
@@ -1505,7 +1507,8 @@ def _proc_submit(args, extra_args: list[str]):
         print(f"[WARNING] Extra args ignored (no config dataclass): {extra_args}", file=sys.stderr)
 
     overrides["name_prefix"] = args.name_prefix
-    overrides["max_workers"] = args.max_workers
+    if getattr(args, "worker", None) is not None:
+        overrides["max_workers"] = args.worker
 
     pool = _load_credential_pool(getattr(args, "credential_pool", None))
     if pool:
@@ -1626,7 +1629,7 @@ def _proc_download_results(args):
             tag = f"[{job_dir.name}/{jf.name}] " if job_dir != workdir else f"[{jf.name}] "
             print(f"{tag}Downloading results…")
             processor = _load_hyp3_processor(job_dir, job_file=jf, processor_name=processor_name,
-                                             max_workers=getattr(args, "max_workers", None))
+                                             max_workers=getattr(args, "worker", None))
             RefreshCommand(processor).run()
             _fail(DownloadResultsCommand(processor).run(), f"download {tag}".strip())
 
@@ -1792,6 +1795,13 @@ def _proc_local_submit(args, extra_args: list[str]):
                 overrides[f.name] = val
 
     overrides["workdir"] = str(workdir)
+
+    # --worker routes to max_concurrent_hpc in HPC mode, max_workers otherwise
+    if getattr(args, "worker", None) is not None:
+        if overrides.get("hpc_mode", False):
+            overrides["max_concurrent_hpc"] = args.worker
+        else:
+            overrides["max_workers"] = args.worker
 
     # --dry-run is registered in the HyP3 submit subparser so argparse consumes
     # it into args.dry_run before extra_args is built — pull it back in here.

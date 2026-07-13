@@ -131,7 +131,7 @@ insarhub downloader -N S1_SLC \
 |------|---------|-------------|
 | `-d`, `--download` | — | 搜索后下载场景 |
 | `-O`, `--orbit-files [PATH]` | — | 下载轨道文件。省略 `PATH` 则保存在场景旁边（每个堆叠一个子文件夹）；提供 `PATH` 则将所有轨道文件收集到该目录 |
-| `--workers` | `3` | 并行下载工作线程数 |
+| `--worker` | `3` | 并行下载工作线程数 |
 | `--no-verify-ssl` | — | 禁用 ASF 下载的 SSL 证书验证。当 ASF 证书过期导致下载失败时使用 |
 | `--footprint` | `<workdir>/footprint.png` | 将覆盖范围地图图像保存到此路径 |
 
@@ -190,7 +190,7 @@ insarhub processor [--list-processors] <action> [options]
     | `--config` | `<workdir>/insarhub_config.json` | 已保存配置的路径；省略值则使用默认路径 |
     | `--credential-pool` | `~/.credit_pool` | 每行一条 `username:password` 的纯文本文件，用于多账户提交 |
     | `--name-prefix` | `ifg` | 作业名称前缀 |
-    | `--max-workers` | `4` | 并行提交工作线程数 |
+    | `--worker` | `4` | 并行提交工作线程数 |
     | `--dry-run` | — | 打印将要提交的内容，但不实际发送作业 |
     | `--pairs-file` | 自动 | 来自 `downloader --select-pairs` 的干涉对 JSON |
     | `--pairs` | — | 以 `"reference,secondary"` 字符串内联指定干涉对 |
@@ -242,12 +242,12 @@ insarhub processor [--list-processors] <action> [options]
     |------|---------|-------------|
     | `-w`, `--workdir` | cwd | 工作目录 |
     | `--job-file` | `<workdir>/hyp3_jobs.json` | 已保存作业 ID JSON 文件路径 |
-    | `--max-workers` | 已保存配置 | 并行下载线程数（覆盖已保存配置） |
+    | `--worker` | 已保存配置 | 并行下载线程数（覆盖已保存配置） |
     | `-r`, `--recursive` | 关闭 | 递归搜索 workdir 下所有 `hyp3*.json` 文件（含重试文件） |
 
     ```bash
     insarhub processor download -w /data/bryce
-    insarhub processor download -w /data/bryce -r --max-workers 8
+    insarhub processor download -w /data/bryce -r --worker 8
     ```
 
     #### retry

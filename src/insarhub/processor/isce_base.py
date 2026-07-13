@@ -1095,7 +1095,7 @@ class ISCE_Base(LocalProcessor):
         mlines += mgr_cfg.to_header_lines()
         mlines += [
             "",
-            "set -uo pipefail",
+            "set -o pipefail",
             "",
             f'TASK_DIR="{task_dir}"',
             f'N_CMDS={n_cmds}',
