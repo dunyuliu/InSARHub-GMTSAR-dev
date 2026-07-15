@@ -1467,6 +1467,10 @@
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>insarhub
 </span></code></pre></div>
 </details>
+<div class="admonition note">
+<p class="admonition-title">Windows：请使用 Python 3.11</p>
+<p>Windows 系统目前仅支持 Python 3.11 —— 创建环境时请使用 <code>python=3.11</code>。Linux 和 macOS 同时支持 3.11 和 3.12。</p>
+</div>
 <p>从 conda-forge 安装最新版本：</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>conda<span class="w"> </span>install<span class="w"> </span>insarhub<span class="w"> </span>-c<span class="w"> </span>conda-forge
 </span></code></pre></div>
@@ -1506,6 +1510,10 @@
 </span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>conda<span class="w"> </span>activate<span class="w"> </span>insar_dev
 </span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
 </span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Windows：请使用 Python 3.11</p>
+<p><code>environment.yml</code> 允许 Python 3.11 或 3.12，但 Windows 目前仅支持 3.11。如果依赖解析选择了 3.12，请在运行 <code>conda env create</code> 前将 <code>environment.yml</code> 中的 <code>python</code> 一行改为 <code>python=3.11</code>。</p>
+</div>
 </div>
 <div class="tabbed-block">
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/jldz9/InSARHub.git
