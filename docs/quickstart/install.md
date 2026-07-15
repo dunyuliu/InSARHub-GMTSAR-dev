@@ -7,6 +7,9 @@
         conda activate insarhub
         ```
 
+    !!! note "Windows: use Python 3.11"
+        On Windows, only Python 3.11 is currently supported — use `python=3.11` when creating the environment above. Linux and macOS support both 3.11 and 3.12.
+
     ```bash
     conda install insarhub -c conda-forge
     ```
@@ -59,6 +62,9 @@
     conda activate insar_dev
     pip install -e .
     ```
+
+    !!! note "Windows: use Python 3.11"
+        `environment.yml` allows Python 3.11 or 3.12, but only 3.11 is currently supported on Windows. If the solve picks 3.12, edit the `python` line in `environment.yml` to `python=3.11` before running `conda env create`.
 
 === "ISCE2 Processor"
 

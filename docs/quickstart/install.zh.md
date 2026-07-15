@@ -7,6 +7,9 @@
         conda activate insarhub
         ```
 
+    !!! note "Windows：请使用 Python 3.11"
+        Windows 系统目前仅支持 Python 3.11 —— 创建环境时请使用 `python=3.11`。Linux 和 macOS 同时支持 3.11 和 3.12。
+
     从 conda-forge 安装最新版本：
 
     ```bash
@@ -61,6 +64,9 @@
     conda activate insar_dev
     pip install -e .
     ```
+
+    !!! note "Windows：请使用 Python 3.11"
+        `environment.yml` 允许 Python 3.11 或 3.12，但 Windows 目前仅支持 3.11。如果依赖解析选择了 3.12，请在运行 `conda env create` 前将 `environment.yml` 中的 `python` 一行改为 `python=3.11`。
 
 === "ISCE2 处理器"
 
