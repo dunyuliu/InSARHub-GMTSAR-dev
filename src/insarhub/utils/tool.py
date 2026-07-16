@@ -579,6 +579,71 @@ def _to_wkt(geom_input) -> str | None:
 
 from insarhub.utils.defaults import SELECT_PAIRS_DEFAULTS as _SP
 
+
+def _collapse_by_date(prods: list) -> tuple[list, int]:
+    """Collapse products sharing one calendar acquisition date into a single
+    representative product per date (the earliest-sorted one is kept).
+
+    Mirrors ISCE2 stackSentinel's sentinelSLC.get_dates(), which merges
+    multiple frame products of the same track/pass into one logical
+    acquisition keyed by date. Here we only need one representative product
+    per date for baseline/geometry purposes — ISCE2 itself re-discovers and
+    merges the actual SLC files from disk independently at processing time.
+
+    Args:
+        prods: ASFProduct list, already sorted by startTime.
+
+    Returns:
+        (collapsed_prods, n_collapsed) — n_collapsed is how many extra
+        same-date products were dropped (0 for the normal single-frame case).
+    """
+    seen: set[str] = set()
+    collapsed = []
+    n_dropped = 0
+    for p in prods:
+        d = p.properties["startTime"][:10]
+        if d in seen:
+            n_dropped += 1
+            continue
+        seen.add(d)
+        collapsed.append(p)
+    return collapsed, n_dropped
+
+
+def group_scenes_by_stack(
+    active_results: Union[dict[tuple[int, int], list[ASFProduct]], list[ASFProduct]],
+    merge: bool = False,
+) -> dict[tuple, list[str]]:
+    """Build {stack_key: [scene_name, ...]} from search results.
+
+    Mirrors the grouping select_pairs(merge=...) applies internally, so
+    callers building scenes_by_stack for DB precompute / stack-file writing
+    use keys that line up with whatever select_pairs() actually returned:
+    (path, frame) normally, or (path, StackPaths.merge_tag(frames)) — e.g.
+    "merged_f89_f90" — per distinct path when merge=True. The tag must be
+    computed the exact same way select_pairs() computes it (same frame list,
+    same StackPaths.merge_tag()), or lookups against the returned dict will
+    silently miss and every stack ends up with empty scenes/pair_quality.
+    Unlike select_pairs()'s internal grouping, this keeps every scene name
+    (not one representative per date) — the stack file's scene list should
+    stay complete even though pairing collapses by date.
+    """
+    if not isinstance(active_results, dict):
+        return {(0, 0): [p.properties["sceneName"] for p in active_results]}
+    if merge and len(active_results) > 1:
+        from insarhub.config.paths import StackPaths
+        by_path: dict[int, list[str]] = {}
+        frames_by_path: dict[int, list[int]] = {}
+        for (path, frame), prods in active_results.items():
+            by_path.setdefault(path, []).extend(p.properties["sceneName"] for p in prods)
+            frames_by_path.setdefault(path, []).append(frame)
+        return {
+            (path, StackPaths.merge_tag(frames_by_path[path])): names
+            for path, names in by_path.items()
+        }
+    return {k: [p.properties["sceneName"] for p in prods] for k, prods in active_results.items()}
+
+
 def select_pairs(
     search_results: Union[dict[tuple[int, int], list[ASFProduct]], list[ASFProduct]],
     dt_targets: tuple[int, ...]  = _SP["dt_targets"],
@@ -798,7 +863,7 @@ def select_pairs(
     for key, search_result in working_dict.items():
         if not input_is_list:
             logger.info(
-                "%sSearching pairs for path %d frame %d …",
+                "%sSearching pairs for path %d frame %s …",
                 Fore.GREEN, key[0], key[1],
             )
 
@@ -808,6 +873,22 @@ def select_pairs(
         if not prods:
             logger.warning("No products for key %s — skipping.", key)
             continue
+
+        # Collapse same-calendar-date products (e.g. multiple frames of one
+        # track/orbital pass, most commonly a merge group spanning several
+        # ASF frame numbers) into a single representative product per date —
+        # mirrors ISCE2 stackSentinel's own sentinelSLC.get_dates() merge
+        # behavior, so temporal/baseline network connectivity (min_degree /
+        # max_degree) is computed per acquisition date, not per physical
+        # frame file. A no-op for the normal single-frame case, where a key
+        # never has two products sharing a date.
+        prods, n_collapsed = _collapse_by_date(prods)
+        if n_collapsed:
+            logger.info(
+                "%s: collapsed %d same-date product(s) across frames "
+                "(%d unique acquisition date(s)).",
+                key, n_collapsed, len(prods),
+            )
 
         # Pre-parse acquisition datetimes to Unix timestamps (done once;
         # reused in sort keys, dt calculations, and pair ordering)

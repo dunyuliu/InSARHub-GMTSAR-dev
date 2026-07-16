@@ -10,7 +10,7 @@ from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 import insarhub.app.state as state
-from insarhub.app.models import ProcessRequest, Hyp3ActionRequest, LocalActionRequest, LocalSubmitRequest
+from insarhub.app.models import ProcessRequest, Hyp3ActionRequest, LocalActionRequest
 from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job, write_insarhub_config
 from insarhub.commands.processor import SaveJobsCommand, SubmitCommand
 from insarhub.core.registry import Processor
@@ -39,8 +39,13 @@ async def _run_folder_process(job_id: str, req: ProcessRequest):
                 state._jobs[job_id] = {"status": "error", "progress": 0, "message": "No stack file found", "data": None}
                 return
 
-            data = json.loads(stack_files[0].read_text())
-            pairs: list[tuple[str, str]] = [tuple(p) for p in data.get("pairs", [])]
+            # Combine pairs from every stack file in the folder — a merged
+            # download/select-pairs writes one file per path, and a folder
+            # can otherwise legitimately hold more than one flat stack file.
+            pairs: list[tuple[str, str]] = []
+            for sf in stack_files:
+                data = json.loads(sf.read_text())
+                pairs.extend(tuple(p) for p in data.get("pairs", []))
 
             proc_cls = Processor._registry.get(req.processor_type)
             if proc_cls is None:
@@ -75,21 +80,26 @@ async def _run_folder_process(job_id: str, req: ProcessRequest):
 
             state._jobs[job_id]["message"] = "Submitting jobs…"
             if is_local:
-                # Local processor (e.g. ISCE_S1): load sbatch options, submit directly
-                sbatch_path = folder / "sbatch_options.json"
-                if not sbatch_path.exists():
-                    sbatch_path = folder / "srun_options.json"
-                if sbatch_path.exists():
-                    try:
-                        cfg.sbatch_options_per_step = json.loads(sbatch_path.read_text())
-                    except Exception:
-                        pass
+                # Local processor (e.g. ISCE_S1): load sbatch options, submit directly.
+                # Only relevant in HPC mode; auto-generates the file (steps 01-17) if missing.
+                if getattr(cfg, "hpc_mode", False):
+                    from insarhub.processor.isce_base import load_or_init_sbatch_options
+                    per_step = load_or_init_sbatch_options(folder)
+                    if per_step is None:
+                        _finish_job(
+                            job_id, status="error", progress=0,
+                            message=f"No sbatch_options.json found — created a default at "
+                                    f"{folder / 'sbatch_options.json'}. Review the resource "
+                                    f"settings for each step, then submit again.")
+                        return
+                    cfg.sbatch_options_per_step = per_step
                 processor = proc_cls(pairs=pairs, config=cfg)
-                jobs = processor.submit()
+                jobs = processor.submit(steps=req.steps or None)
                 n_steps = len(jobs) if isinstance(jobs, dict) else len(pairs)
                 write_insarhub_config(folder, {"processor": {"type": req.processor_type, "config": proc_cfg}})
+                step_msg = f" (steps: {', '.join(req.steps)})" if req.steps else ""
                 _finish_job(job_id, status="done", progress=100,
-                            message=f"Submitted {n_steps} step(s) via {req.processor_type}. Processing running in background.")
+                            message=f"Submitted {n_steps} step(s){step_msg} via {req.processor_type}. Processing running in background.")
             else:
                 processor = Processor.create(req.processor_type, cfg)
                 submit_result = SubmitCommand(processor, progress_callback=state._make_progress(job_id)).run()
@@ -325,6 +335,30 @@ async def _run_local_action(job_id: str, req: LocalActionRequest):
                 processor.cancel()
                 state._finish_job(job_id, status="done", message="Cancel sent.")
 
+            elif req.action == "force_steps":
+                if not req.steps:
+                    state._finish_job(job_id, status="error", progress=0, message="No steps selected.")
+                    return
+                is_hpc = getattr(processor.config, "hpc_mode", False) or any(
+                    m.get("slurm_job_ids") or m.get("hpc_manager") or m.get("hpc_array")
+                    for m in processor.jobs.values()
+                )
+                if is_hpc:
+                    from insarhub.processor.isce_base import load_or_init_sbatch_options
+                    per_step = load_or_init_sbatch_options(folder)
+                    if per_step is None:
+                        state._finish_job(
+                            job_id, status="error", progress=0,
+                            message=f"No sbatch_options.json found — created a default at "
+                                    f"{folder / 'sbatch_options.json'}. Review the resource "
+                                    f"settings for each step, then try again.")
+                        return
+                    processor.config.sbatch_options_per_step = per_step
+                state._jobs[job_id]["message"] = f"Forcing step(s): {', '.join(req.steps)}…"
+                processor.submit(steps=req.steps)
+                state._finish_job(job_id, status="done",
+                                  message=f"Forced {len(req.steps)} step(s) to (re)run: {', '.join(req.steps)}")
+
             else:
                 state._finish_job(job_id, status="error", progress=0, message=f"Unknown action: {req.action}")
 
@@ -332,6 +366,20 @@ async def _run_local_action(job_id: str, req: LocalActionRequest):
             state._finish_job(job_id, status="error", progress=0, message=str(e))
 
     await asyncio.to_thread(run)
+
+
+@router.get("/api/processor-steps")
+async def get_processor_steps(processor: str):
+    """List forceable step names for a local processor (e.g. ISCE_S1), for --step-style GUI submission."""
+    if processor != "ISCE_S1":
+        return {"steps": []}
+    from insarhub.processor.isce_base import _SBATCH_DEFAULT_TEMPLATE
+    steps = [
+        f"run_{num}_{name}"
+        for num, name in _SBATCH_DEFAULT_TEMPLATE["_steps"].items()
+        if num != "17"  # SBAS is an analyzer step, not an ISCE_S1 processor step
+    ]
+    return {"steps": steps}
 
 
 @router.get("/api/folder-pairs-files")
@@ -347,93 +395,12 @@ async def get_folder_pairs_files(path: str):
     return {"files": sorted(seen)}
 
 
-@router.post("/api/folder-local-submit")
-async def folder_local_submit(req: LocalSubmitRequest, background_tasks: BackgroundTasks):
-    """Start a local ISCE_S1 processing run from a pairs JSON file."""
-    job_id, _ = _new_job("Starting local submit…")
-    background_tasks.add_task(_run_local_submit, job_id, req)
-    return {"job_id": job_id}
-
-
-async def _run_local_submit(job_id: str, req: LocalSubmitRequest):
-    def run():
-        try:
-            folder = Path(req.folder_path).expanduser().resolve()
-
-            pairs_path = folder / req.pairs_file
-            if not pairs_path.exists():
-                state._finish_job(job_id, status="error", progress=0,
-                                  message=f"Pairs file not found: {req.pairs_file}")
-                return
-
-            raw = json.loads(pairs_path.read_text())
-            raw_pairs = raw.get("pairs", raw) if isinstance(raw, dict) else raw
-            pairs = [(str(p[0]), str(p[1])) for p in raw_pairs]
-            if not pairs:
-                state._finish_job(job_id, status="error", progress=0,
-                                  message="No pairs found in the selected file.")
-                return
-
-            proc_cls = Processor._registry.get(req.processor_type)
-            if proc_cls is None:
-                state._finish_job(job_id, status="error", progress=0,
-                                  message=f"Unknown processor: {req.processor_type}")
-                return
-            cfg_cls = getattr(proc_cls, "default_config", None)
-            if cfg_cls is None or not dataclasses.is_dataclass(cfg_cls):
-                state._finish_job(job_id, status="error", progress=0,
-                                  message="Processor has no config dataclass")
-                return
-
-            # Merge priority (lowest → highest):
-            #   global SettingsPanel < folder insarhub_config.json < request payload
-            in_memory    = state._settings.get("processor_config", {})
-            insarhub_cfg = state.read_insarhub_config(folder)
-            on_disk      = insarhub_cfg.get("processor", {}).get("config", {})
-            merged       = {**in_memory, **on_disk, **req.processor_config}
-
-            # sbatch_options.json is always the source of truth — overrides any saved value
-            sbatch_path = folder / "sbatch_options.json"
-            if not sbatch_path.exists():
-                sbatch_path = folder / "srun_options.json"  # migrate old name
-            if sbatch_path.exists():
-                try:
-                    merged["sbatch_options_per_step"] = json.loads(sbatch_path.read_text())
-                except Exception:
-                    pass
-
-            valid_keys  = {f.name for f in dataclasses.fields(cfg_cls)}
-            init_kwargs = {k: v for k, v in merged.items() if k in valid_keys}
-            init_kwargs["workdir"] = str(folder)
-
-            cfg       = cfg_cls(**init_kwargs)
-            processor = proc_cls(pairs=pairs, config=cfg)
-
-            # Persist resolved config so the folder is self-contained for future runs
-            _cfg_skip = {"workdir", "name", "hpc_mode", "dry_run", "sbatch_options_per_step"}
-            cfg_dict = {k: v for k, v in dataclasses.asdict(cfg).items()
-                        if k not in _cfg_skip}
-            write_insarhub_config(folder, {"processor": {"type": req.processor_type,
-                                                         "config": cfg_dict}})
-
-            state._jobs[job_id]["message"] = f"Submitting {len(pairs)} pair(s)…"
-            processor.submit()
-
-            state._finish_job(job_id, status="done", progress=100,
-                              message=f"Submitted {len(pairs)} pair(s). Processing started in background.")
-
-        except Exception as e:
-            state._finish_job(job_id, status="error", progress=0, message=str(e))
-
-    await asyncio.to_thread(run)
-
-
 from insarhub.processor.isce_base import _SBATCH_DEFAULT_TEMPLATE
 
 
 @router.get("/api/folder-sbatch-options")
 async def get_sbatch_options(path: str):
-    """Return sbatch_options.json, creating or upgrading to the full 16-step template."""
+    """Return sbatch_options.json, creating or upgrading to the full template (steps 01-16 + 17=SBAS)."""
     folder = Path(path).expanduser().resolve()
     if not folder.exists():
         raise HTTPException(status_code=404, detail="Folder not found")

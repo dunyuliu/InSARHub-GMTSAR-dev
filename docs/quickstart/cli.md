@@ -99,7 +99,7 @@ insarhub downloader --stacks 100:466 20:118
 
 ### Pair selection
 
-Add `--select-pairs` to run interferogram pair selection after search. Results are saved as `stack_p<path>_f<frame>.json` inside a `p<path>_f<frame>/` subfolder under `workdir`, alongside an `insarhub_config.json` with the downloader settings. One file per track/frame group. 
+Add `--select-pairs` to run interferogram pair selection after search. Results are saved as `stack_p<path>_f<frame>.json` inside a `p<path>_f<frame>/` subfolder under `workdir`, alongside an `insarhub_config.json` with the downloader settings. One file per track/frame group. Pass `--merge` (see [Merging multiple frames](#merging-multiple-frames)) to combine same-path frames into one pairing network instead.
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -131,6 +131,7 @@ insarhub downloader -N S1_SLC \
 |------|---------|-------------|
 | `-d`, `--download` | — | Download scenes after search |
 | `-O`, `--orbit-files [PATH]` | — | Download orbit files. Omit `PATH` to save alongside scenes (one subfolder per stack); provide `PATH` to collect all orbit files into that directory |
+| `--merge` | — | Combine all frames sharing one relative orbit (path) into a single stack — see [Merging multiple frames](#merging-multiple-frames) below |
 | `--worker` | `3` | Parallel download workers |
 | `--no-verify-ssl` | — | Disable SSL certificate verification for ASF downloads. Use this if ASF's certificate has expired and downloads fail with an SSL error |
 | `--footprint` | `<workdir>/footprint.png` | Save a footprint map image to this path |
@@ -155,6 +156,19 @@ insarhub downloader -N S1_SLC \
     --start 2020-01-01 --end 2020-12-31 \
     -O orbits/
 ```
+
+### Merging multiple frames
+
+When a study area spans several ASF frame numbers on the *same* relative orbit — e.g. one frame has gaps or is otherwise unusable and needs a neighboring frame to fill the AOI — pass `--merge` to `--select-pairs` and `--download` together. Interferometric pairing is only physically meaningful within one track: two acquisitions from different relative orbits have unrelated viewing geometry and can never be paired, so `--merge` requires every returned stack to share one path and raises an error otherwise.
+
+```bash
+insarhub downloader -N S1_SLC \
+    --AOI -113.20 37.74 -112.50 38.10 \
+    --start 2020-01-01 --end 2020-12-31 \
+    --select-pairs --download -O --merge
+```
+
+Multiple frames sharing one calendar acquisition date (i.e. one orbital pass split across ASF frame boundaries) are treated as a single acquisition for pair selection — matching how ISCE2's `stackSentinel` merges same-date SLCs internally. Output lands in `p<path>_merged_f<frame1>_f<frame2>_.../` — the frame numbers are baked into the folder name so two independent merge groups on the same path (e.g. two different sub-areas of one track) never collide with each other.
 
 ---
 
@@ -319,6 +333,7 @@ insarhub processor [--list-processors] <action> [options]
     | `--coregistration` | `NESD` | `NESD` (recommended) or `geometry` |
     | `--looks_range` | `20` | Range looks |
     | `--looks_azimuth` | `4` | Azimuth looks |
+    | `--step` | all | Force (re)run only these step(s), regardless of saved status — see below |
     | `--dry-run` | — | Preview run scripts and path checks without executing |
     | `--pairs-file` | auto | Pairs JSON from `downloader --select-pairs` |
 
@@ -336,14 +351,32 @@ insarhub processor [--list-processors] <action> [options]
         --bbox 33.0 38.0 -120.0 -115.0 --hpc_mode True
     ```
 
+    !!! note "Force-rerun specific step(s) with `--step`"
+        A normal `submit` skips any step already `SUCCEEDED`; `retry` re-runs from the first `FAILED` step onward, cascading into every step after it. `--step` is narrower than both: it forces only the named step(s) back to `PENDING` and re-runs them, leaving every other step exactly as it is — no cascade. Useful when a specific step silently produced bad output (recorded as `SUCCEEDED`) and only that one needs to be redone.
+
+        Accepts the full step name, just its number, or a `run_NN` prefix:
+
+        ```bash
+        # Force step 03 to re-run — equivalent forms
+        insarhub processor submit -N ISCE_S1 -w /data/p100_f466 --step 03
+        insarhub processor submit -N ISCE_S1 -w /data/p100_f466 --step 3
+        insarhub processor submit -N ISCE_S1 -w /data/p100_f466 --step run_03
+
+        # Force multiple steps
+        insarhub processor submit -N ISCE_S1 -w /data/p100_f466 --step 03 04 05
+        ```
+
+        In HPC mode this also clears stale per-command `.done`/`.fail` markers for the forced step(s) — otherwise the manager script would see old markers and report "already done" without submitting anything.
+
     !!! note "HPC mode — sliding-window manager"
         When `--hpc_mode True` is set, each processing step runs as a lightweight SLURM **manager job**. The manager keeps at most `--max_concurrent_hpc` child jobs active at any time, submitting new ones immediately when a slot opens. Steps are chained via `--dependency=afterok` so they run sequentially. Consecutive steps with the same number of commands are merged into a single group-manager job automatically.
 
         Each sbatch script logs `START`, `DONE`, and `FAIL` lines with elapsed seconds per command.
 
-        **`sbatch_options.json`** — loaded automatically from `<workdir>/sbatch_options.json` to configure per-step SLURM resources (CPUs, memory, walltime, partition, etc.).
+        **`sbatch_options.json`** — loaded automatically from `<workdir>/sbatch_options.json` to configure per-step SLURM resources (CPUs, memory, walltime, partition, etc.). Steps `"01"`–`"16"` are `ISCE_S1`'s own steps; step `"17"` ("SBAS") configures the `ISCE_SBAS`/`Hyp3_SBAS` analyzer's own `--hpc_mode` job (see [analyzer HPC mode](#hpc-mode)) — one file, shared by both processor and analyzer, since they typically run against the same workdir.
 
-        - If `sbatch_options.json` is **not found**, a default 16-step template is created and `submit` prints a reminder to edit it before resubmitting.
+        - If `sbatch_options.json` is **not found**, a default template covering steps `01`–`17` is created and `submit` prints a reminder to edit it before resubmitting.
+        - If the file exists but is missing a step you're about to use (e.g. `"17"` the first time you run the analyzer in HPC mode), it's added automatically with default resources, the file is rewritten, and a warning is printed — review the added defaults before relying on them.
         - If `srun_options.json` exists from an older run, it is migrated to `sbatch_options.json` automatically.
 
         Edit `sbatch_options.json` to set resources per step, then re-run `submit`.
@@ -356,9 +389,29 @@ insarhub processor [--list-processors] <action> [options]
     |------|---------|-------------|
     | `-w`, `--workdir` | cwd | Working directory |
     | `--job-file` | auto | `<workdir>/isce/isce_jobs_*.json` |
+    | `--ls [STEP]` | off | Show per-command (`cmd_XXXX`) detail — bare `--ls` for every step, `--ls 03` (also `3` or `run_03`) for just one step |
 
     ```bash
     insarhub processor refresh -N ISCE_S1 -w /data/p100_f466
+    ```
+
+    By default only the one-line-per-step summary prints — no `cmd_XXXX` detail:
+
+    ??? output
+        ```
+          STEP                                          STATUS
+        -----------------------------------------------------------------
+          - run_01_unpack_topo_reference                SUCCEEDED
+          - run_02_unpack_secondary_slc                 RUNNING
+          - run_03_average_baseline                     PENDING
+          ...
+        ```
+
+    Pass `--ls` to also see per-command detail — for every step, or a specific one:
+
+    ```bash
+    insarhub processor refresh -N ISCE_S1 -w /data/p100_f466 --ls        # every step
+    insarhub processor refresh -N ISCE_S1 -w /data/p100_f466 --ls 02     # just run_02
     ```
 
     ??? output
@@ -506,12 +559,15 @@ Any field shown by `--list-options` can be overridden on the command line before
 
     Script written to `<workdir>/mintpy/mintpy_sbas.sbatch`, job state to `mintpy/mintpy_job.json`.
 
-    Default SLURM resources: `time=24:00:00`, `ntasks=1`, `cpus_per_task=16`, `mem=128G`, `partition=all`. Override via `--hpc_sbatch_opts`:
+    SLURM resources come from `<workdir>/sbatch_options.json`, step key `"17"` — the **same file** used by `ISCE_S1 submit --hpc_mode` (steps `01`–`16`), since processor and analyzer typically share one workdir. Default: `time=24:00:00`, `ntasks=1`, `cpus_per_task=16`, `mem=128G`, `partition=all`.
+
+    - If `sbatch_options.json` doesn't exist yet, it's created (covering steps `01`–`17`) and the run stops so you can review it before resubmitting.
+    - If the file exists but has no `"17"` entry, it's added automatically with the defaults above, a warning is printed, and the run proceeds.
+
+    Edit step `"17"` in `sbatch_options.json` to change resources, then re-run:
 
     ```bash
-    insarhub analyzer -N Hyp3_SBAS -w /data/bryce \
-        --hpc_sbatch_opts '{"time": "48:00:00", "mem": "256G", "partition": "gpu"}' \
-        run --hpc_mode True
+    insarhub analyzer -N Hyp3_SBAS -w /data/bryce run --hpc_mode True
     ```
 
     ### cleanup
@@ -597,12 +653,15 @@ Any field shown by `--list-options` can be overridden on the command line before
 
     Script written to `<workdir>/mintpy/mintpy_sbas.sbatch`, job state to `mintpy/mintpy_job.json`.
 
-    Default SLURM resources: `time=24:00:00`, `ntasks=1`, `cpus_per_task=16`, `mem=128G`, `partition=all`. Override via `--hpc_sbatch_opts`:
+    SLURM resources come from `<workdir>/sbatch_options.json`, step key `"17"` — the **same file** used by `ISCE_S1 submit --hpc_mode` (steps `01`–`16`), since processor and analyzer typically share one workdir. Default: `time=24:00:00`, `ntasks=1`, `cpus_per_task=16`, `mem=128G`, `partition=all`.
+
+    - If `sbatch_options.json` doesn't exist yet, it's created (covering steps `01`–`17`) and the run stops so you can review it before resubmitting.
+    - If the file exists but has no `"17"` entry, it's added automatically with the defaults above, a warning is printed, and the run proceeds.
+
+    Edit step `"17"` in `sbatch_options.json` to change resources, then re-run:
 
     ```bash
-    insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 \
-        --hpc_sbatch_opts '{"time": "48:00:00", "mem": "256G", "partition": "gpu"}' \
-        run --hpc_mode True
+    insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run --hpc_mode True
     ```
 
     ### cleanup

@@ -83,18 +83,23 @@ Analyzer.available()
         analyzer.submit_hpc(steps=["velocity", "geocode"])
         ```
 
-        脚本写入 `<workdir>/mintpy/mintpy_sbas.sbatch`，作业状态保存至 `mintpy/mintpy_job.json`。默认资源：`time=24:00:00`、`ntasks=1`、`cpus_per_task=16`、`mem=128G`、`partition=all`。通过配置中的 `hpc_sbatch_opts` 覆盖：
+        脚本写入 `<workdir>/mintpy/mintpy_sbas.sbatch`，作业状态保存至 `mintpy/mintpy_job.json`。SLURM 资源来自 `<workdir>/sbatch_options.json` 的 `"17"` 步骤键 — 与 `ISCE_S1` 自身 HPC 提交（步骤 `01`–`16`）使用同一个文件，因为处理器和分析器通常共用同一工作目录。默认值：`time=24:00:00`、`ntasks=1`、`cpus_per_task=16`、`mem=128G`、`partition=all`。
+
+        `submit_hpc()` 成功时返回 SLURM 作业 ID 字符串；若 `sbatch_options.json` 刚被创建（或补充了缺失的 `"17"` 条目），则返回 `None` — 调用方应检查 `None` 并停止，而不是将其当作提交成功处理：
 
         ```python
         cfg = Mintpy_SBAS_Base_Config(
             workdir="/your/work/dir",
             load_processor="hyp3",
             hpc_mode=True,
-            hpc_sbatch_opts={"time": "48:00:00", "mem": "256G", "partition": "gpu"},
         )
         analyzer = Analyzer.create('Hyp3_SBAS', config=cfg)
-        analyzer.submit_hpc()
+        job_id = analyzer.submit_hpc()
+        if job_id is None:
+            print("sbatch_options.json 刚被创建/更新 — 请先检查，再重新提交。")
         ```
+
+        直接编辑 `sbatch_options.json` 中的 `"17"` 步骤以更改资源（例如 `{"17": {"time": "48:00:00", "mem": "256G", "partition": "gpu"}}`），然后再次调用 `submit_hpc()`。
 
         ::: insarhub.analyzer.mintpy_base.Mintpy_SBAS_Base_Analyzer.submit_hpc
             options:

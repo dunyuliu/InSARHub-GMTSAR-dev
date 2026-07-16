@@ -95,25 +95,23 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
             print(f"{Fore.GREEN}Credentials saved to {cdsapirc_path}.\n")
             return True
     
-    def submit_hpc(self, steps: list[str] | None = None) -> str:
+    def submit_hpc(self, steps: list[str] | None = None) -> str | None:
         """Generate a sbatch script for the full MintPy run and submit it.
 
-        Returns the SLURM job ID string.
+        Returns the SLURM job ID string, or None if sbatch_options.json was
+        just created/updated and needs review before submitting — callers
+        must check for this and stop rather than treat it as success.
         """
         from insarhub.utils.tool import Slurmjob_Config
+        from insarhub.processor.isce_base import _merge_sbatch_opts, load_or_init_sbatch_options
 
         mintpy_dir = self._paths.mintpy_dir
         mintpy_dir.mkdir(parents=True, exist_ok=True)
 
-        # Merge user opts over defaults
-        _defaults = {"time": "24:00:00", "ntasks": 1, "cpus_per_task": 16, "mem": "128G", "partition": "all"}
-        _raw = self.config.hpc_sbatch_opts or {}
-        if isinstance(_raw, str):
-            try:
-                _raw = json.loads(_raw)
-            except Exception:
-                _raw = {}
-        opts = {**_defaults, **_raw}
+        per_step = load_or_init_sbatch_options(Path(self.workdir), "17", "SBAS")
+        if per_step is None:
+            return None
+        opts = _merge_sbatch_opts(per_step, "17")
 
         _slurm_fields = {f.name for f in dataclasses.fields(Slurmjob_Config)}
         _skip = {"job_name", "output_file", "error_file", "command",
@@ -141,7 +139,7 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
 
         # Serialize non-default config overrides back to CLI flags so that
         # prep_data inside SLURM writes the correct .mintpy.cfg values.
-        _skip = {"name", "workdir", "debug", "hpc_mode", "hpc_sbatch_opts"}
+        _skip = {"name", "workdir", "debug", "hpc_mode"}
         config_cls = type(self.config)
         defaults = {}
         for f in dataclasses.fields(config_cls):
@@ -199,6 +197,8 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
         print(f"{Fore.GREEN}MintPy SBAS job submitted: {job_id}{Style.RESET_ALL}")
         print(f"  script : {sbatch_script}")
         print(f"  log    : {mintpy_dir}/mintpy_slurm_{job_id}.out")
+
+        return job_id
         return job_id
 
     def run(self, steps=None):

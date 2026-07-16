@@ -23,6 +23,7 @@ from tqdm import tqdm
 
 from insarhub.core.base import BaseDownloader
 from insarhub.config import ASF_Base_Config
+from insarhub.config.paths import StackPaths
 from insarhub.utils.tool import _to_wkt
 
 def _parse_scene_filter(scenes) -> set[str] | None:
@@ -719,6 +720,7 @@ Check documentation for how to setup .netrc file.\n""")
         snow_threshold: float    = None,
         precip_mm_threshold: float = None,
         aoi_wkt: str | None = None,
+        merge: bool = False,
     ) -> tuple:
         """Compute interferogram pairs for all active stacks.
 
@@ -735,10 +737,20 @@ Check documentation for how to setup .netrc file.\n""")
             snow_threshold (float, optional): MODIS snow fraction threshold to exclude a scene. Defaults to 0.5.
             precip_mm_threshold (float, optional): 3-day precipitation threshold in mm to exclude a scene. Defaults to 25.0.
             aoi_wkt (str, optional): AOI geometry in WKT for quality scoring. Defaults to search AOI.
+            merge (bool, optional): When True, stacks sharing the same relative
+                orbit (path) are combined into one pairing network before
+                temporal/baseline selection — matching how ISCE2's stackSentinel
+                treats multiple frames of one track/pass as a single continuous
+                acquisition. Stacks on different paths are never combined
+                (cross-track pairs have no physical baseline). Use together with
+                ``download(merge=True)``, which puts all scenes in one
+                ``merged/slc/`` directory. Defaults to False.
 
         Returns:
             tuple: (pairs, baselines, scene_bperp, prefetch_cache)
-                - pairs: dict keyed by (path, frame) for multi-stack, or list for single stack
+                - pairs: dict keyed by (path, frame) for multi-stack — or
+                  (path, "merged") per distinct path when merge=True — or a
+                  flat list for a single stack.
                 - baselines: temporal baselines
                 - scene_bperp: perpendicular baselines per scene
                 - prefetch_cache: coherence/weather cache dict for downstream use
@@ -761,9 +773,31 @@ Check documentation for how to setup .netrc file.\n""")
         if not hasattr(self, 'results'):
             raise ValueError("No search results found. Please run search() first.")
 
+        search_input = self.active_results
+        if merge and isinstance(search_input, dict) and len(search_input) > 1:
+            # Group stacks by relative orbit (path) — frames of the same
+            # path/pass overlap and can be validly combined; different paths
+            # never share a baseline and must never be merged together.
+            paths = {path for (path, _frame) in search_input.keys()}
+            if len(paths) > 1:
+                raise ValueError(
+                    f"merge=True requires all stacks to share one relative orbit "
+                    f"(path), got {sorted(paths)}. Different tracks have unrelated "
+                    f"viewing geometry and cannot be interferometrically paired — "
+                    f"narrow the search to a single path before merging."
+                )
+            path = next(iter(paths))
+            frames = [frame for (_path, frame) in search_input.keys()]
+            merged_prods = [p for prods in search_input.values() for p in prods]
+            tag = StackPaths.merge_tag(frames)
+            search_input = {(path, tag): merged_prods}
+            print(f"{Fore.CYAN}merge=True: combined frame(s) {sorted(frames)} "
+                  f"of path {path} ({len(merged_prods)} scenes) into one stack "
+                  f"({tag}).\n")
+
         _aoi_wkt = aoi_wkt or getattr(self.config, "intersectsWith", None)
         _sp_result = _select_pairs(
-            self.active_results,
+            search_input,
             dt_targets=dt_targets,
             dt_tol=dt_tol,
             dt_max=dt_max,
@@ -825,9 +859,24 @@ Check documentation for how to setup .netrc file.\n""")
 
         scene_filter = _parse_scene_filter(scenes)
 
-        # merge=True: all stacks land in output_dir/merged/slc/
+        # merge=True: all stacks of one path land in output_dir/p{path}_{tag}/slc/,
+        # where tag encodes every constituent frame number — this must match
+        # select_pairs(merge=True)'s own directory naming so the stack file
+        # and the downloaded SLCs end up co-located. active_results is always
+        # a dict[(path, frame), list[ASFProduct]] (see its docstring/contract).
+        _sp = StackPaths(output_dir)
         if merge:
-            merged_dir = output_dir / "merged"
+            paths = {path for (path, _frame) in self.active_results.keys()}
+            if len(paths) > 1:
+                raise ValueError(
+                    f"merge=True requires all stacks to share one relative orbit "
+                    f"(path), got {sorted(paths)}. Different tracks have unrelated "
+                    f"viewing geometry and cannot be combined into one stack — "
+                    f"narrow the search to a single path before merging."
+                )
+            path = next(iter(paths))
+            frames = [frame for (_path, frame) in self.active_results.keys()]
+            merged_dir = _sp.merge_dir(path, frames)
             merged_dir.mkdir(parents=True, exist_ok=True)
             write_workflow_marker(merged_dir, downloader=type(self).name)
             _wic(merged_dir, {"downloader": {"type": type(self).name, "config": _cfg_base}})
@@ -837,13 +886,13 @@ Check documentation for how to setup .netrc file.\n""")
         _dir_is_stack = (self.download_dir / "insarhub_config.json").exists()
         for key, results in self.active_results.items():
             if merge:
-                stack_path    = output_dir / "merged"
+                stack_path    = merged_dir
                 download_path = stack_path / "slc"
             elif _dir_is_stack:
                 stack_path    = self.download_dir
                 download_path = stack_path / "slc"
             else:
-                stack_path    = self.download_dir / f'p{key[0]}_f{key[1]}'
+                stack_path    = StackPaths(self.download_dir).stack_dir(key[0], key[1])
                 download_path = stack_path / "slc"
             download_path.mkdir(parents=True, exist_ok=True)
             stack_paths[key] = download_path

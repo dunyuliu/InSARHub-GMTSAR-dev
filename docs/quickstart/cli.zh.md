@@ -99,7 +99,7 @@ insarhub downloader --stacks 100:466 20:118
 
 ### 干涉对选择
 
-添加 `--select-pairs` 可在搜索后运行干涉图对选择。结果以 `stack_p<path>_f<frame>.json` 的形式保存在 `workdir` 下 `p<path>_f<frame>/` 子文件夹中，同时保存包含下载器设置的 `insarhub_config.json`。每个轨道/帧组对应一个文件。
+添加 `--select-pairs` 可在搜索后运行干涉图对选择。结果以 `stack_p<path>_f<frame>.json` 的形式保存在 `workdir` 下 `p<path>_f<frame>/` 子文件夹中，同时保存包含下载器设置的 `insarhub_config.json`。每个轨道/帧组对应一个文件。传入 `--merge`（见下方[合并多个帧](#merging-multiple-frames)）可将同一轨道的多个帧合并为一个配对网络。
 
 | 标志 | 默认值 | 描述 |
 |------|---------|-------------|
@@ -131,6 +131,7 @@ insarhub downloader -N S1_SLC \
 |------|---------|-------------|
 | `-d`, `--download` | — | 搜索后下载场景 |
 | `-O`, `--orbit-files [PATH]` | — | 下载轨道文件。省略 `PATH` 则保存在场景旁边（每个堆叠一个子文件夹）；提供 `PATH` 则将所有轨道文件收集到该目录 |
+| `--merge` | — | 将同一相对轨道（path）的所有帧合并为一个堆叠 — 见下方[合并多个帧](#merging-multiple-frames) |
 | `--worker` | `3` | 并行下载工作线程数 |
 | `--no-verify-ssl` | — | 禁用 ASF 下载的 SSL 证书验证。当 ASF 证书过期导致下载失败时使用 |
 | `--footprint` | `<workdir>/footprint.png` | 将覆盖范围地图图像保存到此路径 |
@@ -155,6 +156,19 @@ insarhub downloader -N S1_SLC \
     --start 2020-01-01 --end 2020-12-31 \
     -O orbits/
 ```
+
+### 合并多个帧 {#merging-multiple-frames}
+
+当研究区域跨越同一相对轨道上的多个 ASF 帧编号时——例如某个帧存在缺口或数据质量较差，需要相邻帧来填补研究区域——可在 `--select-pairs` 和 `--download` 中同时传入 `--merge`。干涉配对仅在同一轨道内才具有物理意义：来自不同相对轨道的两次采集成像几何不同，永远无法配对，因此 `--merge` 要求所有返回的堆叠必须属于同一 path，否则会报错。
+
+```bash
+insarhub downloader -N S1_SLC \
+    --AOI -113.20 37.74 -112.50 38.10 \
+    --start 2020-01-01 --end 2020-12-31 \
+    --select-pairs --download -O --merge
+```
+
+共享同一日历采集日期的多个帧（即同一次轨道过境被 ASF 按帧边界拆分）在配对选择时会被视为单次采集——这与 ISCE2 `stackSentinel` 内部合并同日期 SLC 的方式一致。输出保存在 `p<path>_merged_f<frame1>_f<frame2>_.../` 中——帧编号被编码进文件夹名称，因此同一轨道上两个独立的合并组（例如同一轨道的两个不同子区域）永远不会互相冲突。
 
 ---
 
@@ -319,6 +333,7 @@ insarhub processor [--list-processors] <action> [options]
     | `--coregistration` | `NESD` | `NESD`（推荐）或 `geometry` |
     | `--looks_range` | `20` | 距离向视数 |
     | `--looks_azimuth` | `4` | 方位向视数 |
+    | `--step` | 全部 | 无论已保存状态如何，强制（重新）运行这些步骤 — 见下方说明 |
     | `--dry-run` | — | 预览运行脚本和路径检查，不实际执行 |
     | `--pairs-file` | 自动 | 来自 `downloader --select-pairs` 的干涉对 JSON |
 
@@ -336,14 +351,32 @@ insarhub processor [--list-processors] <action> [options]
         --bbox 33.0 38.0 -120.0 -115.0 --hpc_mode True
     ```
 
+    !!! note "使用 `--step` 强制重新运行指定步骤"
+        普通 `submit` 会跳过已 `SUCCEEDED` 的步骤；`retry` 从第一个 `FAILED` 步骤开始重新运行，并级联到其后所有步骤。`--step` 比两者都更精细：它只强制把指定步骤重置为 `PENDING` 并重新运行，其余步骤保持原样 — 不会级联。适用于某个步骤悄悄产生了错误输出（却被记录为 `SUCCEEDED`），只需重做那一个步骤的场景。
+
+        接受完整步骤名、纯数字编号或 `run_NN` 前缀：
+
+        ```bash
+        # 强制重新运行步骤 03 — 以下写法等价
+        insarhub processor submit -N ISCE_S1 -w /data/p100_f466 --step 03
+        insarhub processor submit -N ISCE_S1 -w /data/p100_f466 --step 3
+        insarhub processor submit -N ISCE_S1 -w /data/p100_f466 --step run_03
+
+        # 强制重新运行多个步骤
+        insarhub processor submit -N ISCE_S1 -w /data/p100_f466 --step 03 04 05
+        ```
+
+        在 HPC 模式下，这还会清除被强制步骤的过期单命令 `.done`/`.fail` 标记文件 — 否则管理器脚本会看到旧标记并报告"已完成"而不实际提交任何作业。
+
     !!! note "HPC 模式 — 滑动窗口管理器"
         设置 `--hpc_mode True` 后，每个处理步骤都通过轻量级 SLURM **管理器作业**运行。管理器随时保持最多 `--max_concurrent_hpc` 个子作业同时活跃，有空槽时立即补充新作业。步骤之间通过 `--dependency=afterok` 自动串联。命令数相同的连续步骤会自动合并为单个组管理器作业。
 
         每个 sbatch 脚本会按命令记录带耗时秒数的 `START`、`DONE`、`FAIL` 日志行。
 
-        **`sbatch_options.json`** — 从 `<workdir>/sbatch_options.json` 自动加载，用于配置各步骤的 SLURM 资源（CPU、内存、墙钟时间、分区等）。
+        **`sbatch_options.json`** — 从 `<workdir>/sbatch_options.json` 自动加载，用于配置各步骤的 SLURM 资源（CPU、内存、墙钟时间、分区等）。步骤 `"01"`–`"16"` 是 `ISCE_S1` 自身的步骤；步骤 `"17"`（"SBAS"）用于配置 `ISCE_SBAS`/`Hyp3_SBAS` 分析器自身的 `--hpc_mode` 作业 — 由于处理器和分析器通常共用同一工作目录，两者共享同一个文件。
 
-        - 若**未找到** `sbatch_options.json`，将创建 16 步骤的默认模板，并提示重新提交前先编辑该文件。
+        - 若**未找到** `sbatch_options.json`，将创建覆盖步骤 `01`–`17` 的默认模板，并提示重新提交前先编辑该文件。
+        - 若文件已存在但缺少即将用到的步骤（例如首次以 HPC 模式运行分析器时缺少 `"17"`），会自动补充默认资源、重写文件并打印警告 — 使用前请检查这些默认值。
         - 若存在旧版运行的 `srun_options.json`，将自动迁移为 `sbatch_options.json`。
 
         编辑 `sbatch_options.json` 以设置每个步骤的资源，然后重新运行 `submit`。
@@ -356,9 +389,29 @@ insarhub processor [--list-processors] <action> [options]
     |------|---------|-------------|
     | `-w`, `--workdir` | cwd | 工作目录 |
     | `--job-file` | 自动 | `<workdir>/isce/isce_jobs_*.json` |
+    | `--ls [STEP]` | 关闭 | 显示单条命令（`cmd_XXXX`）详情 — 单独 `--ls` 显示所有步骤，`--ls 03`（也可写 `3` 或 `run_03`）只显示该步骤 |
 
     ```bash
     insarhub processor refresh -N ISCE_S1 -w /data/p100_f466
+    ```
+
+    默认只打印每个步骤一行的摘要 — 不含 `cmd_XXXX` 详情：
+
+    ??? output
+        ```
+          STEP                                          STATUS
+        -----------------------------------------------------------------
+          - run_01_unpack_topo_reference                SUCCEEDED
+          - run_02_unpack_secondary_slc                 RUNNING
+          - run_03_average_baseline                     PENDING
+          ...
+        ```
+
+    传入 `--ls` 可查看单条命令详情 — 所有步骤，或指定某一步骤：
+
+    ```bash
+    insarhub processor refresh -N ISCE_S1 -w /data/p100_f466 --ls        # 所有步骤
+    insarhub processor refresh -N ISCE_S1 -w /data/p100_f466 --ls 02     # 仅 run_02
     ```
 
     ??? output
@@ -506,12 +559,15 @@ insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [option
 
     脚本写入 `<workdir>/mintpy/mintpy_sbas.sbatch`，作业状态保存至 `mintpy/mintpy_job.json`。
 
-    默认 SLURM 资源：`time=24:00:00`、`ntasks=1`、`cpus_per_task=16`、`mem=128G`、`partition=all`。通过 `--hpc_sbatch_opts` 覆盖：
+    SLURM 资源来自 `<workdir>/sbatch_options.json` 的 `"17"` 步骤键 — 与 `ISCE_S1 submit --hpc_mode`（步骤 `01`–`16`）**使用同一个文件**，因为处理器和分析器通常共用同一工作目录。默认值：`time=24:00:00`、`ntasks=1`、`cpus_per_task=16`、`mem=128G`、`partition=all`。
+
+    - 若 `sbatch_options.json` 尚不存在，将创建（覆盖步骤 `01`–`17`）并停止运行，以便重新提交前先检查该文件。
+    - 若文件已存在但没有 `"17"` 条目，将自动补充上述默认值，打印警告，然后继续运行。
+
+    编辑 `sbatch_options.json` 中的 `"17"` 步骤以更改资源，然后重新运行：
 
     ```bash
-    insarhub analyzer -N Hyp3_SBAS -w /data/bryce \
-        --hpc_sbatch_opts '{"time": "48:00:00", "mem": "256G", "partition": "gpu"}' \
-        run --hpc_mode True
+    insarhub analyzer -N Hyp3_SBAS -w /data/bryce run --hpc_mode True
     ```
 
     ### cleanup
@@ -597,12 +653,15 @@ insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [option
 
     脚本写入 `<workdir>/mintpy/mintpy_sbas.sbatch`，作业状态保存至 `mintpy/mintpy_job.json`。
 
-    默认 SLURM 资源：`time=24:00:00`、`ntasks=1`、`cpus_per_task=16`、`mem=128G`、`partition=all`。通过 `--hpc_sbatch_opts` 覆盖：
+    SLURM 资源来自 `<workdir>/sbatch_options.json` 的 `"17"` 步骤键 — 与 `ISCE_S1 submit --hpc_mode`（步骤 `01`–`16`）**使用同一个文件**，因为处理器和分析器通常共用同一工作目录。默认值：`time=24:00:00`、`ntasks=1`、`cpus_per_task=16`、`mem=128G`、`partition=all`。
+
+    - 若 `sbatch_options.json` 尚不存在，将创建（覆盖步骤 `01`–`17`）并停止运行，以便重新提交前先检查该文件。
+    - 若文件已存在但没有 `"17"` 条目，将自动补充上述默认值，打印警告，然后继续运行。
+
+    编辑 `sbatch_options.json` 中的 `"17"` 步骤以更改资源，然后重新运行：
 
     ```bash
-    insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 \
-        --hpc_sbatch_opts '{"time": "48:00:00", "mem": "256G", "partition": "gpu"}' \
-        run --hpc_mode True
+    insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run --hpc_mode True
     ```
 
     ### cleanup

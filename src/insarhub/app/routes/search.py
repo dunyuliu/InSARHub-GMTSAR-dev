@@ -17,12 +17,13 @@ from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
 
 import insarhub.app.state as state
 from insarhub.app.models import (
-    AddJobRequest, DownloadByNameRequest, DownloadMergedRequest, DownloadRequest,
-    DownloadSceneRequest, JobResponse, ParseAoiRequest, SearchRequest,
+    AddJobRequest, AddMergedJobRequest, DownloadByNameRequest, DownloadMergedRequest,
+    DownloadRequest, DownloadSceneRequest, JobResponse, ParseAoiRequest, SearchRequest,
 )
 from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job, write_insarhub_config
 from insarhub.commands.downloader import DownloadScenesCommand, SearchCommand
 from insarhub.config import S1_SLC_Config
+from insarhub.config.paths import StackPaths
 from insarhub.core.registry import Downloader
 
 router = APIRouter()
@@ -273,7 +274,7 @@ async def _run_download_stack(job_id: str, req: AddJobRequest, stop_ev: _threadi
 async def add_job(req: AddJobRequest):
     from insarhub.utils.tool import write_workflow_marker
     workdir = Path(req.workdir).expanduser().resolve()
-    subdir  = workdir / f"p{req.relativeOrbit}_f{req.frame}"
+    subdir  = StackPaths(workdir).stack_dir(req.relativeOrbit, req.frame)
     subdir.mkdir(parents=True, exist_ok=True)
 
     dl_cls      = Downloader._registry.get(req.downloaderType)
@@ -285,6 +286,47 @@ async def add_job(req: AddJobRequest):
         "relativeOrbit": req.relativeOrbit, "frame": req.frame,
         "intersectsWith": req.wkt, "flightDirection": req.flightDirection,
         "platform": req.platform,
+    })
+    cfg = {k: v for k, v in dataclasses.asdict(cfg_instance).items() if k != "workdir"}
+    write_insarhub_config(subdir, {"downloader": {"type": req.downloaderType, "config": cfg}})
+    return {"path": str(subdir), "name": subdir.name}
+
+
+@router.post("/api/add-merged-job")
+async def add_merged_job(req: AddMergedJobRequest):
+    """Create one job folder for multiple frames sharing a relative orbit (path),
+    ready for search/select-pairs/download with merge=True from within it —
+    same lightweight "just create the folder + config" semantics as add_job,
+    just for a merge group instead of one stack."""
+    if not req.stacks:
+        raise HTTPException(status_code=422, detail="Provide at least one stack")
+    paths = {s.relativeOrbit for s in req.stacks}
+    if len(paths) > 1:
+        raise HTTPException(
+            status_code=422,
+            detail=f"All stacks must share one relative orbit (path), got {sorted(paths)}. "
+                   f"Different tracks have unrelated viewing geometry and cannot be merged.",
+        )
+    path    = next(iter(paths))
+    frames  = [s.frame for s in req.stacks]
+    workdir = Path(req.workdir).expanduser().resolve()
+    subdir  = StackPaths(workdir).merge_dir(path, frames)
+    subdir.mkdir(parents=True, exist_ok=True)
+
+    dl_cls       = Downloader._registry.get(req.downloaderType)
+    cfg_cls      = getattr(dl_cls, "default_config", S1_SLC_Config) if dl_cls else S1_SLC_Config
+    cfg_instance = cfg_cls(workdir=subdir)
+    _apply_config_from_dict(cfg_instance, state._settings.get("downloader_config", {}), skip_keys={"workdir"})
+    first = req.stacks[0]
+    _apply_config_from_dict(cfg_instance, {
+        "start": min(s.start for s in req.stacks),
+        "end":   max(s.end for s in req.stacks),
+        "relativeOrbit": path,
+        # frame intentionally omitted — spans multiple; select_pairs(merge=True)
+        # resolves the real frame set from the search itself.
+        "intersectsWith": first.wkt,
+        "flightDirection": first.flightDirection,
+        "platform": first.platform,
     })
     cfg = {k: v for k, v in dataclasses.asdict(cfg_instance).items() if k != "workdir"}
     write_insarhub_config(subdir, {"downloader": {"type": req.downloaderType, "config": cfg}})
@@ -350,8 +392,7 @@ async def download_merged(req: DownloadMergedRequest, background_tasks: Backgrou
 async def _run_download_merged(job_id: str, req: DownloadMergedRequest, stop_ev: _threading.Event):
     def run():
         try:
-            workdir    = Path(req.workdir).expanduser().resolve()
-            merged_dir = workdir / "merged"
+            workdir = Path(req.workdir).expanduser().resolve()
 
             all_downloaders = []
             for i, spec in enumerate(req.stacks):
@@ -386,9 +427,25 @@ async def _run_download_merged(job_id: str, req: DownloadMergedRequest, stop_ev:
             for dl in all_downloaders[1:]:
                 primary.results.update(dl.results)
 
+            # Directory name must match what downloader.download(merge=True) itself
+            # computes (path + every constituent frame number) — not a fixed
+            # "merged" literal — so orbit files (saved explicitly below, bypassing
+            # download_orbit()'s own merge-aware logic) land next to the SLCs.
+            from insarhub.downloader.asf_base import _merge_frame_tag
+            paths = {path for (path, _frame) in primary.active_results.keys()}
+            if len(paths) > 1:
+                _finish_job(
+                    job_id, status="error", progress=0,
+                    message=f"Merged download requires all stacks to share one "
+                            f"relative orbit (path), got {sorted(paths)}.")
+                return
+            path = next(iter(paths))
+            frames = [frame for (_path, frame) in primary.active_results.keys()]
+            merged_dir = workdir / f"p{path}_{_merge_frame_tag(frames)}"
+
             if req.download_slc and not stop_ev.is_set():
                 total = sum(len(v) for v in primary.results.values())
-                state._jobs[job_id]["message"] = f"Downloading 0/{total} scenes → merged/"
+                state._jobs[job_id]["message"] = f"Downloading 0/{total} scenes → {merged_dir.name}/"
 
                 def _on_progress(msg: str, pct: int):
                     count = msg.split(']')[0].lstrip('[') if ']' in msg else ''
@@ -406,7 +463,7 @@ async def _run_download_merged(job_id: str, req: DownloadMergedRequest, stop_ev:
                     return
 
             if req.download_orbit and not stop_ev.is_set():
-                state._jobs[job_id]["message"] = "Downloading orbit files → merged/"
+                state._jobs[job_id]["message"] = f"Downloading orbit files → {merged_dir.name}/"
                 primary.download_orbit(save_dir=str(merged_dir), stop_event=stop_ev)
 
             if stop_ev.is_set():

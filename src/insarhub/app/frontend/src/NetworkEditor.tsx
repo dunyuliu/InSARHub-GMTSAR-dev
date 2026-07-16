@@ -1028,6 +1028,22 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
     ps.world.scale.set(1)
   }
 
+  async function refreshQualityScores() {
+    qualityRef.current = null
+    qualityFactorsRef.current = null
+    try {
+      const r = await fetch(`${API}/api/pair-quality?path=${encodeURIComponent(folderPath)}`)
+      const d = r.ok ? await r.json() : null
+      if (d) {
+        qualityRef.current = d.scores ?? {}
+        qualityFactorsRef.current = d.factors ?? {}
+        setQualityScores(d.scores ?? {})
+        setQualityFactors(d.factors ?? {})
+        redraw()
+      }
+    } catch { /* leave edges unscored (grey) rather than fail the whole update */ }
+  }
+
   async function handleUpdate() {
     const dtArr = dtTargets.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n))
     setUpdating(true); setUpdateMsg('Starting…'); setError('')
@@ -1050,6 +1066,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
       const { job_id } = await res.json()
 
       // Poll until done
+      let dbJobIds: string[] = []
       while (true) {
         await new Promise(r => setTimeout(r, 1500))
         const jr = await fetch(`${API}/api/jobs/${job_id}`)
@@ -1058,30 +1075,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
         if (job.message) setUpdateMsg(job.message)
         if (job.status === 'failed' || job.status === 'error') throw new Error(job.error ?? job.message ?? 'Job failed')
         if (job.status === 'done') {
-          // Kick off background DB polling before unblocking the UI
-          const dbJobIds: string[] = job.data?.db_job_ids ?? []
-          if (dbJobIds.length > 0) {
-            setDbStatus('building')
-            ;(async () => {
-              let anyError = false
-              try {
-                await Promise.all(dbJobIds.map(async (dbId) => {
-                  while (true) {
-                    await new Promise(r => setTimeout(r, 2000))
-                    const r = await fetch(`${API}/api/jobs/${dbId}`)
-                    if (!r.ok) { anyError = true; break }
-                    const j = await r.json()
-                    if (j.status === 'error') { anyError = true; break }
-                    if (j.status === 'done') break
-                  }
-                }))
-              } catch {
-                anyError = true
-              } finally {
-                setDbStatus(anyError ? 'error' : 'ready')
-              }
-            })()
-          }
+          dbJobIds = job.data?.db_job_ids ?? []
           break
         }
       }
@@ -1094,21 +1088,40 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
       const key = activeKey || Object.keys(data)[0] || ''
       if (key) setActiveKey(key)
       if (key && data[key] && pixiRef.current) buildLayout(data[key])
-      // Refresh quality scores after new pairs are selected — read pre-written JSON (fast path)
-      qualityRef.current = null
-      qualityFactorsRef.current = null
-      fetch(`${API}/api/pair-quality?path=${encodeURIComponent(folderPath)}`)
-        .then(r => r.ok ? r.json() : null)
-        .then(d => {
-          if (d) {
-            qualityRef.current = d.scores ?? {}
-            qualityFactorsRef.current = d.factors ?? {}
-            setQualityScores(d.scores ?? {})
-            setQualityFactors(d.factors ?? {})
-            redraw()
+
+      // The exhaustive all-possible-pairs DB (used for hover-previews when
+      // dragging a new pair) is separate from scoring the pairs actually
+      // selected, and can be slow — let it keep building in the background
+      // (see dbStatus / the "Building pair DB…" corner indicator) rather than
+      // blocking Done on it.
+      if (dbJobIds.length > 0) {
+        setDbStatus('building')
+        ;(async () => {
+          let anyError = false
+          try {
+            await Promise.all(dbJobIds.map(async (dbId) => {
+              while (true) {
+                await new Promise(r => setTimeout(r, 2000))
+                const r = await fetch(`${API}/api/jobs/${dbId}`)
+                if (!r.ok) { anyError = true; break }
+                const j = await r.json()
+                if (j.status === 'error') { anyError = true; break }
+                if (j.status === 'done') break
+              }
+            }))
+          } catch {
+            anyError = true
+          } finally {
+            setDbStatus(anyError ? 'error' : 'ready')
           }
-        })
-        .catch(() => {})
+        })()
+      }
+
+      // Scoring the SELECTED pairs is separate and much faster — /api/pair-quality
+      // computes it on demand for just this stack's pairs, not all N×(N-1)/2
+      // combinations. Await it so edges are actually colored by the time Done shows.
+      setUpdateMsg('Scoring pair quality…')
+      await refreshQualityScores()
       setUpdateMsg('Done')
     } catch (e) {
       setError(String(e)); setUpdateMsg('')
@@ -1857,27 +1870,31 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
             </>
           )}
         </div>
-      </div>
 
-      {/* ── DB build indicator — bottom-right corner ───────────────────────── */}
-      {dbStatus === 'building' && (
-        <div style={{
-          position: 'absolute', bottom: 36, right: 16,
-          background: 'rgba(20,28,44,0.92)',
-          border: '1px solid #ffc107',
-          borderRadius: 6, padding: '6px 12px',
-          display: 'flex', alignItems: 'center', gap: 8,
-          fontSize: 12, color: '#ffc107',
-          pointerEvents: 'none',
-          boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
-        }}>
-          <span style={{
-            display: 'inline-block', width: 7, height: 7, borderRadius: '50%',
-            background: '#ffc107', animation: 'pulse 1.2s ease-in-out infinite',
-          }} />
-          Building pair database…
-        </div>
-      )}
+        {/* ── DB build indicator — bottom-right corner ─────────────────────── */}
+        {/* Must live inside this position:relative canvas container, not as a
+            sibling of the modal panel — otherwise it anchors to the full
+            viewport (the outer position:fixed overlay) instead of the panel,
+            landing in the dark backdrop margin outside the visible window. */}
+        {dbStatus === 'building' && (
+          <div style={{
+            position: 'absolute', bottom: 36, right: 16,
+            background: 'rgba(20,28,44,0.92)',
+            border: '1px solid #ffc107',
+            borderRadius: 6, padding: '6px 12px',
+            display: 'flex', alignItems: 'center', gap: 8,
+            fontSize: 12, color: '#ffc107',
+            pointerEvents: 'none',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
+          }}>
+            <span style={{
+              display: 'inline-block', width: 7, height: 7, borderRadius: '50%',
+              background: '#ffc107', animation: 'pulse 1.2s ease-in-out infinite',
+            }} />
+            Building pair database…
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -62,6 +62,7 @@ _SBATCH_DEFAULT_TEMPLATE: dict = {
         "14": "merge_burst_igram",
         "15": "filter_coherence",
         "16": "unwrap",
+        "17": "SBAS",
     },
     "default": {
         "time":          "02:00:00",
@@ -87,7 +88,68 @@ _SBATCH_DEFAULT_TEMPLATE: dict = {
     "14": {"cpus_per_task": 4, "mem": "16G"},
     "15": {"cpus_per_task": 4, "mem": "16G"},
     "16": {"time": "04:00:00", "cpus_per_task": 2, "mem": "32G"},
+    "17": {"time": "24:00:00", "ntasks": 1, "cpus_per_task": 16, "mem": "128G"},
 }
+
+
+def _merge_sbatch_opts(per_step: dict, key: str) -> dict:
+    """Merge the 'default' dict with the entry at ``key`` (key overrides default)."""
+    default_cfg = per_step.get("default", {})
+    if not isinstance(default_cfg, dict):
+        default_cfg = {}
+    step_cfg = per_step.get(key, {})
+    if not isinstance(step_cfg, dict):
+        step_cfg = {}
+    return {**default_cfg, **step_cfg}
+
+
+def load_or_init_sbatch_options(
+    workdir: Path, step_key: str | None = None, step_label: str | None = None,
+) -> dict | None:
+    """Load workdir/sbatch_options.json, creating or upgrading it as needed.
+
+    Migrates the legacy ``srun_options.json`` filename if found.
+
+    - Missing file: writes the full default template (steps 01-17) and
+      returns None — caller should stop and let the user review/edit before
+      submitting.
+    - ``step_key`` given, file exists but missing that key: adds the default
+      entry for it, rewrites the file, prints a warning, and returns the
+      loaded dict.
+    - Otherwise: returns the loaded dict as-is.
+    """
+    sbatch_path = workdir / "sbatch_options.json"
+    old_srun_path = workdir / "srun_options.json"
+    if not sbatch_path.exists() and old_srun_path.exists():
+        old_srun_path.rename(sbatch_path)
+        print(f"[INFO] Migrated srun_options.json → sbatch_options.json")
+
+    if not sbatch_path.exists():
+        sbatch_path.write_text(json.dumps(_SBATCH_DEFAULT_TEMPLATE, indent=2))
+        target = f'step "{step_key}" ({step_label})' if step_key else "steps 01-17"
+        print(
+            f"\n[INFO] No sbatch_options.json found — initialized default at:\n"
+            f"       {sbatch_path}\n\n"
+            f"  Edit the sbatch options for {target}, then rerun.\n"
+        )
+        return None
+
+    try:
+        per_step: dict = json.loads(sbatch_path.read_text())
+    except Exception as e:
+        print(f"[WARN] Could not read {sbatch_path}: {e}", file=sys.stderr)
+        per_step = {}
+
+    if step_key and step_key not in per_step:
+        per_step[step_key] = dict(_SBATCH_DEFAULT_TEMPLATE.get(step_key, {}))
+        per_step.setdefault("_steps", {})[step_key] = step_label
+        sbatch_path.write_text(json.dumps(per_step, indent=2))
+        print(
+            f"[WARN] {sbatch_path} had no \"{step_key}\" ({step_label}) entry — "
+            f"added default resource settings. Review before relying on them."
+        )
+
+    return per_step
 
 
 # ── ISCE2 discovery ───────────────────────────────────────────────────────────
@@ -164,6 +226,77 @@ def _find_topsstack(isce_home: Path | None) -> tuple[Path, Path]:
     from insarhub.utils.tool import _download_isce_stacktool
     s = _download_isce_stacktool(candidates[0])
     return s, s.parent.parent
+
+
+# ── Step name resolution ───────────────────────────────────────────────────────
+
+_STEP_NUM_RE = re.compile(r"^run_(\d+)_")
+
+
+def _resolve_step_names(
+    requested: list[str], valid_names: list[str],
+) -> tuple[set[str], list[str]]:
+    """Resolve short step references to full run-script/job names.
+
+    Accepts the full name ("run_03_average_baseline"), just the number
+    ("03" or "3"), or a "run_03" prefix. Returns (resolved_names, unknown_inputs).
+    """
+    num_to_name: dict[str, str] = {}
+    for name in valid_names:
+        m = _STEP_NUM_RE.match(name)
+        if m:
+            digits = m.group(1)
+            num_to_name[digits] = name                     # zero-padded, e.g. "03"
+            num_to_name[digits.lstrip("0") or "0"] = name   # unpadded, e.g. "3"
+
+    resolved: set[str] = set()
+    unknown: list[str] = []
+    for raw in requested:
+        token = raw.strip()
+        if token in valid_names:
+            resolved.add(token)
+            continue
+        digits = token
+        if digits.lower().startswith("run_"):
+            digits = digits[4:]
+        elif digits.lower().startswith("run"):
+            digits = digits[3:]
+        digits = digits.split("_")[0]
+        key = digits.lstrip("0") or "0"
+        if digits in num_to_name:
+            resolved.add(num_to_name[digits])
+        elif key in num_to_name:
+            resolved.add(num_to_name[key])
+        else:
+            unknown.append(raw)
+    return resolved, unknown
+
+
+def _clear_step_markers(run_files_dir: Path, step: str) -> int:
+    """Remove stale per-command cmd_*/task_* .done/.fail markers for a step
+    being force-rerun via --step.
+
+    Resetting a step's own .status file isn't enough to make it actually
+    resubmit: the manager sbatch scripts' sliding-window logic checks these
+    per-command marker files directly (independent of the step-level status)
+    to decide which commands are "already done" and skip. Covers all three
+    layouts a step's commands can live in:
+      {step}_logs/   single-step-manager (LOG_DIR in the sbatch script)
+      {step}_sbatch/ merged single-command-per-step group
+      {step}_group/  merged multi-command group (only present when this step
+                     is first in its group — see _group_steps())
+    Returns the number of marker files removed.
+    """
+    removed = 0
+    for suffix in ("_logs", "_sbatch", "_group"):
+        d = run_files_dir / f"{step}{suffix}"
+        if not d.exists():
+            continue
+        for pattern in ("cmd_*.done", "cmd_*.fail", "task_*.done", "task_*.fail"):
+            for f in d.glob(pattern):
+                f.unlink()
+                removed += 1
+    return removed
 
 
 # ── Step status helpers ───────────────────────────────────────────────────────
@@ -368,7 +501,7 @@ class ISCE_Base(LocalProcessor):
         lines += slurm_cfg.to_header_lines()
         lines += [
             "",
-            "set -uo pipefail",
+            "set -o pipefail",
             "",
             f'LOG_DIR="{log_dir}"',
             f'STATUS_FILE="{status_file}"',
@@ -831,16 +964,8 @@ class ISCE_Base(LocalProcessor):
         Falls back gracefully if values are missing or still in old string format.
         """
         per_step: dict = getattr(self.config, "sbatch_options_per_step", {}) or {}
-        default_cfg = per_step.get("default", {})
-        if not isinstance(default_cfg, dict):
-            default_cfg = {}
         m = re.match(r"run_(\d+)", step_name)
-        step_cfg: dict = {}
-        if m:
-            v = per_step.get(m.group(1), {})
-            if isinstance(v, dict):
-                step_cfg = v
-        return {**default_cfg, **step_cfg}
+        return _merge_sbatch_opts(per_step, m.group(1) if m else "")
 
     @staticmethod
     def _parse_mem_mb(mem: str) -> int:
@@ -1298,10 +1423,27 @@ class ISCE_Base(LocalProcessor):
         except Exception:
             return {}
 
-    def refresh(self) -> dict[str, dict]:
-        """Read file-based status for all steps and print a coloured table."""
+    def refresh(self, ls: str | bool | None = None) -> dict[str, dict]:
+        """Read file-based status for all steps and print a coloured table.
+
+        By default only the one-line-per-step summary is printed — no
+        per-command cmd_XXXX detail. Pass ls=True to show per-command detail
+        for every step (the old always-verbose behavior), or ls="01" (also
+        accepts "1", "run_01", etc.) to show it for just that one step.
+        """
         if not self.jobs:
             raise ValueError("No jobs loaded. Call submit() or load a saved job file.")
+
+        ls_step: str | None = None
+        if isinstance(ls, str):
+            resolved, unknown = _resolve_step_names([ls], list(self.jobs.keys()))
+            if unknown:
+                raise ValueError(
+                    f"Unknown step for --ls: {unknown}. "
+                    f"Valid steps: {sorted(self.jobs.keys())}"
+                )
+            ls_step = next(iter(resolved))
+        show_all_cmds = ls is True
 
         _has_slurm_ids = any(
             meta.get("slurm_job_ids") or meta.get("slurm_job_id")
@@ -1404,7 +1546,10 @@ class ISCE_Base(LocalProcessor):
                 job_id_tag = ""
             print(f"  - {step:<43}  {color}{status}{suffix}{Style.RESET_ALL}{job_id_tag}")
 
-            # Per-command lines for multi-command steps (HPC new/old format, and local)
+            # Per-command lines for multi-command steps (HPC new/old format, and
+            # local) — suppressed unless --ls was given (bare, or for this step).
+            if not (show_all_cmds or step == ls_step):
+                continue
             log_dir_p = Path(meta.get("log_dir", ""))
             if log_dir_p.exists():
                 cmd_job_ids: list[str] = meta.get("slurm_job_ids") or []

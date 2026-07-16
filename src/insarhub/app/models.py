@@ -79,6 +79,12 @@ class DownloadMergedRequest(BaseModel):
     downloaderType: str = "S1_SLC"
 
 
+class AddMergedJobRequest(BaseModel):
+    workdir:        str
+    stacks:         list[MergedStackSpec]
+    downloaderType: str = "S1_SLC"
+
+
 class JobResponse(BaseModel):
     job_id: str
 
@@ -124,6 +130,8 @@ class SelectPairsRequest(BaseModel):
     avoid_low_quality_days:   bool  = _SP["avoid_low_quality_days"]
     snow_threshold:           float = _SP["snow_threshold"]
     precip_mm_threshold:      float = _SP["precip_mm_threshold"]
+    # No manual "merge" flag — auto-detected server-side from whether the
+    # folder's saved config has `frame` as a list (see _run_folder_select_pairs).
 
 
 class SavePairsRequest(BaseModel):
@@ -136,6 +144,7 @@ class ProcessRequest(BaseModel):
     processor_type:   str = "Hyp3_S1"
     processor_config: dict[str, Any] = {}
     dry_run:          bool = False
+    steps:            list[str] | None = None  # force-(re)run specific step(s); local processors only
 
 
 class InitAnalyzerRequest(BaseModel):
@@ -159,15 +168,9 @@ class Hyp3ActionRequest(BaseModel):
 class LocalActionRequest(BaseModel):
     folder_path:    str
     job_file:       str
-    action:         str   # "refresh" | "retry"
+    action:         str   # "refresh" | "retry" | "cancel" | "force_steps"
     processor_type: str = "ISCE_S1"
-
-
-class LocalSubmitRequest(BaseModel):
-    folder_path:      str
-    pairs_file:       str
-    processor_type:   str = "ISCE_S1"
-    processor_config: dict[str, Any] = Field(default_factory=dict)
+    steps:          list[str] | None = None  # required for action == "force_steps"
 
 
 class FolderConfigPatch(BaseModel):

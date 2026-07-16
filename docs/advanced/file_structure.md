@@ -78,6 +78,24 @@ workdir/
 │   └── ...                       # same structure as single-stack
 ```
 
+**Merged run** — pass `--merge` to combine every frame sharing one relative orbit (path) into a single stack instead of one subfolder per frame (see [Merging multiple frames](../quickstart/cli.md#merging-multiple-frames)). The folder name encodes every constituent frame number so two independent merge groups on the same path never collide:
+
+```
+workdir/
+└── p87_merged_f89_f90/           # path 87, frames 89 + 90 combined
+    ├── insarhub_config.json      # relativeOrbit set; no single "frame" (spans several)
+    ├── stack_p87_merged_f89_f90.json
+    ├── network_p87_merged_f89_f90.png
+    ├── .insarhub_quality_cache.json
+    ├── .insarhub_pair_quality_db.json
+    └── slc/                      # SLCs from every merged frame, together
+        ├── S1A_IW_SLC__*_089_*.SAFE/
+        ├── S1A_IW_SLC__*_090_*.SAFE/
+        └── *.EOF
+```
+
+Same file types as a normal `p{path}_f{frame}/` folder — only the naming changes, and `slc/` holds files from every merged frame together (the reason merging exists: ISCE2's `stackSentinel` needs them co-located to treat multiple frames as one continuous stack rather than isolated pieces).
+
 ---
 
 ## Files by Stage
@@ -86,7 +104,7 @@ workdir/
 
 Produced by `insarhub downloader --select-pairs` or GUI **Select Pairs**.
 
-For multi-stack runs, all files go inside `p{path}_f{frame}/` subfolders. For single-stack (flat) runs, they go directly in `workdir/`.
+For multi-stack runs, all files go inside `p{path}_f{frame}/` subfolders. For single-stack (flat) runs, they go directly in `workdir/`. For merged runs (`--merge`), files go inside `p{path}_merged_f{frame1}_f{frame2}_.../` — see [Merged run](#directory-layout) above.
 
 | File | Description |
 |------|-------------|

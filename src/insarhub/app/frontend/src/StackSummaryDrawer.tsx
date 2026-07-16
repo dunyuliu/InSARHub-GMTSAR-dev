@@ -95,6 +95,41 @@ export default function StackSummaryDrawer({
     })
   }
 
+  // ── Add Job (merged) ─────────────────────────────────────────────────────────
+  const [ajStatus, setAjStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle')
+  const [ajMsg,     setAjMsg]   = useState('')
+
+  const startAddJob = async () => {
+    const selectedStacks = stacks.filter(s => checked.has(s.stackKey))
+    if (!selectedStacks.length) return
+    setAjStatus('running'); setAjMsg('')
+    try {
+      const res = await fetch(`${API}/api/add-merged-job`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workdir, downloaderType,
+          stacks: selectedStacks.map(s => ({
+            relativeOrbit:   s.path,
+            frame:           s.frame,
+            start:           s.startDate,
+            end:             s.endDate,
+            wkt:             aoiWkt ?? undefined,
+            flightDirection: s.flightDirection || undefined,
+            platform:        s.platform || undefined,
+          })),
+        }),
+      })
+      const d = await res.json()
+      if (!res.ok) { setAjStatus('error'); setAjMsg(d.detail ?? 'Error'); return }
+      setAjStatus('done')
+      setAjMsg(d.name ?? d.path ?? '')
+    } catch (e) {
+      setAjStatus('error')
+      setAjMsg(String(e))
+    }
+  }
+
   // ── Merged download job polling ─────────────────────────────────────────────
   const [_dlJobId, setDlJobId]  = useState<string | null>(null)
   const [dlStatus, setDlStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle')
@@ -197,6 +232,36 @@ export default function StackSummaryDrawer({
           display: 'flex', flexDirection: 'column', gap: 6,
         }}>
           <button
+            onClick={startAddJob}
+            disabled={ajStatus === 'running'}
+            style={{
+              width: '100%', padding: '6px 10px',
+              background: ajStatus === 'running' ? t.inputBg
+                        : ajStatus === 'done'    ? '#1b3a2a'
+                        : ajStatus === 'error'   ? '#b71c1c'
+                        : '#0d3b6e',
+              color: ajStatus === 'running' ? t.textMuted
+                   : ajStatus === 'done'    ? '#a5d6a7'
+                   : ajStatus === 'error'   ? '#ef9a9a'
+                   : '#90caf9',
+              border: `1px solid ${ajStatus === 'done' ? '#2e7d32' : ajStatus === 'error' ? '#c62828' : '#1565c0'}`,
+              borderRadius: 4,
+              cursor: ajStatus === 'running' ? 'wait' : 'pointer',
+              fontWeight: 600, fontSize: 12,
+            }}
+          >
+            {ajStatus === 'running' ? '⟳ Adding Job…'
+            : ajStatus === 'done'   ? '✓ Job Added'
+            : ajStatus === 'error'  ? '✕ Retry'
+            : `+ Add Job (${checkedCount} stack${checkedCount !== 1 ? 's' : ''} merged)`}
+          </button>
+          {ajMsg && (
+            <span style={{
+              fontSize: 10, wordBreak: 'break-all',
+              color: ajStatus === 'error' ? '#e53935' : t.textMuted,
+            }}>{ajMsg}</span>
+          )}
+          <button
             onClick={startMergedDownload}
             disabled={dlStatus === 'running'}
             style={{
@@ -209,7 +274,7 @@ export default function StackSummaryDrawer({
           >
             {dlStatus === 'running'
               ? 'Downloading…'
-              : `Download SLC + Orbit (${checkedCount} stack${checkedCount !== 1 ? 's' : ''}) → merged/`}
+              : `Download SLC + Orbit (${checkedCount} stack${checkedCount !== 1 ? 's' : ''})`}
           </button>
           {dlStatus !== 'idle' && (
             <span style={{ fontSize: 10, color: dlColor, wordBreak: 'break-all' }}>{dlMsg}</span>

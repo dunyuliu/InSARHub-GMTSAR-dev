@@ -36,6 +36,8 @@ from insarhub.processor.isce_base import (
     _SUCCEEDED,
     _read_status,
     _write_status,
+    _resolve_step_names,
+    _clear_step_markers,
 )
 
 logger = logging.getLogger(__name__)
@@ -299,8 +301,17 @@ class ISCE_S1(ISCE_Base):
 
     # ── Submit ────────────────────────────────────────────────────────────────
 
-    def submit(self) -> dict:
-        """Generate run scripts and start sequential step execution."""
+    def submit(self, steps: list[str] | None = None) -> dict:
+        """Generate run scripts and start sequential step execution.
+
+        steps: optional step name(s) (e.g. ["run_03_average_baseline"]) to
+            force back to PENDING and (re)run regardless of their saved
+            status, bypassing skip_existing for just those steps. Every
+            other step is left exactly as it is — not reset, not executed —
+            so this doesn't cascade into re-running downstream steps the way
+            retry() does. Default (None): normal behavior, run every step
+            not already SUCCEEDED.
+        """
         dem_path = _prepare_dem(self.config, self.workdir)
         aux_dir  = self._resolve_aux_dir()
         self._generate_run_files(dem_path, aux_dir, pairs=self.pairs)
@@ -315,11 +326,29 @@ class ISCE_S1(ISCE_Base):
                 "Check stackSentinel.log for errors."
             )
 
+        requested = None
+        if steps:
+            requested, unknown = _resolve_step_names(steps, [s.name for s in scripts])
+            if unknown:
+                raise ValueError(
+                    f"Unknown step(s): {unknown}. Give the full name or just its "
+                    f"number (e.g. '03' for run_03_average_baseline). "
+                    f"Valid steps: {sorted(s.name for s in scripts)}"
+                )
+
         pending: list[str] = []
         for script in scripts:
             step = script.name
             status, _ = _read_status(self._run_files_dir, step)
-            if status == _SUCCEEDED and self.config.skip_existing:
+
+            if requested is not None and step not in requested:
+                # --step given and this one wasn't named: leave it exactly as
+                # it is — record its current status, don't touch or run it.
+                if step not in self.jobs:
+                    self.jobs[step] = self._job_meta(step, script, status)
+                continue
+
+            if requested is None and status == _SUCCEEDED and self.config.skip_existing:
                 print(f"{Fore.YELLOW}  ✓ {step} already succeeded, skipping.{Style.RESET_ALL}")
                 if step not in self.jobs:
                     self.jobs[step] = self._job_meta(step, script, _SUCCEEDED)
@@ -327,14 +356,30 @@ class ISCE_S1(ISCE_Base):
 
             log_dir = self._run_files_dir / f"{step}_logs"
             log_dir.mkdir(parents=True, exist_ok=True)
+            if requested is not None:
+                # Forced via --step: the per-command .done/.fail markers are
+                # what the manager scripts actually check to decide what to
+                # (re)submit — the step-level status alone isn't enough.
+                n_cleared = _clear_step_markers(self._run_files_dir, step)
+                if n_cleared:
+                    print(f"{Fore.CYAN}    cleared {n_cleared} stale per-command "
+                          f"marker(s) for {step}{Style.RESET_ALL}")
             _write_status(self._run_files_dir, step, _PENDING)
             self.jobs[step] = self._job_meta(step, script, _PENDING, log_dir)
             pending.append(step)
 
+        if requested is not None:
+            print(f"{Fore.CYAN}  --step: forcing {sorted(requested)} to (re)run; "
+                  f"all other steps left untouched.{Style.RESET_ALL}")
         print(f"{Fore.GREEN}Registered {len(pending)} pending step(s) "
               f"({len(self.jobs)} total).{Style.RESET_ALL}")
 
-        hpc_mode = getattr(self.config, "hpc_mode", False)
+        hpc_mode = getattr(self.config, "hpc_mode", False) or any(
+            m.get("slurm_job_ids") or m.get("hpc_manager") or m.get("hpc_array")
+            for m in self.jobs.values()
+        )
+        if hpc_mode and hasattr(self.config, "hpc_mode"):
+            self.config.hpc_mode = True  # self-heal when called with a bare/default config
         dry_run  = getattr(self.config, "dry_run", False)
         if hpc_mode or dry_run:
             # HPC/dry-run: sbatch calls are fast — run blocking so CLI doesn't

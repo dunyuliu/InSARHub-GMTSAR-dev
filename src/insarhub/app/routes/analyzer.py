@@ -189,6 +189,22 @@ async def _run_analyzer(job_id: str, req: RunAnalyzerRequest):
                 cfg_path.parent.mkdir(parents=True, exist_ok=True)
                 cfg.write_mintpy_config(cfg_path)
 
+            # HPC mode: submit everything as a single sbatch job instead of running locally
+            if getattr(cfg, "hpc_mode", False) and hasattr(analyzer, "submit_hpc"):
+                update("Submitting HPC job…", 0)
+                slurm_job_id = analyzer.submit_hpc(steps=req.steps or None)
+                if slurm_job_id is None:
+                    sbatch_path = folder / "sbatch_options.json"
+                    state._finish_job(
+                        job_id, status="error", progress=0,
+                        message=f"No sbatch_options.json found — created a default at "
+                                f"{sbatch_path}. Review the resource settings for step "
+                                f"\"17\" (SBAS), then submit again.")
+                    return
+                state._finish_job(job_id, status="done", progress=100,
+                                  message=f"HPC job submitted: {slurm_job_id}")
+                return
+
             total = len(req.steps)
             completed = 0
             for i, step in enumerate(req.steps):

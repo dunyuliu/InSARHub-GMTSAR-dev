@@ -284,6 +284,84 @@ function PairsDrawer({ theme: t, folderPath, onClose, rightOffset }: PairsDrawer
 interface FieldMeta { key: string; label: string; type: string; default: any; options?: string[]; min?: number; max?: number; step?: number; hint?: string }
 interface ProcMeta  { label: string; fields: FieldMeta[]; groups?: Array<{ label: string; fields: string[] }>; compatible_downloader?: string | null }
 
+// ── SbatchOptionsModal — shared by ProcessModal (ISCE_S1) and AnalyzerConfigModal (ISCE_SBAS) ──
+
+interface SbatchOptionsModalProps { theme: Theme; folderPath: string; onClose: () => void; onSaved?: (msg: string) => void; zIndex?: number }
+
+function SbatchOptionsModal({ theme: t, folderPath, onClose, onSaved, zIndex = 220 }: SbatchOptionsModalProps) {
+  const [text,    setText]    = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving,  setSaving]  = useState(false)
+  const [msg,     setMsg]     = useState('')
+
+  useEffect(() => {
+    fetch(`${API}/api/folder-sbatch-options?path=${encodeURIComponent(folderPath)}`)
+      .then(r => r.json())
+      .then(d => { setText(d.content ?? ''); setLoading(false) })
+      .catch(e => { setMsg(String(e)); setLoading(false) })
+  }, [folderPath])
+
+  function save() {
+    setSaving(true); setMsg('')
+    fetch(`${API}/api/folder-sbatch-options?path=${encodeURIComponent(folderPath)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: text }),
+    })
+      .then(r => r.json())
+      .then(d => { const m = d.ok ? 'Saved.' : (d.detail ?? 'Error'); setMsg(m); onSaved?.(m) })
+      .catch(e => { setMsg(String(e)); onSaved?.(String(e)) })
+      .finally(() => setSaving(false))
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{
+        background: t.bg2, border: `1px solid ${t.border}`, borderRadius: 8,
+        padding: 16, display: 'flex', flexDirection: 'column', gap: 10,
+        width: 500, maxWidth: '95vw',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ color: t.text, fontWeight: 600, fontSize: 13 }}>sbatch options per step</span>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 18 }}>×</button>
+        </div>
+        <span style={{ color: t.textMuted, fontSize: 10 }}>
+          JSON object mapping two-digit step number → <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>Slurmjob_Config</code> fields. <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>"default"</code> applies to any unlisted step; step keys override it. Step <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>"17"</code> configures the MintPy SBAS analyzer's HPC job. Available fields: <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>time, partition, nodes, ntasks, cpus_per_task, mem, account, qos, nodelist, gpus, mail_user</code>.
+        </span>
+        {loading ? (
+          <div style={{ color: t.textMuted, fontSize: 12, textAlign: 'center', padding: '20px 0' }}>Loading…</div>
+        ) : (
+          <textarea
+            value={text}
+            onChange={e => setText(e.target.value)}
+            rows={16}
+            spellCheck={false}
+            style={{
+              background: t.inputBg, border: `1px solid ${t.inputBorder}`,
+              color: t.text, borderRadius: 4, padding: '6px 8px',
+              fontSize: 11, fontFamily: 'monospace', resize: 'vertical',
+            }}
+          />
+        )}
+        {msg && (
+          <span style={{ fontSize: 10, color: msg === 'Saved.' ? '#81c784' : '#e57373', fontFamily: 'monospace' }}>{msg}</span>
+        )}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{
+            padding: '5px 14px', fontSize: 11, borderRadius: 4,
+            background: 'none', color: t.textMuted, border: `1px solid ${t.border}`, cursor: 'pointer',
+          }}>Close</button>
+          <button disabled={saving || loading} onClick={save} style={{
+            padding: '5px 14px', fontSize: 11, borderRadius: 4,
+            background: '#4a2500', color: '#ffcc80', border: '1px solid #e65100',
+            cursor: (saving || loading) ? 'default' : 'pointer', opacity: (saving || loading) ? 0.6 : 1,
+          }}>Save</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 interface ProcessModalProps { theme: Theme; folderPath: string; downloaderType: string; aoiWkt: string | null; onClose: () => void; onDone: () => void }
 
 function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, onDone }: ProcessModalProps) {
@@ -382,31 +460,8 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
     } catch (e) { setStatus('error'); setMessage(String(e)) }
   }
 
-  const [sbatchOpen,   setSbatchOpen]   = useState(false)
-  const [sbatchText,   setSbatchText]   = useState('')
-  const [sbatchSaving, setSbatchSaving] = useState(false)
-  const [sbatchMsg,    setSbatchMsg]    = useState('')
-
-  function openSbatchModal() {
-    setSbatchMsg('')
-    fetch(`${API}/api/folder-sbatch-options?path=${encodeURIComponent(folderPath)}`)
-      .then(r => r.json())
-      .then(d => { setSbatchText(d.content ?? ''); setSbatchOpen(true) })
-      .catch(e => setSbatchMsg(String(e)))
-  }
-
-  function saveSbatchOptions() {
-    setSbatchSaving(true); setSbatchMsg('')
-    fetch(`${API}/api/folder-sbatch-options?path=${encodeURIComponent(folderPath)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: sbatchText }),
-    })
-      .then(r => r.json())
-      .then(d => setSbatchMsg(d.ok ? 'Saved.' : (d.detail ?? 'Error')))
-      .catch(e => setSbatchMsg(String(e)))
-      .finally(() => setSbatchSaving(false))
-  }
+  const [sbatchOpen, setSbatchOpen] = useState(false)
+  const [sbatchMsg,  setSbatchMsg]  = useState('')
 
   const currentMeta = procOptions[procType]
   const inp: React.CSSProperties = {
@@ -520,13 +575,13 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
                               style={{ accentColor: t.accent, width: 13, height: 13 }} />
                             HPC mode (SLURM sbatch)
                           </label>
-                          <button onClick={openSbatchModal} style={{
+                          <button onClick={() => { setSbatchMsg(''); setSbatchOpen(true) }} style={{
                             padding: '3px 10px', fontSize: 10, borderRadius: 4,
                             background: 'none', color: t.textMuted, border: `1px solid ${t.border}`,
                             cursor: 'pointer',
                           }}>Edit sbatch options…</button>
                           {sbatchMsg && !sbatchOpen && (
-                            <span style={{ fontSize: 10, color: '#e57373', fontFamily: 'monospace' }}>{sbatchMsg}</span>
+                            <span style={{ fontSize: 10, color: sbatchMsg === 'Saved.' ? '#81c784' : '#e57373', fontFamily: 'monospace' }}>{sbatchMsg}</span>
                           )}
                         </div>
                       )
@@ -580,46 +635,8 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
 
       {/* sbatch options modal — z-index above ProcessModal (211) */}
       {sbatchOpen && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 220, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{
-            background: t.bg2, border: `1px solid ${t.border}`, borderRadius: 8,
-            padding: 16, display: 'flex', flexDirection: 'column', gap: 10,
-            width: 500, maxWidth: '95vw',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ color: t.text, fontWeight: 600, fontSize: 13 }}>sbatch options per step</span>
-              <button onClick={() => setSbatchOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 18 }}>×</button>
-            </div>
-            <span style={{ color: t.textMuted, fontSize: 10 }}>
-              JSON object mapping two-digit step number → <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>Slurmjob_Config</code> fields. <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>"default"</code> applies to any unlisted step; step keys override it. Available fields: <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>time, partition, nodes, ntasks, cpus_per_task, mem, account, qos, nodelist, gpus, mail_user</code>.
-            </span>
-            <textarea
-              value={sbatchText}
-              onChange={e => setSbatchText(e.target.value)}
-              rows={16}
-              spellCheck={false}
-              style={{
-                background: t.inputBg, border: `1px solid ${t.inputBorder}`,
-                color: t.text, borderRadius: 4, padding: '6px 8px',
-                fontSize: 11, fontFamily: 'monospace', resize: 'vertical',
-              }}
-            />
-            {sbatchMsg && (
-              <span style={{ fontSize: 10, color: sbatchMsg === 'Saved.' ? '#81c784' : '#e57373', fontFamily: 'monospace' }}>{sbatchMsg}</span>
-            )}
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setSbatchOpen(false)} style={{
-                padding: '5px 14px', fontSize: 11, borderRadius: 4,
-                background: 'none', color: t.textMuted, border: `1px solid ${t.border}`, cursor: 'pointer',
-              }}>Close</button>
-              <button disabled={sbatchSaving} onClick={saveSbatchOptions} style={{
-                padding: '5px 14px', fontSize: 11, borderRadius: 4,
-                background: '#4a2500', color: '#ffcc80', border: '1px solid #e65100',
-                cursor: sbatchSaving ? 'default' : 'pointer', opacity: sbatchSaving ? 0.6 : 1,
-              }}>Save</button>
-            </div>
-          </div>
-        </div>
+        <SbatchOptionsModal theme={t} folderPath={folderPath} onClose={() => setSbatchOpen(false)}
+          onSaved={m => setSbatchMsg(m)} />
       )}
     </>
   )
@@ -643,6 +660,8 @@ function AnalyzerConfigModal({ theme: t, folderPath, analyzerType, onClose }: An
   const [saving,     setSaving]     = useState(false)
   const [msg,        setMsg]        = useState('')
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set())
+  const [sbatchOpen, setSbatchOpen] = useState(false)
+  const [sbatchMsg,  setSbatchMsg]  = useState('')
 
   useEffect(() => {
     Promise.all([
@@ -698,7 +717,23 @@ function AnalyzerConfigModal({ theme: t, folderPath, analyzerType, onClose }: An
             {f.options!.map(o => <option key={o} value={o}>{o === '' ? '(any)' : o}</option>)}
           </select>
         )}
-        {f.type === 'bool' && (
+        {f.type === 'bool' && f.key === 'hpc_mode' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input type="checkbox" checked={val === true} onChange={e => setField(f.key, e.target.checked)} style={{ accentColor: t.accent, width: 14, height: 14 }} />
+              <span style={{ color: t.text, fontSize: 12 }}>{val === true ? 'Enabled' : 'Disabled'}</span>
+            </label>
+            <button onClick={() => { setSbatchMsg(''); setSbatchOpen(true) }} style={{
+              padding: '3px 10px', fontSize: 10, borderRadius: 4,
+              background: 'none', color: t.textMuted, border: `1px solid ${t.border}`,
+              cursor: 'pointer',
+            }}>Edit sbatch options…</button>
+            {sbatchMsg && !sbatchOpen && (
+              <span style={{ fontSize: 10, color: sbatchMsg === 'Saved.' ? '#81c784' : '#e57373', fontFamily: 'monospace' }}>{sbatchMsg}</span>
+            )}
+          </div>
+        )}
+        {f.type === 'bool' && f.key !== 'hpc_mode' && (
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
             <input type="checkbox" checked={val === true} onChange={e => setField(f.key, e.target.checked)} style={{ accentColor: t.accent, width: 14, height: 14 }} />
             <span style={{ color: t.text, fontSize: 12 }}>{val === true ? 'Enabled' : 'Disabled'}</span>
@@ -761,6 +796,7 @@ function AnalyzerConfigModal({ theme: t, folderPath, analyzerType, onClose }: An
   }
 
   return (
+    <>
     <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.55)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div style={{ background: t.bg2, border: `1px solid ${t.border}`, borderRadius: 8, width: 500, maxHeight: '82vh', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}>
@@ -786,6 +822,11 @@ function AnalyzerConfigModal({ theme: t, folderPath, analyzerType, onClose }: An
         </div>
       </div>
     </div>
+    {sbatchOpen && (
+      <SbatchOptionsModal theme={t} folderPath={folderPath} onClose={() => setSbatchOpen(false)}
+        onSaved={m => setSbatchMsg(m)} zIndex={10000} />
+    )}
+    </>
   )
 }
 
@@ -1229,7 +1270,18 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
   const [analyzerMsg,      setAnalyzerMsg]      = useState('')
   const [analyzerStat,     setAnalyzerStat]     = useState<'idle' | 'ok' | 'error'>('idle')
 
+  const [availSteps,  setAvailSteps]  = useState<string[]>([])
+  const [forceSteps,  setForceSteps]  = useState<string[]>([])
+
   const isLocal = processorType === 'ISCE_S1'
+
+  useEffect(() => {
+    if (!isLocal) { setAvailSteps([]); return }
+    fetch(`${API}/api/processor-steps?processor=${encodeURIComponent(processorType)}`)
+      .then(r => r.ok ? r.json() : { steps: [] })
+      .then(d => setAvailSteps(d.steps ?? []))
+      .catch(() => setAvailSteps([]))
+  }, [isLocal, processorType])
 
   function loadFiles() {
     setLoading(true)
@@ -1291,17 +1343,23 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
 
-  function runAction(action: string) {
+  function runAction(action: string, steps?: string[]) {
     if (!selected) return
     setCurrentAction(action)
     setActionStat('running')
     setActionProgress(0)
-    setActionMsg(action === 'refresh' ? 'Refreshing…' : action === 'retry' ? 'Retrying…' : action === 'cancel' ? 'Cancelling…' : 'Downloading…')
+    setActionMsg(
+      action === 'refresh' ? 'Refreshing…' : action === 'retry' ? 'Retrying…' :
+      action === 'cancel' ? 'Cancelling…' : action === 'force_steps' ? 'Forcing step(s)…' : 'Downloading…'
+    )
     const actionEndpoint = isLocal ? `${API}/api/folder-local-action` : `${API}/api/folder-hyp3-action`
     fetch(actionEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ folder_path: folderPath, job_file: selected, action, processor_type: processorType }),
+      body: JSON.stringify({
+        folder_path: folderPath, job_file: selected, action, processor_type: processorType,
+        ...(steps ? { steps } : {}),
+      }),
     })
       .then(r => r.json())
       .then(({ job_id }) => {
@@ -1313,7 +1371,7 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
           setActionProgress(job.progress ?? 0)
           if (job.status === 'done') {
             clearInterval(pollRef.current!); setActionStat('done'); setActionProgress(100); setActiveJobId(null)
-            if (action === 'retry') loadFiles()
+            if (action === 'retry' || action === 'force_steps') loadFiles()
           } else if (job.status === 'error') {
             clearInterval(pollRef.current!); setActionStat('error'); setActiveJobId(null)
           }
@@ -1391,6 +1449,47 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
               )
             )}
           </div>
+
+          {/* Force specific step(s) — ISCE_S1 only, mirrors CLI `--step` */}
+          {isLocal && availSteps.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ color: t.textMuted, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Force step(s) to (re)run
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {availSteps.map((s, i) => (
+                  <label key={s} style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
+                    <input
+                      type="checkbox"
+                      checked={forceSteps.includes(s)}
+                      disabled={busy}
+                      onChange={e => setForceSteps(prev => e.target.checked ? [...prev, s] : prev.filter(x => x !== s))}
+                      style={{ accentColor: rc.bg, cursor: busy ? 'default' : 'pointer' }}
+                    />
+                    <span style={{ fontSize: 11, color: t.text, fontFamily: 'monospace' }}>
+                      <span style={{ color: t.textMuted, marginRight: 4 }}>{String(i + 1).padStart(2, '0')}</span>
+                      {s.replace(/^run_\d+_/, '')}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              {forceSteps.length > 0 && (
+                <div style={{ fontSize: 10, color: '#ffb74d' }}>
+                  ⚠ Only the selected step(s) will be forced to (re)run — every other step is left untouched regardless of its current status.
+                </div>
+              )}
+              <button disabled={busy || forceSteps.length === 0}
+                onClick={() => { runAction('force_steps', forceSteps); setForceSteps([]) }}
+                style={{
+                  padding: '6px 0', fontSize: 11, borderRadius: 4,
+                  cursor: (busy || forceSteps.length === 0) ? 'default' : 'pointer',
+                  opacity: (busy || forceSteps.length === 0) ? 0.5 : 1,
+                  background: rc.bg, color: rc.color, border: `1px solid ${rc.border}`,
+                }}>
+                Force {forceSteps.length > 0 ? `${forceSteps.length} ` : ''}Step{forceSteps.length === 1 ? '' : 's'}
+              </button>
+            </div>
+          )}
 
           {/* View Data */}
           <button

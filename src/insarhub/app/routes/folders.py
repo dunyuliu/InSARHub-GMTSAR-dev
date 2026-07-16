@@ -266,6 +266,20 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                 return
 
             state._jobs[job_id]["message"] = "Selecting pairs…"
+            # Auto-detect merge intent from what the search actually found, not
+            # from how `frame` happens to be saved (a list, omitted, whatever) —
+            # that's unreliable across the different ways a folder gets set up
+            # (Add Job, Add Merged Job, hand-edited config, legacy layouts).
+            # If this folder is already an established single stack directory
+            # AND the search turned up more than one frame on one path, every
+            # one of those frames belongs in this one folder's network.
+            _dl_is_stack = (folder / "insarhub_config.json").exists()
+            active = downloader.active_results
+            _active_paths = {p for (p, _f) in active.keys()} if isinstance(active, dict) else set()
+            merge_flag = (
+                _dl_is_stack and isinstance(active, dict)
+                and len(_active_paths) == 1 and len(active) > 1
+            )
             pairs, baselines, scene_bperp, prefetch_cache = downloader.select_pairs(
                 dt_targets=tuple(req.dt_targets),
                 dt_tol=req.dt_tol,
@@ -278,44 +292,63 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                 avoid_low_quality_days=req.avoid_low_quality_days,
                 snow_threshold=req.snow_threshold,
                 precip_mm_threshold=req.precip_mm_threshold,
+                merge=merge_flag,
             )
 
-            # Build scenes_by_stack from search results for the DB
-            active = downloader.active_results
-            scenes_by_stack: dict = {}
-            if isinstance(active, dict):
-                for k, prods in active.items():
-                    scenes_by_stack[k] = [p.properties["sceneName"] for p in prods]
-            else:
-                scenes_by_stack[(0, 0)] = [p.properties["sceneName"] for p in active]
+            # Build scenes_by_stack from search results for the DB — keys
+            # line up with `pairs`: (path, frame) normally, or (path,
+            # "merged_f89_f90...") per distinct frame group when merged (see
+            # StackPaths.merge_tag — encodes every constituent frame so two
+            # merge groups on the same path never collide on one directory name).
+            from insarhub.utils.tool import group_scenes_by_stack
+            from insarhub.config.paths import StackPaths
+            scenes_by_stack = group_scenes_by_stack(downloader.active_results, merge=merge_flag)
+            _sp = StackPaths(folder.parent)
 
+            db_job_ids: list[str] = []
             if isinstance(pairs, dict):
                 for (path, frame), group_pairs in pairs.items():
-                    subdir = folder.parent / f"p{path}_f{frame}"
+                    is_merged = StackPaths.is_merge_key(frame)
+                    label = f"P{path} ({frame})" if is_merged else f"P{path}/F{frame}"
+                    # Already an established stack directory (e.g. set up via Add
+                    # Job / Add Merged Job) → write back into it directly, don't
+                    # scatter results into new sibling folders under the parent.
+                    subdir = folder if _dl_is_stack else _sp.dir_for(path, frame)
                     subdir.mkdir(parents=True, exist_ok=True)
                     cfg_dict = {k: v for k, v in dataclasses.asdict(cfg).items() if k != 'workdir'}
                     cfg_dict['relativeOrbit'] = path
-                    cfg_dict['frame'] = frame
+                    if not is_merged:
+                        cfg_dict['frame'] = frame
                     # When intersectsWith is absent, derive AOI from scene footprints so
                     # quality scoring has a valid region without falling back to a hardcoded default.
                     if not cfg_dict.get('intersectsWith'):
-                        wkt = footprint_wkt_from_products(
-                            downloader.active_results.get((path, frame), [])
-                        )
+                        if is_merged:
+                            merge_prods = [
+                                p for (k_path, _k_frame), prods in downloader.active_results.items()
+                                if k_path == path for p in prods
+                            ]
+                        else:
+                            merge_prods = downloader.active_results.get((path, frame), [])
+                        wkt = footprint_wkt_from_products(merge_prods)
                         if wkt:
                             cfg_dict['scene_footprint_wkt'] = wkt
                     write_insarhub_config(subdir, {"downloader": {"type": dl_type, "config": cfg_dict}})
                     sp = scene_bperp.get((path, frame)) or {}
                     stack_scenes = scenes_by_stack.get((path, frame), [])
-                    stack_path = subdir / f"stack_p{path}_f{frame}.json"
+                    # Filename only, applied to the actual subdir — subdir may be
+                    # `folder` itself (whatever it's actually named) rather than
+                    # the name _sp.dir_for(path, frame) would compute.
+                    stack_path = subdir / _sp.stack_file_for(path, frame).name
                     stack_data = write_stack_file(stack_path, group_pairs, sp, stack_scenes)
-                    state._jobs[job_id]["message"] = f"Building weather/snow cache — P{path}/F{frame}…"
+                    state._jobs[job_id]["message"] = f"Building weather/snow cache — {label}…"
                     seed_prefetch(subdir, prefetch_cache.get((path, frame), {}))
-                    _launch_db_build(
+                    db_job_id = _launch_db_build(
                         subdir,
                         {(path, frame): stack_scenes},
                         {(path, frame): {k: float(v) for k, v in sp.items()}},
                     )
+                    if db_job_id:
+                        db_job_ids.append(db_job_id)
             else:
                 cfg_dict = {k: v for k, v in dataclasses.asdict(cfg).items() if k != 'workdir'}
                 if not cfg_dict.get('intersectsWith'):
@@ -326,17 +359,19 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                 write_insarhub_config(folder, {"downloader": {"type": dl_type, "config": cfg_dict}})
                 sp = scene_bperp if isinstance(scene_bperp, dict) else {}
                 stack_scenes = scenes_by_stack.get((0, 0), [])
-                stack_path = folder / "stack_p0_f0.json"
+                stack_path = folder / _sp.stack_file(0, 0).name
                 stack_data = write_stack_file(stack_path, pairs, sp, stack_scenes)
                 state._jobs[job_id]["message"] = "Building weather/snow cache…"
                 seed_prefetch(folder, prefetch_cache)
-                _launch_db_build(
+                db_job_id = _launch_db_build(
                     folder,
                     {(0, 0): stack_scenes},
                     {(0, 0): {k: float(v) for k, v in sp.items()}},
                 )
+                if db_job_id:
+                    db_job_ids.append(db_job_id)
 
-            _finish_job(job_id, status="done", message="Pairs selected", data={})
+            _finish_job(job_id, status="done", message="Pairs selected", data={"db_job_ids": db_job_ids})
         except Exception as e:
             _finish_job(job_id, status="error", progress=0, message=str(e))
 

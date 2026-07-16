@@ -83,18 +83,23 @@ Analyzer.available()
         analyzer.submit_hpc(steps=["velocity", "geocode"])
         ```
 
-        The script is written to `<workdir>/mintpy/mintpy_sbas.sbatch` and job state to `mintpy/mintpy_job.json`. Default resources: `time=24:00:00`, `ntasks=1`, `cpus_per_task=16`, `mem=128G`, `partition=all`. Override via `hpc_sbatch_opts` in the config:
+        The script is written to `<workdir>/mintpy/mintpy_sbas.sbatch` and job state to `mintpy/mintpy_job.json`. SLURM resources come from `<workdir>/sbatch_options.json`, step key `"17"` — the same file `ISCE_S1`'s own HPC submission uses for steps `01`–`16`, since the processor and analyzer typically share one workdir. Default: `time=24:00:00`, `ntasks=1`, `cpus_per_task=16`, `mem=128G`, `partition=all`.
+
+        `submit_hpc()` returns the SLURM job ID string on success, or `None` if `sbatch_options.json` was just created (or updated with a missing `"17"` entry) — callers should check for `None` and stop rather than treat it as a successful submission:
 
         ```python
         cfg = Mintpy_SBAS_Base_Config(
             workdir="/your/work/dir",
             load_processor="hyp3",
             hpc_mode=True,
-            hpc_sbatch_opts={"time": "48:00:00", "mem": "256G", "partition": "gpu"},
         )
         analyzer = Analyzer.create('Hyp3_SBAS', config=cfg)
-        analyzer.submit_hpc()
+        job_id = analyzer.submit_hpc()
+        if job_id is None:
+            print("sbatch_options.json was just created/updated — review it, then resubmit.")
         ```
+
+        Edit step `"17"` in `sbatch_options.json` directly to change resources (e.g. `{"17": {"time": "48:00:00", "mem": "256G", "partition": "gpu"}}`), then call `submit_hpc()` again.
 
         ::: insarhub.analyzer.mintpy_base.Mintpy_SBAS_Base_Analyzer.submit_hpc
             options:

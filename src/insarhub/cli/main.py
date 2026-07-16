@@ -37,7 +37,7 @@ import sys
 from pathlib import Path
 
 from insarhub._version import __version__
-from insarhub.config.paths import Hyp3Paths, ISCEPaths
+from insarhub.config.paths import Hyp3Paths, ISCEPaths, StackPaths
 from insarhub.utils.defaults import SELECT_PAIRS_DEFAULTS as _SP, DOWNLOAD_DEFAULTS as _DL
 
 
@@ -158,7 +158,9 @@ def create_parser() -> argparse.ArgumentParser:
     g_down.add_argument("-O", "--orbit-files", nargs="?", const=True, default=False, metavar="PATH",
                         help="Download orbit files. Optionally specify a save directory, e.g. -O orbits/ (default: workdir)")
     g_down.add_argument("--merge", action="store_true",
-                        help="Download all stacks into workdir/merged/slc/ instead of per-stack subdirs")
+                        help="Combine all frames sharing one relative orbit (path) into a single "
+                             "stack instead of per-frame subdirs — e.g. workdir/p100_merged_f465_f466/. "
+                             "Requires all results to share one path (raises otherwise).")
     g_down.add_argument("--worker", metavar="INT", type=int, default=_DL["max_workers"],
                         help=f"Parallel download workers (default: {_DL['max_workers']})")
     g_down.add_argument("--footprint", metavar="PATH",
@@ -237,6 +239,13 @@ def create_parser() -> argparse.ArgumentParser:
     g_sub.add_argument("--worker", metavar="INT", type=int, default=None,
                        help="Workers: in HPC mode = max concurrent SLURM jobs; "
                             "otherwise = parallel threads per step (default: 4 / 12)")
+    g_sub.add_argument("--step", metavar="STEP", nargs="+", default=None,
+                       help="Local/ISCE processors only: force (re)run only these step(s), "
+                            "regardless of saved status. Give the full name "
+                            "(run_03_average_baseline), just the number (03 or 3), or a "
+                            "run_03 prefix. Every other step is left untouched — unlike "
+                            "'retry', this does NOT cascade into re-running downstream "
+                            "steps. Omit to run normally (every step not already SUCCEEDED).")
     g_sub.add_argument("--dry-run", action="store_true",
                        help="Print what would be submitted without sending any jobs to HyP3")
     g_sub_pairs = p_proc_submit.add_argument_group(
@@ -257,6 +266,12 @@ def create_parser() -> argparse.ArgumentParser:
     _add_job_file(p_proc_refresh)
     p_proc_refresh.add_argument("-r", "--recursive", action="store_true",
                                 help="Recursively search workdir for hyp3*.json job files")
+    p_proc_refresh.add_argument(
+        "--ls", metavar="STEP", nargs="?", const=True, default=None,
+        help="Local/ISCE processors only: also show per-command (cmd_XXXX) detail. "
+             "Bare --ls shows it for every step; --ls 03 (also accepts '3', "
+             "'run_03') shows it for just that one step. Omit for step-level "
+             "summary only (default).")
 
     # --- download  (HyP3) --------------------------------------------- #
     p_proc_dl = proc_sub.add_parser("download", help="Download completed HyP3 job outputs")
@@ -1015,8 +1030,15 @@ def _load_pairs(args, workdir: Path) -> dict | list:
         print(f"[pairs] Auto-loading {len(subdir_pairs)} group(s) from subdirs")
         return subdir_pairs
 
-    # Fall back to any flat stack_p*_f*.json in workdir root, then legacy pairs.json
+    # Fall back to any flat stack_p*_f*.json in workdir root (e.g. a merged
+    # download's stack_p{path}_merged.json), then legacy pairs.json
     flat_stacks = sorted(workdir.glob("stack_p*_f*.json"))
+    if len(flat_stacks) > 1:
+        print(f"[pairs] Auto-loading {len(flat_stacks)} flat stack file(s) from {workdir}")
+        return {
+            f.stem.removeprefix("stack_"): json.loads(f.read_text()).get("pairs", [])
+            for f in flat_stacks
+        }
     for auto in (*flat_stacks, workdir / "pairs.json"):
         if auto.is_file():
             print(f"[pairs] Auto-loading {auto}")
@@ -1237,6 +1259,7 @@ def cmd_downloader(args, extra_args: list[str]):
         from insarhub.utils import plot_pair_network as _plot_pair_network
         from insarhub.utils.config_io import write_insarhub_config
 
+        merge_flag = getattr(args, "merge", False)
         pairs, baselines, scene_bperp, prefetch_cache = downloader.select_pairs(
             dt_targets=tuple(args.dt_targets),
             dt_tol=args.dt_tol,
@@ -1249,41 +1272,45 @@ def cmd_downloader(args, extra_args: list[str]):
             avoid_low_quality_days=args.avoid_low_quality_days,
             snow_threshold=args.snow_threshold,
             precip_mm_threshold=args.precip_mm_threshold,
+            merge=merge_flag,
         )
 
         from insarhub.utils.pair_quality._db import PairQualityDB
         from insarhub.utils.pair_quality._cache import seed_prefetch
         from insarhub.utils.stack_io import write_stack_file, merge_db_scores_into_stack
+        from insarhub.utils.tool import group_scenes_by_stack
 
         dl_workdir = downloader.config.workdir
 
-        # Build scenes_by_stack for DB precompute
-        active = downloader.active_results
-        scenes_by_stack: dict[tuple, list[str]] = {}
+        # Build scenes_by_stack for DB precompute — keys line up with `pairs`
+        # (path, frame) normally, or (path, "merged_f89_f90...") per distinct
+        # frame group when merged (see StackPaths.merge_tag — encodes every
+        # constituent frame so two merge groups on the same path never collide).
+        scenes_by_stack = group_scenes_by_stack(downloader.active_results, merge=merge_flag)
         bperp_by_stack:  dict[tuple, dict[str, float]] = {}
-        if isinstance(active, dict):
-            for k, prods in active.items():
-                scenes_by_stack[k] = [p.properties["sceneName"] for p in prods]
-        else:
-            scenes_by_stack[(0, 0)] = [p.properties["sceneName"] for p in active]
 
+        _sp = StackPaths(dl_workdir)
         _dl_is_stack = (dl_workdir / "insarhub_config.json").exists()
         if isinstance(pairs, dict):
             for (path, frame), group_pairs in pairs.items():
-                subdir = dl_workdir if _dl_is_stack else dl_workdir / f"p{path}_f{frame}"
+                is_merged = StackPaths.is_merge_key(frame)
+                label = f"P{path} ({frame})" if is_merged else f"P{path}/F{frame}"
+                tag = _sp.dir_for(path, frame).name  # conventional name, independent of _dl_is_stack
+                subdir = dl_workdir if _dl_is_stack else dl_workdir / tag
                 subdir.mkdir(parents=True, exist_ok=True)
                 write_workflow_marker(subdir, downloader=type(downloader).name)
                 cfg = {k: v for k, v in asdict(downloader.config).items() if k != 'workdir'}
                 cfg['relativeOrbit'] = path
-                cfg['frame'] = frame
+                if not is_merged:
+                    cfg['frame'] = frame
                 write_insarhub_config(subdir, {"downloader": {"type": type(downloader).name, "config": cfg}})
                 sp = scene_bperp.get((path, frame)) or {}
                 stack_scenes = scenes_by_stack.get((path, frame), [])
                 bperp_by_stack[(path, frame)] = {k: float(v) for k, v in sp.items()}
-                stack_path = subdir / f"stack_p{path}_f{frame}.json"
+                stack_path = subdir / _sp.stack_file_for(path, frame).name
                 stack_data = write_stack_file(stack_path, group_pairs, sp, stack_scenes)
                 seed_prefetch(subdir, prefetch_cache.get((path, frame), {}))
-                print(f"[quality] Scoring all possible pairs — P{path}/F{frame}…")
+                print(f"[quality] Scoring all possible pairs — {label}…")
                 quality_scores = quality_factors = None
                 try:
                     PairQualityDB(subdir).build(
@@ -1299,12 +1326,12 @@ def cmd_downloader(args, extra_args: list[str]):
                 _plot_pair_network(
                     group_pairs, baselines[(path, frame)],
                     scene_baselines=scene_bperp.get((path, frame)),
-                    title=f"Interferogram Network — P{path}/F{frame}",
-                    save_path=subdir / f"network_p{path}_f{frame}.png",
+                    title=f"Interferogram Network — {label}",
+                    save_path=subdir / f"network_{tag}.png",
                     quality_scores=quality_scores,
                     quality_factors=quality_factors,
                 )
-                print(f"[pairs] p{path}_f{frame}: {len(group_pairs)} pairs → {stack_path}")
+                print(f"[pairs] {tag}: {len(group_pairs)} pairs → {stack_path}")
         else:
             dl_workdir.mkdir(parents=True, exist_ok=True)
             write_workflow_marker(dl_workdir, downloader=type(downloader).name)
@@ -1312,7 +1339,7 @@ def cmd_downloader(args, extra_args: list[str]):
             write_insarhub_config(dl_workdir, {"downloader": {"type": type(downloader).name, "config": cfg}})
             sp = scene_bperp if isinstance(scene_bperp, dict) else {}
             stack_scenes = scenes_by_stack.get((0, 0), [])
-            stack_path = dl_workdir / "stack_p0_f0.json"
+            stack_path = dl_workdir / _sp.stack_file(0, 0).name
             stack_data = write_stack_file(stack_path, pairs, sp, stack_scenes)
             seed_prefetch(dl_workdir, prefetch_cache)
             print("[quality] Scoring all possible pairs…")
@@ -1819,28 +1846,17 @@ def _proc_local_submit(args, extra_args: list[str]):
     print(f"  Loaded {len(pairs)} pair(s)")
 
     # ── Auto-load sbatch_options.json if hpc_mode ─────────────────────────────
-    sbatch_path = workdir / "sbatch_options.json"
-    old_srun_path = workdir / "srun_options.json"
     if overrides.get("hpc_mode"):
-        if not sbatch_path.exists() and old_srun_path.exists():
-            old_srun_path.rename(sbatch_path)
-            print(f"[INFO] Migrated srun_options.json → sbatch_options.json")
-        if sbatch_path.exists():
-            try:
-                overrides["sbatch_options_per_step"] = json.loads(sbatch_path.read_text())
-                print(f"[INFO] Loaded sbatch options from {sbatch_path}")
-            except Exception as e:
-                print(f"[WARN] Could not read {sbatch_path}: {e}", file=sys.stderr)
-        else:
-            from insarhub.processor.isce_base import _SBATCH_DEFAULT_TEMPLATE
-            sbatch_path.write_text(json.dumps(_SBATCH_DEFAULT_TEMPLATE, indent=2))
+        from insarhub.processor.isce_base import load_or_init_sbatch_options
+        per_step = load_or_init_sbatch_options(workdir)
+        if per_step is None:
             print(
-                f"\n[INFO] No sbatch_options.json found — initialized default at:\n"
-                f"       {sbatch_path}\n\n"
-                f"  Edit the sbatch options for each step, then rerun:\n\n"
+                f"  Then rerun:\n\n"
                 f"    insarhub processor -N {processor_name} -w {workdir} --hpc-mode submit\n"
             )
             sys.exit(0)
+        overrides["sbatch_options_per_step"] = per_step
+        print(f"[INFO] Loaded sbatch options from {workdir / 'sbatch_options.json'}")
 
     # ── Build config + processor ───────────────────────────────────────────
     valid_keys  = {f.name for f in dataclasses.fields(config_cls)} if config_cls else set()
@@ -1856,7 +1872,10 @@ def _proc_local_submit(args, extra_args: list[str]):
                                             for f in dataclasses.fields(cfg)
                                             if f.name not in _skip_write}}})
 
-    processor.submit()
+    submit_kwargs = {}
+    if getattr(args, "step", None):
+        submit_kwargs["steps"] = args.step
+    processor.submit(**submit_kwargs)
 
 
 def _load_local_processor(processor_name: str, workdir: Path, jobs_path: Path,
@@ -1890,7 +1909,8 @@ def _proc_local_refresh(args):
         print("[ERROR] No isce_jobs.json found. Run submit first.", file=sys.stderr)
         sys.exit(1)
     hpc_mode = getattr(args, "hpc_mode", False)
-    _load_local_processor(processor_name, workdir, jobs_path, hpc_mode=hpc_mode).refresh()
+    _load_local_processor(processor_name, workdir, jobs_path, hpc_mode=hpc_mode).refresh(
+        ls=getattr(args, "ls", None))
 
 
 def _proc_local_retry(args):
@@ -2067,7 +2087,9 @@ def _az_run(args, extra_args: list[str]):
         # HPC mode: submit everything (prep_data + MintPy steps) as a single sbatch job
         if hpc:
             hpc_steps = (["prep_data"] if run_prep else []) + (mintpy_steps or [])
-            analyzer.submit_hpc(steps=hpc_steps or None)
+            job_id = analyzer.submit_hpc(steps=hpc_steps or None)
+            if job_id is None:
+                sys.exit(0)  # sbatch_options.json was just created/updated — stop for review
             continue
 
         if run_prep:
