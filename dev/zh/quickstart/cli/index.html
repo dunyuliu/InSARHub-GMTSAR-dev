@@ -802,6 +802,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#merging-multiple-frames" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        合并多个帧
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1880,6 +1891,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#merging-multiple-frames" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        合并多个帧
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2349,7 +2371,7 @@
 </span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>insarhub<span class="w"> </span>downloader<span class="w"> </span>--stacks<span class="w"> </span><span class="m">100</span>:466<span class="w"> </span><span class="m">20</span>:118
 </span></code></pre></div>
 <h3 id="_4">干涉对选择</h3>
-<p>添加 <code>--select-pairs</code> 可在搜索后运行干涉图对选择。结果以 <code>stack_p&lt;path&gt;_f&lt;frame&gt;.json</code> 的形式保存在 <code>workdir</code> 下 <code>p&lt;path&gt;_f&lt;frame&gt;/</code> 子文件夹中，同时保存包含下载器设置的 <code>insarhub_config.json</code>。每个轨道/帧组对应一个文件。</p>
+<p>添加 <code>--select-pairs</code> 可在搜索后运行干涉图对选择。结果以 <code>stack_p&lt;path&gt;_f&lt;frame&gt;.json</code> 的形式保存在 <code>workdir</code> 下 <code>p&lt;path&gt;_f&lt;frame&gt;/</code> 子文件夹中，同时保存包含下载器设置的 <code>insarhub_config.json</code>。每个轨道/帧组对应一个文件。传入 <code>--merge</code>（见下方<a href="#merging-multiple-frames">合并多个帧</a>）可将同一轨道的多个帧合并为一个配对网络。</p>
 <table>
 <thead>
 <tr>
@@ -2453,6 +2475,11 @@
 <td>下载轨道文件。省略 <code>PATH</code> 则保存在场景旁边（每个堆叠一个子文件夹）；提供 <code>PATH</code> 则将所有轨道文件收集到该目录</td>
 </tr>
 <tr>
+<td><code>--merge</code></td>
+<td>—</td>
+<td>将同一相对轨道（path）的所有帧合并为一个堆叠 — 见下方<a href="#merging-multiple-frames">合并多个帧</a></td>
+</tr>
+<tr>
 <td><code>--worker</code></td>
 <td><code>3</code></td>
 <td>并行下载工作线程数</td>
@@ -2488,10 +2515,18 @@
 </span><span id="__span-8-17"><a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a><span class="w">    </span>--start<span class="w"> </span><span class="m">2020</span>-01-01<span class="w"> </span>--end<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-8-18"><a id="__codelineno-8-18" name="__codelineno-8-18" href="#__codelineno-8-18"></a><span class="w">    </span>-O<span class="w"> </span>orbits/
 </span></code></pre></div>
+<h3 id="merging-multiple-frames">合并多个帧</h3>
+<p>当研究区域跨越同一相对轨道上的多个 <abbr title="Alaska Satellite Facility">ASF</abbr> 帧编号时——例如某个帧存在缺口或数据质量较差，需要相邻帧来填补研究区域——可在 <code>--select-pairs</code> 和 <code>--download</code> 中同时传入 <code>--merge</code>。干涉配对仅在同一轨道内才具有物理意义：来自不同相对轨道的两次采集成像几何不同，永远无法配对，因此 <code>--merge</code> 要求所有返回的堆叠必须属于同一 path，否则会报错。</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>insarhub<span class="w"> </span>downloader<span class="w"> </span>-N<span class="w"> </span>S1_SLC<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">    </span>--AOI<span class="w"> </span>-113.20<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span>-112.50<span class="w"> </span><span class="m">38</span>.10<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span>--start<span class="w"> </span><span class="m">2020</span>-01-01<span class="w"> </span>--end<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span>--select-pairs<span class="w"> </span>--download<span class="w"> </span>-O<span class="w"> </span>--merge
+</span></code></pre></div>
+<p>共享同一日历采集日期的多个帧（即同一次轨道过境被 <abbr title="Alaska Satellite Facility">ASF</abbr> 按帧边界拆分）在配对选择时会被视为单次采集——这与 ISCE2 <code>stackSentinel</code> 内部合并同日期 <abbr title="Single Look Complex">SLC</abbr> 的方式一致。输出保存在 <code>p&lt;path&gt;_merged_f&lt;frame1&gt;_f&lt;frame2&gt;_.../</code> 中——帧编号被编码进文件夹名称，因此同一轨道上两个独立的合并组（例如同一轨道的两个不同子区域）永远不会互相冲突。</p>
 <hr>
 <h2 id="processor">processor</h2>
 <p>将干涉图对提交至处理后端并管理作业生命周期。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span><span class="o">[</span>--list-processors<span class="o">]</span><span class="w"> </span>&lt;action&gt;<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span><span class="o">[</span>--list-processors<span class="o">]</span><span class="w"> </span>&lt;action&gt;<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -2513,7 +2548,7 @@
 <p>通过 <abbr title="Alaska Satellite Facility">ASF</abbr> <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> 进行云处理——无需本地安装 ISCE2。</p>
 <h4 id="submit">submit</h4>
 <p>将干涉图对提交至 <abbr title="Alaska Satellite Facility">ASF</abbr> <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> 进行云处理。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -2577,23 +2612,23 @@
 </tbody>
 </table>
 <p>提交后，设置将保存到 <code>insarhub_config.json</code>。后续运行会自动重新加载——只需指定覆盖项：</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># 首次提交</span>
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>Hyp3_S1<span class="w"> </span>-w<span class="w"> </span>/data/bryce
-</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
-</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># 演习运行（建议在首次真实提交前执行）</span>
-</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>Hyp3_S1<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--dry-run
-</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>
-</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="c1"># 覆盖某个字段并重新提交</span>
-</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>Hyp3_S1<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--phase_filter_parameter<span class="w"> </span><span class="m">0</span>.5<span class="w"> </span>--dry-run
-</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>
-</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="c1"># 自动从 p*_f* 子文件夹中检测干涉对</span>
-</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--dry-run
-</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>
-</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="c1"># 指定干涉对文件</span>
-</span><span id="__span-11-14"><a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--pairs-file<span class="w"> </span>/data/pairs.json
-</span><span id="__span-11-15"><a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a>
-</span><span id="__span-11-16"><a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="c1"># 内联干涉对</span>
-</span><span id="__span-11-17"><a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--pairs<span class="w"> </span><span class="s2">"S1A_20200101,S1A_20200113"</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># 首次提交</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>Hyp3_S1<span class="w"> </span>-w<span class="w"> </span>/data/bryce
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="c1"># 演习运行（建议在首次真实提交前执行）</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>Hyp3_S1<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--dry-run
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="c1"># 覆盖某个字段并重新提交</span>
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>Hyp3_S1<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--phase_filter_parameter<span class="w"> </span><span class="m">0</span>.5<span class="w"> </span>--dry-run
+</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>
+</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="c1"># 自动从 p*_f* 子文件夹中检测干涉对</span>
+</span><span id="__span-12-11"><a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--dry-run
+</span><span id="__span-12-12"><a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a>
+</span><span id="__span-12-13"><a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a><span class="c1"># 指定干涉对文件</span>
+</span><span id="__span-12-14"><a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--pairs-file<span class="w"> </span>/data/pairs.json
+</span><span id="__span-12-15"><a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a>
+</span><span id="__span-12-16"><a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a><span class="c1"># 内联干涉对</span>
+</span><span id="__span-12-17"><a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--pairs<span class="w"> </span><span class="s2">"S1A_20200101,S1A_20200113"</span>
 </span></code></pre></div>
 <p>当未指定 <code>--pairs-file</code> 时，<code>submit</code> 会自动在 <code>workdir</code> 下 <code>p&lt;path&gt;_f&lt;frame&gt;/</code> 子文件夹中查找 <code>stack_p&lt;path&gt;_f&lt;frame&gt;.json</code> 文件（即 <code>downloader --select-pairs</code> 产生的目录结构）。</p>
 <h4 id="refresh">refresh</h4>
@@ -2624,8 +2659,8 @@
 </tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-w<span class="w"> </span>/data/bryce
-</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-r<span class="w">   </span><span class="c1"># 递归搜索所有子目录及重试文件</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-w<span class="w"> </span>/data/bryce
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-r<span class="w">   </span><span class="c1"># 递归搜索所有子目录及重试文件</span>
 </span></code></pre></div>
 <h4 id="download">download</h4>
 <p>下载所有已完成的 <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> 输出结果。</p>
@@ -2660,8 +2695,8 @@
 </tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>download<span class="w"> </span>-w<span class="w"> </span>/data/bryce
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>download<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-r<span class="w"> </span>--worker<span class="w"> </span><span class="m">8</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>download<span class="w"> </span>-w<span class="w"> </span>/data/bryce
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>download<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-r<span class="w"> </span>--worker<span class="w"> </span><span class="m">8</span>
 </span></code></pre></div>
 <h4 id="retry">retry</h4>
 <p>重新提交所有失败的 <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> 作业。</p>
@@ -2691,8 +2726,8 @@
 </tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>retry<span class="w"> </span>-w<span class="w"> </span>/data/bryce
-</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>retry<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-r
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>retry<span class="w"> </span>-w<span class="w"> </span>/data/bryce
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>retry<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-r
 </span></code></pre></div>
 <h4 id="watch">watch</h4>
 <p>定期轮询 <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr>；在作业成功后自动下载结果。</p>
@@ -2722,8 +2757,8 @@
 </tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--interval<span class="w"> </span><span class="m">600</span>
-</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--interval<span class="w"> </span><span class="m">600</span><span class="w"> </span>-r
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--interval<span class="w"> </span><span class="m">600</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--interval<span class="w"> </span><span class="m">600</span><span class="w"> </span>-r
 </span></code></pre></div>
 <h4 id="credits">credits</h4>
 <p>显示所有账户剩余的 <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> 处理配额。</p>
@@ -2743,15 +2778,15 @@
 </tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>credits
-</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>credits<span class="w"> </span>--credential-pool<span class="w"> </span>~/.credit_pool
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>credits
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>credits<span class="w"> </span>--credential-pool<span class="w"> </span>~/.credit_pool
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
 <p>使用 ISCE2 <code>stackSentinel</code> 进行本地或 <abbr title="High Performance Computing">HPC</abbr> 处理——需要安装 ISCE2。必须先下载 <abbr title="Single Look Complex">SLC</abbr> <code>.SAFE</code> 文件（使用 <code>insarhub downloader -d</code>）。</p>
 <h4 id="submit_1">submit</h4>
 <p>生成 ISCE2 运行脚本并启动执行。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -2823,6 +2858,11 @@
 <td>方位向视数</td>
 </tr>
 <tr>
+<td><code>--step</code></td>
+<td>全部</td>
+<td>无论已保存状态如何，强制（重新）运行这些步骤 — 见下方说明</td>
+</tr>
+<tr>
 <td><code>--dry-run</code></td>
 <td>—</td>
 <td>预览运行脚本和路径检查，不实际执行</td>
@@ -2834,25 +2874,40 @@
 </tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># 先进行演习运行（推荐）</span>
-</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">33</span>.0<span class="w"> </span><span class="m">38</span>.0<span class="w"> </span>-120.0<span class="w"> </span>-115.0<span class="w"> </span>--dry-run
-</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>
-</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="c1"># 本地执行（在后台运行）</span>
-</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">33</span>.0<span class="w"> </span><span class="m">38</span>.0<span class="w"> </span>-120.0<span class="w"> </span>-115.0
-</span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>
-</span><span id="__span-18-9"><a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a><span class="c1"># HPC / SLURM 模式</span>
-</span><span id="__span-18-10"><a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-18-11"><a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">33</span>.0<span class="w"> </span><span class="m">38</span>.0<span class="w"> </span>-120.0<span class="w"> </span>-115.0<span class="w"> </span>--hpc_mode<span class="w"> </span>True
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># 先进行演习运行（推荐）</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">33</span>.0<span class="w"> </span><span class="m">38</span>.0<span class="w"> </span>-120.0<span class="w"> </span>-115.0<span class="w"> </span>--dry-run
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="c1"># 本地执行（在后台运行）</span>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">33</span>.0<span class="w"> </span><span class="m">38</span>.0<span class="w"> </span>-120.0<span class="w"> </span>-115.0
+</span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>
+</span><span id="__span-19-9"><a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a><span class="c1"># HPC / SLURM 模式</span>
+</span><span id="__span-19-10"><a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-11"><a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">33</span>.0<span class="w"> </span><span class="m">38</span>.0<span class="w"> </span>-120.0<span class="w"> </span>-115.0<span class="w"> </span>--hpc_mode<span class="w"> </span>True
 </span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">使用 <code>--step</code> 强制重新运行指定步骤</p>
+<p>普通 <code>submit</code> 会跳过已 <code>SUCCEEDED</code> 的步骤；<code>retry</code> 从第一个 <code>FAILED</code> 步骤开始重新运行，并级联到其后所有步骤。<code>--step</code> 比两者都更精细：它只强制把指定步骤重置为 <code>PENDING</code> 并重新运行，其余步骤保持原样 — 不会级联。适用于某个步骤悄悄产生了错误输出（却被记录为 <code>SUCCEEDED</code>），只需重做那一个步骤的场景。</p>
+<p>接受完整步骤名、纯数字编号或 <code>run_NN</code> 前缀：</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># 强制重新运行步骤 03 — 以下写法等价</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--step<span class="w"> </span><span class="m">03</span>
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--step<span class="w"> </span><span class="m">3</span>
+</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--step<span class="w"> </span>run_03
+</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>
+</span><span id="__span-20-6"><a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="c1"># 强制重新运行多个步骤</span>
+</span><span id="__span-20-7"><a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--step<span class="w"> </span><span class="m">03</span><span class="w"> </span><span class="m">04</span><span class="w"> </span><span class="m">05</span>
+</span></code></pre></div>
+<p>在 <abbr title="High Performance Computing">HPC</abbr> 模式下，这还会清除被强制步骤的过期单命令 <code>.done</code>/<code>.fail</code> 标记文件 — 否则管理器脚本会看到旧标记并报告"已完成"而不实际提交任何作业。</p>
+</div>
 <div class="admonition note">
 <p class="admonition-title"><abbr title="High Performance Computing">HPC</abbr> 模式 — 滑动窗口管理器</p>
 <p>设置 <code>--hpc_mode True</code> 后，每个处理步骤都通过轻量级 SLURM <strong>管理器作业</strong>运行。管理器随时保持最多 <code>--max_concurrent_hpc</code> 个子作业同时活跃，有空槽时立即补充新作业。步骤之间通过 <code>--dependency=afterok</code> 自动串联。命令数相同的连续步骤会自动合并为单个组管理器作业。</p>
 <p>每个 sbatch 脚本会按命令记录带耗时秒数的 <code>START</code>、<code>DONE</code>、<code>FAIL</code> 日志行。</p>
-<p><strong><code>sbatch_options.json</code></strong> — 从 <code>&lt;workdir&gt;/sbatch_options.json</code> 自动加载，用于配置各步骤的 SLURM 资源（CPU、内存、墙钟时间、分区等）。</p>
+<p><strong><code>sbatch_options.json</code></strong> — 从 <code>&lt;workdir&gt;/sbatch_options.json</code> 自动加载，用于配置各步骤的 SLURM 资源（CPU、内存、墙钟时间、分区等）。步骤 <code>"01"</code>–<code>"16"</code> 是 <code>ISCE_S1</code> 自身的步骤；步骤 <code>"17"</code>（"<abbr title="Small Baseline Subset">SBAS</abbr>"）用于配置 <code>ISCE_SBAS</code>/<code>Hyp3_SBAS</code> 分析器自身的 <code>--hpc_mode</code> 作业 — 由于处理器和分析器通常共用同一工作目录，两者共享同一个文件。</p>
 <ul>
-<li>若<strong>未找到</strong> <code>sbatch_options.json</code>，将创建 16 步骤的默认模板，并提示重新提交前先编辑该文件。</li>
+<li>若<strong>未找到</strong> <code>sbatch_options.json</code>，将创建覆盖步骤 <code>01</code>–<code>17</code> 的默认模板，并提示重新提交前先编辑该文件。</li>
+<li>若文件已存在但缺少即将用到的步骤（例如首次以 <abbr title="High Performance Computing">HPC</abbr> 模式运行分析器时缺少 <code>"17"</code>），会自动补充默认资源、重写文件并打印警告 — 使用前请检查这些默认值。</li>
 <li>若存在旧版运行的 <code>srun_options.json</code>，将自动迁移为 <code>sbatch_options.json</code>。</li>
 </ul>
 <p>编辑 <code>sbatch_options.json</code> 以设置每个步骤的资源，然后重新运行 <code>submit</code>。</p>
@@ -2878,21 +2933,41 @@
 <td>自动</td>
 <td><code>&lt;workdir&gt;/isce/isce_jobs_*.json</code></td>
 </tr>
+<tr>
+<td><code>--ls [STEP]</code></td>
+<td>关闭</td>
+<td>显示单条命令（<code>cmd_XXXX</code>）详情 — 单独 <code>--ls</code> 显示所有步骤，<code>--ls 03</code>（也可写 <code>3</code> 或 <code>run_03</code>）只显示该步骤</td>
+</tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
+</span></code></pre></div>
+<p>默认只打印每个步骤一行的摘要 — 不含 <code>cmd_XXXX</code> 详情：</p>
+<details class="output">
+<summary>Output</summary>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>  STEP                                          STATUS
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>-----------------------------------------------------------------
+</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>  - run_01_unpack_topo_reference                SUCCEEDED
+</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>  - run_02_unpack_secondary_slc                 RUNNING
+</span><span id="__span-22-5"><a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>  - run_03_average_baseline                     PENDING
+</span><span id="__span-22-6"><a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>  ...
+</span></code></pre></div>
+</details>
+<p>传入 <code>--ls</code> 可查看单条命令详情 — 所有步骤，或指定某一步骤：</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--ls<span class="w">        </span><span class="c1"># 所有步骤</span>
+</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--ls<span class="w"> </span><span class="m">02</span><span class="w">     </span><span class="c1"># 仅 run_02</span>
 </span></code></pre></div>
 <details class="output">
 <summary>Output</summary>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>  STEP                                          STATUS
-</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>-----------------------------------------------------------------
-</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>  - run_01_unpack_topo_reference                SUCCEEDED
-</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>  - run_02_unpack_secondary_slc                 RUNNING
-</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>      cmd_0000  SUCCEEDED
-</span><span id="__span-20-6"><a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a>      cmd_0001  RUNNING
-</span><span id="__span-20-7"><a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a>      cmd_0002  PENDING
-</span><span id="__span-20-8"><a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a>  - run_03_average_baseline                     PENDING
-</span><span id="__span-20-9"><a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a>  ...
+<div class="language-text highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>  STEP                                          STATUS
+</span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>-----------------------------------------------------------------
+</span><span id="__span-24-3"><a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>  - run_01_unpack_topo_reference                SUCCEEDED
+</span><span id="__span-24-4"><a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a>  - run_02_unpack_secondary_slc                 RUNNING
+</span><span id="__span-24-5"><a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a>      cmd_0000  SUCCEEDED
+</span><span id="__span-24-6"><a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a>      cmd_0001  RUNNING
+</span><span id="__span-24-7"><a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a>      cmd_0002  PENDING
+</span><span id="__span-24-8"><a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a>  - run_03_average_baseline                     PENDING
+</span><span id="__span-24-9"><a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a>  ...
 </span></code></pre></div>
 </details>
 <h4 id="retry_1">retry</h4>
@@ -2918,7 +2993,7 @@
 </tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>retry<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>retry<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
 </span></code></pre></div>
 <h4 id="cancel">cancel</h4>
 <p>终止正在运行的步骤。本地模式向后台进程发送 SIGTERM；<abbr title="High Performance Computing">HPC</abbr> 模式对所有活跃的 SLURM 作业 ID 运行 <code>scancel</code>。</p>
@@ -2943,7 +3018,7 @@
 </tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>cancel<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>cancel<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
 </span></code></pre></div>
 <h4 id="watch_1">watch</h4>
 <p>轮询步骤状态，直到所有步骤完成。</p>
@@ -2968,7 +3043,7 @@
 </tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--interval<span class="w"> </span><span class="m">120</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--interval<span class="w"> </span><span class="m">120</span>
 </span></code></pre></div>
 </div>
 </div>
@@ -2976,7 +3051,7 @@
 <hr>
 <h2 id="analyzer">analyzer</h2>
 <p>对干涉图输出运行 MintPy <abbr title="Small Baseline Subset">SBAS</abbr> 时间序列分析。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span><span class="o">[</span>-N<span class="w"> </span>ANALYZER<span class="o">]</span><span class="w"> </span><span class="o">[</span>-w<span class="w"> </span>WORKDIR<span class="o">]</span><span class="w"> </span><span class="o">[</span>config<span class="w"> </span>overrides<span class="o">]</span><span class="w"> </span>&lt;action&gt;<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span><span class="o">[</span>-N<span class="w"> </span>ANALYZER<span class="o">]</span><span class="w"> </span><span class="o">[</span>-w<span class="w"> </span>WORKDIR<span class="o">]</span><span class="w"> </span><span class="o">[</span>config<span class="w"> </span>overrides<span class="o">]</span><span class="w"> </span>&lt;action&gt;<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -3036,7 +3111,7 @@
 <div class="tabbed-block">
 <h3 id="run">run</h3>
 <p>运行分析工作流。省略 <code>--step</code> 则运行完整流程（<code>prep_data</code> + 所有 MintPy 步骤）。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span><span class="o">[</span>--step<span class="w"> </span>STEP...<span class="o">]</span><span class="w"> </span><span class="o">[</span>--debug<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-29-1"><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span><span class="o">[</span>--step<span class="w"> </span>STEP...<span class="o">]</span><span class="w"> </span><span class="o">[</span>--debug<span class="o">]</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -3146,38 +3221,41 @@
 </tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c1"># 完整流程</span>
-</span><span id="__span-26-2"><a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run
-</span><span id="__span-26-3"><a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>
-</span><span id="__span-26-4"><a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="c1"># 仅执行 prep</span>
-</span><span id="__span-26-5"><a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>prep_data
-</span><span id="__span-26-6"><a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a>
-</span><span id="__span-26-7"><a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a><span class="c1"># 单个步骤</span>
-</span><span id="__span-26-8"><a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>velocity
-</span><span id="__span-26-9"><a id="__codelineno-26-9" name="__codelineno-26-9" href="#__codelineno-26-9"></a>
-</span><span id="__span-26-10"><a id="__codelineno-26-10" name="__codelineno-26-10" href="#__codelineno-26-10"></a><span class="c1"># 多个步骤</span>
-</span><span id="__span-26-11"><a id="__codelineno-26-11" name="__codelineno-26-11" href="#__codelineno-26-11"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>geocode<span class="w"> </span>velocity
-</span><span id="__span-26-12"><a id="__codelineno-26-12" name="__codelineno-26-12" href="#__codelineno-26-12"></a>
-</span><span id="__span-26-13"><a id="__codelineno-26-13" name="__codelineno-26-13" href="#__codelineno-26-13"></a><span class="c1"># 覆盖配置并运行</span>
-</span><span id="__span-26-14"><a id="__codelineno-26-14" name="__codelineno-26-14" href="#__codelineno-26-14"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--compute_maxMemory<span class="w"> </span><span class="m">30</span><span class="w"> </span>run
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-30-1"><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="c1"># 完整流程</span>
+</span><span id="__span-30-2"><a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run
+</span><span id="__span-30-3"><a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a>
+</span><span id="__span-30-4"><a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a><span class="c1"># 仅执行 prep</span>
+</span><span id="__span-30-5"><a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>prep_data
+</span><span id="__span-30-6"><a id="__codelineno-30-6" name="__codelineno-30-6" href="#__codelineno-30-6"></a>
+</span><span id="__span-30-7"><a id="__codelineno-30-7" name="__codelineno-30-7" href="#__codelineno-30-7"></a><span class="c1"># 单个步骤</span>
+</span><span id="__span-30-8"><a id="__codelineno-30-8" name="__codelineno-30-8" href="#__codelineno-30-8"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>velocity
+</span><span id="__span-30-9"><a id="__codelineno-30-9" name="__codelineno-30-9" href="#__codelineno-30-9"></a>
+</span><span id="__span-30-10"><a id="__codelineno-30-10" name="__codelineno-30-10" href="#__codelineno-30-10"></a><span class="c1"># 多个步骤</span>
+</span><span id="__span-30-11"><a id="__codelineno-30-11" name="__codelineno-30-11" href="#__codelineno-30-11"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>geocode<span class="w"> </span>velocity
+</span><span id="__span-30-12"><a id="__codelineno-30-12" name="__codelineno-30-12" href="#__codelineno-30-12"></a>
+</span><span id="__span-30-13"><a id="__codelineno-30-13" name="__codelineno-30-13" href="#__codelineno-30-13"></a><span class="c1"># 覆盖配置并运行</span>
+</span><span id="__span-30-14"><a id="__codelineno-30-14" name="__codelineno-30-14" href="#__codelineno-30-14"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--compute_maxMemory<span class="w"> </span><span class="m">30</span><span class="w"> </span>run
 </span></code></pre></div>
 <p>每个正在执行的步骤会打印 <code>Step N/Total: step_name</code>，便于批处理日志查看。</p>
 <h4 id="hpc"><abbr title="High Performance Computing">HPC</abbr> 模式</h4>
 <p>设置 <code>--hpc_mode True</code> 后，生成一个涵盖所有选定步骤的单个 <code>sbatch</code> 脚本并提交至 SLURM，而非本地运行。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True
-</span><span id="__span-27-2"><a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>
-</span><span id="__span-27-3"><a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="c1"># 仅在 HPC 上运行特定步骤</span>
-</span><span id="__span-27-4"><a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True<span class="w"> </span>--step<span class="w"> </span>velocity<span class="w"> </span>geocode
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-31-1"><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True
+</span><span id="__span-31-2"><a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a>
+</span><span id="__span-31-3"><a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a><span class="c1"># 仅在 HPC 上运行特定步骤</span>
+</span><span id="__span-31-4"><a id="__codelineno-31-4" name="__codelineno-31-4" href="#__codelineno-31-4"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True<span class="w"> </span>--step<span class="w"> </span>velocity<span class="w"> </span>geocode
 </span></code></pre></div>
 <p>脚本写入 <code>&lt;workdir&gt;/mintpy/mintpy_sbas.sbatch</code>，作业状态保存至 <code>mintpy/mintpy_job.json</code>。</p>
-<p>默认 SLURM 资源：<code>time=24:00:00</code>、<code>ntasks=1</code>、<code>cpus_per_task=16</code>、<code>mem=128G</code>、<code>partition=all</code>。通过 <code>--hpc_sbatch_opts</code> 覆盖：</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-28-2"><a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="w">    </span>--hpc_sbatch_opts<span class="w"> </span><span class="s1">'{"time": "48:00:00", "mem": "256G", "partition": "gpu"}'</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-28-3"><a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="w">    </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True
+<p>SLURM 资源来自 <code>&lt;workdir&gt;/sbatch_options.json</code> 的 <code>"17"</code> 步骤键 — 与 <code>ISCE_S1 submit --hpc_mode</code>（步骤 <code>01</code>–<code>16</code>）<strong>使用同一个文件</strong>，因为处理器和分析器通常共用同一工作目录。默认值：<code>time=24:00:00</code>、<code>ntasks=1</code>、<code>cpus_per_task=16</code>、<code>mem=128G</code>、<code>partition=all</code>。</p>
+<ul>
+<li>若 <code>sbatch_options.json</code> 尚不存在，将创建（覆盖步骤 <code>01</code>–<code>17</code>）并停止运行，以便重新提交前先检查该文件。</li>
+<li>若文件已存在但没有 <code>"17"</code> 条目，将自动补充上述默认值，打印警告，然后继续运行。</li>
+</ul>
+<p>编辑 <code>sbatch_options.json</code> 中的 <code>"17"</code> 步骤以更改资源，然后重新运行：</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-32-1"><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True
 </span></code></pre></div>
 <h3 id="cleanup">cleanup</h3>
 <p>删除 MintPy 将所有数据加载到 HDF5 后不再需要的中间文件和目录。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-29-1"><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>cleanup
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-33-1"><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>cleanup
 </span></code></pre></div>
 <table>
 <thead>
@@ -3198,7 +3276,7 @@
 <div class="tabbed-block">
 <h3 id="run_1">run</h3>
 <p>运行分析工作流。省略 <code>--step</code> 则运行完整流程（<code>prep_data</code> + 所有 MintPy 步骤）。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-30-1"><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span><span class="o">[</span>--step<span class="w"> </span>STEP...<span class="o">]</span><span class="w"> </span><span class="o">[</span>--debug<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-34-1"><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span><span class="o">[</span>--step<span class="w"> </span>STEP...<span class="o">]</span><span class="w"> </span><span class="o">[</span>--debug<span class="o">]</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -3308,38 +3386,41 @@
 </tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-31-1"><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a><span class="c1"># 完整流程</span>
-</span><span id="__span-31-2"><a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run
-</span><span id="__span-31-3"><a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a>
-</span><span id="__span-31-4"><a id="__codelineno-31-4" name="__codelineno-31-4" href="#__codelineno-31-4"></a><span class="c1"># 仅执行 prep</span>
-</span><span id="__span-31-5"><a id="__codelineno-31-5" name="__codelineno-31-5" href="#__codelineno-31-5"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>prep_data
-</span><span id="__span-31-6"><a id="__codelineno-31-6" name="__codelineno-31-6" href="#__codelineno-31-6"></a>
-</span><span id="__span-31-7"><a id="__codelineno-31-7" name="__codelineno-31-7" href="#__codelineno-31-7"></a><span class="c1"># 单个步骤</span>
-</span><span id="__span-31-8"><a id="__codelineno-31-8" name="__codelineno-31-8" href="#__codelineno-31-8"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>velocity
-</span><span id="__span-31-9"><a id="__codelineno-31-9" name="__codelineno-31-9" href="#__codelineno-31-9"></a>
-</span><span id="__span-31-10"><a id="__codelineno-31-10" name="__codelineno-31-10" href="#__codelineno-31-10"></a><span class="c1"># 多个步骤</span>
-</span><span id="__span-31-11"><a id="__codelineno-31-11" name="__codelineno-31-11" href="#__codelineno-31-11"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>geocode<span class="w"> </span>velocity
-</span><span id="__span-31-12"><a id="__codelineno-31-12" name="__codelineno-31-12" href="#__codelineno-31-12"></a>
-</span><span id="__span-31-13"><a id="__codelineno-31-13" name="__codelineno-31-13" href="#__codelineno-31-13"></a><span class="c1"># 覆盖配置并运行</span>
-</span><span id="__span-31-14"><a id="__codelineno-31-14" name="__codelineno-31-14" href="#__codelineno-31-14"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--compute_maxMemory<span class="w"> </span><span class="m">30</span><span class="w"> </span>run
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-35-1"><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a><span class="c1"># 完整流程</span>
+</span><span id="__span-35-2"><a id="__codelineno-35-2" name="__codelineno-35-2" href="#__codelineno-35-2"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run
+</span><span id="__span-35-3"><a id="__codelineno-35-3" name="__codelineno-35-3" href="#__codelineno-35-3"></a>
+</span><span id="__span-35-4"><a id="__codelineno-35-4" name="__codelineno-35-4" href="#__codelineno-35-4"></a><span class="c1"># 仅执行 prep</span>
+</span><span id="__span-35-5"><a id="__codelineno-35-5" name="__codelineno-35-5" href="#__codelineno-35-5"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>prep_data
+</span><span id="__span-35-6"><a id="__codelineno-35-6" name="__codelineno-35-6" href="#__codelineno-35-6"></a>
+</span><span id="__span-35-7"><a id="__codelineno-35-7" name="__codelineno-35-7" href="#__codelineno-35-7"></a><span class="c1"># 单个步骤</span>
+</span><span id="__span-35-8"><a id="__codelineno-35-8" name="__codelineno-35-8" href="#__codelineno-35-8"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>velocity
+</span><span id="__span-35-9"><a id="__codelineno-35-9" name="__codelineno-35-9" href="#__codelineno-35-9"></a>
+</span><span id="__span-35-10"><a id="__codelineno-35-10" name="__codelineno-35-10" href="#__codelineno-35-10"></a><span class="c1"># 多个步骤</span>
+</span><span id="__span-35-11"><a id="__codelineno-35-11" name="__codelineno-35-11" href="#__codelineno-35-11"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>geocode<span class="w"> </span>velocity
+</span><span id="__span-35-12"><a id="__codelineno-35-12" name="__codelineno-35-12" href="#__codelineno-35-12"></a>
+</span><span id="__span-35-13"><a id="__codelineno-35-13" name="__codelineno-35-13" href="#__codelineno-35-13"></a><span class="c1"># 覆盖配置并运行</span>
+</span><span id="__span-35-14"><a id="__codelineno-35-14" name="__codelineno-35-14" href="#__codelineno-35-14"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--compute_maxMemory<span class="w"> </span><span class="m">30</span><span class="w"> </span>run
 </span></code></pre></div>
 <p>每个正在执行的步骤会打印 <code>Step N/Total: step_name</code>，便于批处理日志查看。</p>
 <h4 id="hpc_1"><abbr title="High Performance Computing">HPC</abbr> 模式</h4>
 <p>设置 <code>--hpc_mode True</code> 后，生成一个涵盖所有选定步骤的单个 <code>sbatch</code> 脚本并提交至 SLURM，而非本地运行。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-32-1"><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True
-</span><span id="__span-32-2"><a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a>
-</span><span id="__span-32-3"><a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a><span class="c1"># 仅在 HPC 上运行特定步骤</span>
-</span><span id="__span-32-4"><a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True<span class="w"> </span>--step<span class="w"> </span>velocity<span class="w"> </span>geocode
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-36-1"><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True
+</span><span id="__span-36-2"><a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a>
+</span><span id="__span-36-3"><a id="__codelineno-36-3" name="__codelineno-36-3" href="#__codelineno-36-3"></a><span class="c1"># 仅在 HPC 上运行特定步骤</span>
+</span><span id="__span-36-4"><a id="__codelineno-36-4" name="__codelineno-36-4" href="#__codelineno-36-4"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True<span class="w"> </span>--step<span class="w"> </span>velocity<span class="w"> </span>geocode
 </span></code></pre></div>
 <p>脚本写入 <code>&lt;workdir&gt;/mintpy/mintpy_sbas.sbatch</code>，作业状态保存至 <code>mintpy/mintpy_job.json</code>。</p>
-<p>默认 SLURM 资源：<code>time=24:00:00</code>、<code>ntasks=1</code>、<code>cpus_per_task=16</code>、<code>mem=128G</code>、<code>partition=all</code>。通过 <code>--hpc_sbatch_opts</code> 覆盖：</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-33-1"><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-33-2"><a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a><span class="w">    </span>--hpc_sbatch_opts<span class="w"> </span><span class="s1">'{"time": "48:00:00", "mem": "256G", "partition": "gpu"}'</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-33-3"><a id="__codelineno-33-3" name="__codelineno-33-3" href="#__codelineno-33-3"></a><span class="w">    </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True
+<p>SLURM 资源来自 <code>&lt;workdir&gt;/sbatch_options.json</code> 的 <code>"17"</code> 步骤键 — 与 <code>ISCE_S1 submit --hpc_mode</code>（步骤 <code>01</code>–<code>16</code>）<strong>使用同一个文件</strong>，因为处理器和分析器通常共用同一工作目录。默认值：<code>time=24:00:00</code>、<code>ntasks=1</code>、<code>cpus_per_task=16</code>、<code>mem=128G</code>、<code>partition=all</code>。</p>
+<ul>
+<li>若 <code>sbatch_options.json</code> 尚不存在，将创建（覆盖步骤 <code>01</code>–<code>17</code>）并停止运行，以便重新提交前先检查该文件。</li>
+<li>若文件已存在但没有 <code>"17"</code> 条目，将自动补充上述默认值，打印警告，然后继续运行。</li>
+</ul>
+<p>编辑 <code>sbatch_options.json</code> 中的 <code>"17"</code> 步骤以更改资源，然后重新运行：</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-37-1"><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True
 </span></code></pre></div>
 <h3 id="cleanup_1">cleanup</h3>
 <p>删除 MintPy 将所有数据加载到 HDF5 后不再需要的中间文件和目录。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-34-1"><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>cleanup
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-38-1"><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>cleanup
 </span></code></pre></div>
 <table>
 <thead>
@@ -3362,12 +3443,12 @@
 <hr>
 <h2 id="utils">utils</h2>
 <p>用于数据准备、干涉对选择、网络可视化和 <abbr title="High Performance Computing">HPC</abbr> 作业生成的独立实用工具。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-35-1"><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>&lt;tool&gt;<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-39-1"><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>&lt;tool&gt;<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="clip">clip</h3>
 <p>在运行 MintPy 之前，将 <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> zip 文件内容裁剪到兴趣区域。适用于场景范围远超研究区域的情况。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-36-1"><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>clip<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--aoi<span class="w"> </span>-113.05<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span>-112.68<span class="w"> </span><span class="m">38</span>.00
-</span><span id="__span-36-2"><a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>clip<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--aoi<span class="w"> </span>study_area.geojson
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-40-1"><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>clip<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--aoi<span class="w"> </span>-113.05<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span>-112.68<span class="w"> </span><span class="m">38</span>.00
+</span><span id="__span-40-2"><a id="__codelineno-40-2" name="__codelineno-40-2" href="#__codelineno-40-2"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>clip<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--aoi<span class="w"> </span>study_area.geojson
 </span></code></pre></div>
 <table>
 <thead>
@@ -3392,8 +3473,8 @@
 </table>
 <h3 id="h5-to-raster">h5-to-raster</h3>
 <p>将 MintPy HDF5 输出文件（如 <code>velocity.h5</code>）转换为 GeoTIFF。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-37-1"><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>h5-to-raster<span class="w"> </span>-i<span class="w"> </span>velocity.h5
-</span><span id="__span-37-2"><a id="__codelineno-37-2" name="__codelineno-37-2" href="#__codelineno-37-2"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>h5-to-raster<span class="w"> </span>-i<span class="w"> </span>velocity.h5<span class="w"> </span>-o<span class="w"> </span>velocity.tif
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-41-1"><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>h5-to-raster<span class="w"> </span>-i<span class="w"> </span>velocity.h5
+</span><span id="__span-41-2"><a id="__codelineno-41-2" name="__codelineno-41-2" href="#__codelineno-41-2"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>h5-to-raster<span class="w"> </span>-i<span class="w"> </span>velocity.h5<span class="w"> </span>-o<span class="w"> </span>velocity.tif
 </span></code></pre></div>
 <table>
 <thead>
@@ -3418,8 +3499,8 @@
 </table>
 <h3 id="save-footprint">save-footprint</h3>
 <p>从栅格中提取有效数据覆盖范围多边形，并保存为矢量文件。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-38-1"><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>save-footprint<span class="w"> </span>-i<span class="w"> </span>velocity.h5
-</span><span id="__span-38-2"><a id="__codelineno-38-2" name="__codelineno-38-2" href="#__codelineno-38-2"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>save-footprint<span class="w"> </span>-i<span class="w"> </span>velocity.h5<span class="w"> </span>-o<span class="w"> </span>footprint.geojson
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-42-1"><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>save-footprint<span class="w"> </span>-i<span class="w"> </span>velocity.h5
+</span><span id="__span-42-2"><a id="__codelineno-42-2" name="__codelineno-42-2" href="#__codelineno-42-2"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>save-footprint<span class="w"> </span>-i<span class="w"> </span>velocity.h5<span class="w"> </span>-o<span class="w"> </span>footprint.geojson
 </span></code></pre></div>
 <table>
 <thead>
@@ -3444,15 +3525,15 @@
 </table>
 <h3 id="slurm">slurm</h3>
 <p>生成用于在 <abbr title="High Performance Computing">HPC</abbr> 集群上运行 <code>insarhub</code> 流程的 SLURM 批处理脚本。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-39-1"><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>slurm<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-39-2"><a id="__codelineno-39-2" name="__codelineno-39-2" href="#__codelineno-39-2"></a><span class="w">    </span>--job-name<span class="w"> </span>insar_bryce<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-39-3"><a id="__codelineno-39-3" name="__codelineno-39-3" href="#__codelineno-39-3"></a><span class="w">    </span>--time<span class="w"> </span><span class="m">08</span>:00:00<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-39-4"><a id="__codelineno-39-4" name="__codelineno-39-4" href="#__codelineno-39-4"></a><span class="w">    </span>--cpus<span class="w"> </span><span class="m">16</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-39-5"><a id="__codelineno-39-5" name="__codelineno-39-5" href="#__codelineno-39-5"></a><span class="w">    </span>--mem<span class="w"> </span>64G<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-39-6"><a id="__codelineno-39-6" name="__codelineno-39-6" href="#__codelineno-39-6"></a><span class="w">    </span>--partition<span class="w"> </span>compute<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-39-7"><a id="__codelineno-39-7" name="__codelineno-39-7" href="#__codelineno-39-7"></a><span class="w">    </span>--conda-env<span class="w"> </span>insarhub<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-39-8"><a id="__codelineno-39-8" name="__codelineno-39-8" href="#__codelineno-39-8"></a><span class="w">    </span>--command<span class="w"> </span><span class="s2">"insarhub analyzer -N Hyp3_SBAS -w /data/bryce run"</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-39-9"><a id="__codelineno-39-9" name="__codelineno-39-9" href="#__codelineno-39-9"></a><span class="w">    </span>-o<span class="w"> </span>bryce.slurm
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-43-1"><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>slurm<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-43-2"><a id="__codelineno-43-2" name="__codelineno-43-2" href="#__codelineno-43-2"></a><span class="w">    </span>--job-name<span class="w"> </span>insar_bryce<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-43-3"><a id="__codelineno-43-3" name="__codelineno-43-3" href="#__codelineno-43-3"></a><span class="w">    </span>--time<span class="w"> </span><span class="m">08</span>:00:00<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-43-4"><a id="__codelineno-43-4" name="__codelineno-43-4" href="#__codelineno-43-4"></a><span class="w">    </span>--cpus<span class="w"> </span><span class="m">16</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-43-5"><a id="__codelineno-43-5" name="__codelineno-43-5" href="#__codelineno-43-5"></a><span class="w">    </span>--mem<span class="w"> </span>64G<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-43-6"><a id="__codelineno-43-6" name="__codelineno-43-6" href="#__codelineno-43-6"></a><span class="w">    </span>--partition<span class="w"> </span>compute<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-43-7"><a id="__codelineno-43-7" name="__codelineno-43-7" href="#__codelineno-43-7"></a><span class="w">    </span>--conda-env<span class="w"> </span>insarhub<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-43-8"><a id="__codelineno-43-8" name="__codelineno-43-8" href="#__codelineno-43-8"></a><span class="w">    </span>--command<span class="w"> </span><span class="s2">"insarhub analyzer -N Hyp3_SBAS -w /data/bryce run"</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-43-9"><a id="__codelineno-43-9" name="__codelineno-43-9" href="#__codelineno-43-9"></a><span class="w">    </span>-o<span class="w"> </span>bryce.slurm
 </span></code></pre></div>
 <table>
 <thead>
@@ -3546,24 +3627,24 @@
 </tbody>
 </table>
 <p>生成的脚本遵循以下结构：</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-40-1"><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a><span class="ch">#!/bin/bash</span>
-</span><span id="__span-40-2"><a id="__codelineno-40-2" name="__codelineno-40-2" href="#__codelineno-40-2"></a><span class="c1">#SBATCH --job-name=insar_bryce</span>
-</span><span id="__span-40-3"><a id="__codelineno-40-3" name="__codelineno-40-3" href="#__codelineno-40-3"></a><span class="c1">#SBATCH --time=08:00:00</span>
-</span><span id="__span-40-4"><a id="__codelineno-40-4" name="__codelineno-40-4" href="#__codelineno-40-4"></a><span class="c1">#SBATCH --cpus-per-task=16</span>
-</span><span id="__span-40-5"><a id="__codelineno-40-5" name="__codelineno-40-5" href="#__codelineno-40-5"></a><span class="c1">#SBATCH --mem=64G</span>
-</span><span id="__span-40-6"><a id="__codelineno-40-6" name="__codelineno-40-6" href="#__codelineno-40-6"></a>...
-</span><span id="__span-40-7"><a id="__codelineno-40-7" name="__codelineno-40-7" href="#__codelineno-40-7"></a>
-</span><span id="__span-40-8"><a id="__codelineno-40-8" name="__codelineno-40-8" href="#__codelineno-40-8"></a><span class="nb">source</span><span class="w"> </span>activate<span class="w"> </span>insarhub
-</span><span id="__span-40-9"><a id="__codelineno-40-9" name="__codelineno-40-9" href="#__codelineno-40-9"></a>
-</span><span id="__span-40-10"><a id="__codelineno-40-10" name="__codelineno-40-10" href="#__codelineno-40-10"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">"Starting job on </span><span class="k">$(</span>date<span class="k">)</span><span class="s2">"</span>
-</span><span id="__span-40-11"><a id="__codelineno-40-11" name="__codelineno-40-11" href="#__codelineno-40-11"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run
-</span><span id="__span-40-12"><a id="__codelineno-40-12" name="__codelineno-40-12" href="#__codelineno-40-12"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">"Job finished on </span><span class="k">$(</span>date<span class="k">)</span><span class="s2">"</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-44-1"><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a><span class="ch">#!/bin/bash</span>
+</span><span id="__span-44-2"><a id="__codelineno-44-2" name="__codelineno-44-2" href="#__codelineno-44-2"></a><span class="c1">#SBATCH --job-name=insar_bryce</span>
+</span><span id="__span-44-3"><a id="__codelineno-44-3" name="__codelineno-44-3" href="#__codelineno-44-3"></a><span class="c1">#SBATCH --time=08:00:00</span>
+</span><span id="__span-44-4"><a id="__codelineno-44-4" name="__codelineno-44-4" href="#__codelineno-44-4"></a><span class="c1">#SBATCH --cpus-per-task=16</span>
+</span><span id="__span-44-5"><a id="__codelineno-44-5" name="__codelineno-44-5" href="#__codelineno-44-5"></a><span class="c1">#SBATCH --mem=64G</span>
+</span><span id="__span-44-6"><a id="__codelineno-44-6" name="__codelineno-44-6" href="#__codelineno-44-6"></a>...
+</span><span id="__span-44-7"><a id="__codelineno-44-7" name="__codelineno-44-7" href="#__codelineno-44-7"></a>
+</span><span id="__span-44-8"><a id="__codelineno-44-8" name="__codelineno-44-8" href="#__codelineno-44-8"></a><span class="nb">source</span><span class="w"> </span>activate<span class="w"> </span>insarhub
+</span><span id="__span-44-9"><a id="__codelineno-44-9" name="__codelineno-44-9" href="#__codelineno-44-9"></a>
+</span><span id="__span-44-10"><a id="__codelineno-44-10" name="__codelineno-44-10" href="#__codelineno-44-10"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">"Starting job on </span><span class="k">$(</span>date<span class="k">)</span><span class="s2">"</span>
+</span><span id="__span-44-11"><a id="__codelineno-44-11" name="__codelineno-44-11" href="#__codelineno-44-11"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run
+</span><span id="__span-44-12"><a id="__codelineno-44-12" name="__codelineno-44-12" href="#__codelineno-44-12"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">"Job finished on </span><span class="k">$(</span>date<span class="k">)</span><span class="s2">"</span>
 </span></code></pre></div>
 <h3 id="era5-download">era5-download</h3>
 <p>下载用于 MintPy 对流层校正的 ERA5 压力层气象数据。自动扫描包含 <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> zip 文件的工作目录，确定所需的获取日期和空间范围，并使用 MintPy 兼容的命名规范保存文件（<code>ERA5_S*_N*_W*_E*_YYYYMMDD_HH.grb</code>）。</p>
 <p>需要在 <code>~/.cdsapirc</code> 中提供 <a href="https://cds.climate.copernicus.eu/api-how-to">CDS API</a> 凭证。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-41-1"><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>era5-download<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-o<span class="w"> </span>/data/era5
-</span><span id="__span-41-2"><a id="__codelineno-41-2" name="__codelineno-41-2" href="#__codelineno-41-2"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>era5-download<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-o<span class="w"> </span>/data/era5<span class="w"> </span>--num-processes<span class="w"> </span><span class="m">5</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-45-1"><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>era5-download<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-o<span class="w"> </span>/data/era5
+</span><span id="__span-45-2"><a id="__codelineno-45-2" name="__codelineno-45-2" href="#__codelineno-45-2"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>era5-download<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-o<span class="w"> </span>/data/era5<span class="w"> </span>--num-processes<span class="w"> </span><span class="m">5</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -3600,56 +3681,56 @@
 <hr>
 <h2 id="hyp3">端到端示例 — <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr></h2>
 <p>使用云端 <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> 处理的完整流程，从搜索到时间序列分析：</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-42-1"><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a><span class="c1"># 1. 搜索并选择干涉对</span>
-</span><span id="__span-42-2"><a id="__codelineno-42-2" name="__codelineno-42-2" href="#__codelineno-42-2"></a>insarhub<span class="w"> </span>downloader<span class="w"> </span>-N<span class="w"> </span>S1_SLC<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-42-3"><a id="__codelineno-42-3" name="__codelineno-42-3" href="#__codelineno-42-3"></a><span class="w">    </span>--AOI<span class="w"> </span>-113.05<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span>-112.68<span class="w"> </span><span class="m">38</span>.00<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-42-4"><a id="__codelineno-42-4" name="__codelineno-42-4" href="#__codelineno-42-4"></a><span class="w">    </span>--start<span class="w"> </span><span class="m">2020</span>-01-01<span class="w"> </span>--end<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-42-5"><a id="__codelineno-42-5" name="__codelineno-42-5" href="#__codelineno-42-5"></a><span class="w">    </span>--stacks<span class="w"> </span><span class="m">100</span>:466<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-42-6"><a id="__codelineno-42-6" name="__codelineno-42-6" href="#__codelineno-42-6"></a><span class="w">    </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-42-7"><a id="__codelineno-42-7" name="__codelineno-42-7" href="#__codelineno-42-7"></a><span class="w">    </span>--select-pairs
-</span><span id="__span-42-8"><a id="__codelineno-42-8" name="__codelineno-42-8" href="#__codelineno-42-8"></a>
-</span><span id="__span-42-9"><a id="__codelineno-42-9" name="__codelineno-42-9" href="#__codelineno-42-9"></a><span class="c1"># 2. 将干涉图提交至 HyP3</span>
-</span><span id="__span-42-10"><a id="__codelineno-42-10" name="__codelineno-42-10" href="#__codelineno-42-10"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-w<span class="w"> </span>/data/bryce
-</span><span id="__span-42-11"><a id="__codelineno-42-11" name="__codelineno-42-11" href="#__codelineno-42-11"></a>
-</span><span id="__span-42-12"><a id="__codelineno-42-12" name="__codelineno-42-12" href="#__codelineno-42-12"></a><span class="c1"># 3. 等待作业完成并自动下载</span>
-</span><span id="__span-42-13"><a id="__codelineno-42-13" name="__codelineno-42-13" href="#__codelineno-42-13"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-w<span class="w"> </span>/data/bryce
-</span><span id="__span-42-14"><a id="__codelineno-42-14" name="__codelineno-42-14" href="#__codelineno-42-14"></a>
-</span><span id="__span-42-15"><a id="__codelineno-42-15" name="__codelineno-42-15" href="#__codelineno-42-15"></a><span class="c1"># 4. 运行时间序列分析</span>
-</span><span id="__span-42-16"><a id="__codelineno-42-16" name="__codelineno-42-16" href="#__codelineno-42-16"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run
-</span><span id="__span-42-17"><a id="__codelineno-42-17" name="__codelineno-42-17" href="#__codelineno-42-17"></a>
-</span><span id="__span-42-18"><a id="__codelineno-42-18" name="__codelineno-42-18" href="#__codelineno-42-18"></a><span class="c1"># 5. 将速度场导出为 GeoTIFF</span>
-</span><span id="__span-42-19"><a id="__codelineno-42-19" name="__codelineno-42-19" href="#__codelineno-42-19"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>h5-to-raster<span class="w"> </span>-i<span class="w"> </span>/data/bryce/p100_f466/velocity.h5
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-46-1"><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a><span class="c1"># 1. 搜索并选择干涉对</span>
+</span><span id="__span-46-2"><a id="__codelineno-46-2" name="__codelineno-46-2" href="#__codelineno-46-2"></a>insarhub<span class="w"> </span>downloader<span class="w"> </span>-N<span class="w"> </span>S1_SLC<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-46-3"><a id="__codelineno-46-3" name="__codelineno-46-3" href="#__codelineno-46-3"></a><span class="w">    </span>--AOI<span class="w"> </span>-113.05<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span>-112.68<span class="w"> </span><span class="m">38</span>.00<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-46-4"><a id="__codelineno-46-4" name="__codelineno-46-4" href="#__codelineno-46-4"></a><span class="w">    </span>--start<span class="w"> </span><span class="m">2020</span>-01-01<span class="w"> </span>--end<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-46-5"><a id="__codelineno-46-5" name="__codelineno-46-5" href="#__codelineno-46-5"></a><span class="w">    </span>--stacks<span class="w"> </span><span class="m">100</span>:466<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-46-6"><a id="__codelineno-46-6" name="__codelineno-46-6" href="#__codelineno-46-6"></a><span class="w">    </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-46-7"><a id="__codelineno-46-7" name="__codelineno-46-7" href="#__codelineno-46-7"></a><span class="w">    </span>--select-pairs
+</span><span id="__span-46-8"><a id="__codelineno-46-8" name="__codelineno-46-8" href="#__codelineno-46-8"></a>
+</span><span id="__span-46-9"><a id="__codelineno-46-9" name="__codelineno-46-9" href="#__codelineno-46-9"></a><span class="c1"># 2. 将干涉图提交至 HyP3</span>
+</span><span id="__span-46-10"><a id="__codelineno-46-10" name="__codelineno-46-10" href="#__codelineno-46-10"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-w<span class="w"> </span>/data/bryce
+</span><span id="__span-46-11"><a id="__codelineno-46-11" name="__codelineno-46-11" href="#__codelineno-46-11"></a>
+</span><span id="__span-46-12"><a id="__codelineno-46-12" name="__codelineno-46-12" href="#__codelineno-46-12"></a><span class="c1"># 3. 等待作业完成并自动下载</span>
+</span><span id="__span-46-13"><a id="__codelineno-46-13" name="__codelineno-46-13" href="#__codelineno-46-13"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-w<span class="w"> </span>/data/bryce
+</span><span id="__span-46-14"><a id="__codelineno-46-14" name="__codelineno-46-14" href="#__codelineno-46-14"></a>
+</span><span id="__span-46-15"><a id="__codelineno-46-15" name="__codelineno-46-15" href="#__codelineno-46-15"></a><span class="c1"># 4. 运行时间序列分析</span>
+</span><span id="__span-46-16"><a id="__codelineno-46-16" name="__codelineno-46-16" href="#__codelineno-46-16"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run
+</span><span id="__span-46-17"><a id="__codelineno-46-17" name="__codelineno-46-17" href="#__codelineno-46-17"></a>
+</span><span id="__span-46-18"><a id="__codelineno-46-18" name="__codelineno-46-18" href="#__codelineno-46-18"></a><span class="c1"># 5. 将速度场导出为 GeoTIFF</span>
+</span><span id="__span-46-19"><a id="__codelineno-46-19" name="__codelineno-46-19" href="#__codelineno-46-19"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>h5-to-raster<span class="w"> </span>-i<span class="w"> </span>/data/bryce/p100_f466/velocity.h5
 </span></code></pre></div>
 <hr>
 <h2 id="isce_s1">端到端示例 — ISCE_S1（本地）</h2>
 <p>使用本地 ISCE2 处理和 ISCE_SBAS 时间序列分析的完整流程：</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-43-1"><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a><span class="c1"># 1. 搜索并下载 SLC 场景（默认保存到 workdir/slc/）</span>
-</span><span id="__span-43-2"><a id="__codelineno-43-2" name="__codelineno-43-2" href="#__codelineno-43-2"></a>insarhub<span class="w"> </span>downloader<span class="w"> </span>-N<span class="w"> </span>S1_SLC<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-43-3"><a id="__codelineno-43-3" name="__codelineno-43-3" href="#__codelineno-43-3"></a><span class="w">    </span>--AOI<span class="w"> </span>-113.05<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span>-112.68<span class="w"> </span><span class="m">38</span>.00<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-43-4"><a id="__codelineno-43-4" name="__codelineno-43-4" href="#__codelineno-43-4"></a><span class="w">    </span>--start<span class="w"> </span><span class="m">2020</span>-01-01<span class="w"> </span>--end<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-43-5"><a id="__codelineno-43-5" name="__codelineno-43-5" href="#__codelineno-43-5"></a><span class="w">    </span>--stacks<span class="w"> </span><span class="m">100</span>:466<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-43-6"><a id="__codelineno-43-6" name="__codelineno-43-6" href="#__codelineno-43-6"></a><span class="w">    </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-43-7"><a id="__codelineno-43-7" name="__codelineno-43-7" href="#__codelineno-43-7"></a><span class="w">    </span>--select-pairs<span class="w"> </span>--download<span class="w"> </span>-O
-</span><span id="__span-43-8"><a id="__codelineno-43-8" name="__codelineno-43-8" href="#__codelineno-43-8"></a>
-</span><span id="__span-43-9"><a id="__codelineno-43-9" name="__codelineno-43-9" href="#__codelineno-43-9"></a><span class="c1"># 2. 演习运行以验证路径和 bbox</span>
-</span><span id="__span-43-10"><a id="__codelineno-43-10" name="__codelineno-43-10" href="#__codelineno-43-10"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-43-11"><a id="__codelineno-43-11" name="__codelineno-43-11" href="#__codelineno-43-11"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span><span class="m">38</span>.00<span class="w"> </span>-113.05<span class="w"> </span>-112.68<span class="w"> </span>--dry-run
-</span><span id="__span-43-12"><a id="__codelineno-43-12" name="__codelineno-43-12" href="#__codelineno-43-12"></a>
-</span><span id="__span-43-13"><a id="__codelineno-43-13" name="__codelineno-43-13" href="#__codelineno-43-13"></a><span class="c1"># 3. 提交本地处理（在后台运行）</span>
-</span><span id="__span-43-14"><a id="__codelineno-43-14" name="__codelineno-43-14" href="#__codelineno-43-14"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-43-15"><a id="__codelineno-43-15" name="__codelineno-43-15" href="#__codelineno-43-15"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span><span class="m">38</span>.00<span class="w"> </span>-113.05<span class="w"> </span>-112.68
-</span><span id="__span-43-16"><a id="__codelineno-43-16" name="__codelineno-43-16" href="#__codelineno-43-16"></a>
-</span><span id="__span-43-17"><a id="__codelineno-43-17" name="__codelineno-43-17" href="#__codelineno-43-17"></a><span class="c1"># 4. 监控进度</span>
-</span><span id="__span-43-18"><a id="__codelineno-43-18" name="__codelineno-43-18" href="#__codelineno-43-18"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
-</span><span id="__span-43-19"><a id="__codelineno-43-19" name="__codelineno-43-19" href="#__codelineno-43-19"></a>
-</span><span id="__span-43-20"><a id="__codelineno-43-20" name="__codelineno-43-20" href="#__codelineno-43-20"></a><span class="c1"># 5. 等待所有步骤完成</span>
-</span><span id="__span-43-21"><a id="__codelineno-43-21" name="__codelineno-43-21" href="#__codelineno-43-21"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--interval<span class="w"> </span><span class="m">120</span>
-</span><span id="__span-43-22"><a id="__codelineno-43-22" name="__codelineno-43-22" href="#__codelineno-43-22"></a>
-</span><span id="__span-43-23"><a id="__codelineno-43-23" name="__codelineno-43-23" href="#__codelineno-43-23"></a><span class="c1"># 6. 运行 ISCE_SBAS 时间序列分析</span>
-</span><span id="__span-43-24"><a id="__codelineno-43-24" name="__codelineno-43-24" href="#__codelineno-43-24"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run
-</span><span id="__span-43-25"><a id="__codelineno-43-25" name="__codelineno-43-25" href="#__codelineno-43-25"></a>
-</span><span id="__span-43-26"><a id="__codelineno-43-26" name="__codelineno-43-26" href="#__codelineno-43-26"></a><span class="c1"># 7. 将速度场导出为 GeoTIFF</span>
-</span><span id="__span-43-27"><a id="__codelineno-43-27" name="__codelineno-43-27" href="#__codelineno-43-27"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>h5-to-raster<span class="w"> </span>-i<span class="w"> </span>/data/p100_f466/mintpy/geo/geo_velocity.h5
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-47-1"><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a><span class="c1"># 1. 搜索并下载 SLC 场景（默认保存到 workdir/slc/）</span>
+</span><span id="__span-47-2"><a id="__codelineno-47-2" name="__codelineno-47-2" href="#__codelineno-47-2"></a>insarhub<span class="w"> </span>downloader<span class="w"> </span>-N<span class="w"> </span>S1_SLC<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-47-3"><a id="__codelineno-47-3" name="__codelineno-47-3" href="#__codelineno-47-3"></a><span class="w">    </span>--AOI<span class="w"> </span>-113.05<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span>-112.68<span class="w"> </span><span class="m">38</span>.00<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-47-4"><a id="__codelineno-47-4" name="__codelineno-47-4" href="#__codelineno-47-4"></a><span class="w">    </span>--start<span class="w"> </span><span class="m">2020</span>-01-01<span class="w"> </span>--end<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-47-5"><a id="__codelineno-47-5" name="__codelineno-47-5" href="#__codelineno-47-5"></a><span class="w">    </span>--stacks<span class="w"> </span><span class="m">100</span>:466<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-47-6"><a id="__codelineno-47-6" name="__codelineno-47-6" href="#__codelineno-47-6"></a><span class="w">    </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-47-7"><a id="__codelineno-47-7" name="__codelineno-47-7" href="#__codelineno-47-7"></a><span class="w">    </span>--select-pairs<span class="w"> </span>--download<span class="w"> </span>-O
+</span><span id="__span-47-8"><a id="__codelineno-47-8" name="__codelineno-47-8" href="#__codelineno-47-8"></a>
+</span><span id="__span-47-9"><a id="__codelineno-47-9" name="__codelineno-47-9" href="#__codelineno-47-9"></a><span class="c1"># 2. 演习运行以验证路径和 bbox</span>
+</span><span id="__span-47-10"><a id="__codelineno-47-10" name="__codelineno-47-10" href="#__codelineno-47-10"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-47-11"><a id="__codelineno-47-11" name="__codelineno-47-11" href="#__codelineno-47-11"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span><span class="m">38</span>.00<span class="w"> </span>-113.05<span class="w"> </span>-112.68<span class="w"> </span>--dry-run
+</span><span id="__span-47-12"><a id="__codelineno-47-12" name="__codelineno-47-12" href="#__codelineno-47-12"></a>
+</span><span id="__span-47-13"><a id="__codelineno-47-13" name="__codelineno-47-13" href="#__codelineno-47-13"></a><span class="c1"># 3. 提交本地处理（在后台运行）</span>
+</span><span id="__span-47-14"><a id="__codelineno-47-14" name="__codelineno-47-14" href="#__codelineno-47-14"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-47-15"><a id="__codelineno-47-15" name="__codelineno-47-15" href="#__codelineno-47-15"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span><span class="m">38</span>.00<span class="w"> </span>-113.05<span class="w"> </span>-112.68
+</span><span id="__span-47-16"><a id="__codelineno-47-16" name="__codelineno-47-16" href="#__codelineno-47-16"></a>
+</span><span id="__span-47-17"><a id="__codelineno-47-17" name="__codelineno-47-17" href="#__codelineno-47-17"></a><span class="c1"># 4. 监控进度</span>
+</span><span id="__span-47-18"><a id="__codelineno-47-18" name="__codelineno-47-18" href="#__codelineno-47-18"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
+</span><span id="__span-47-19"><a id="__codelineno-47-19" name="__codelineno-47-19" href="#__codelineno-47-19"></a>
+</span><span id="__span-47-20"><a id="__codelineno-47-20" name="__codelineno-47-20" href="#__codelineno-47-20"></a><span class="c1"># 5. 等待所有步骤完成</span>
+</span><span id="__span-47-21"><a id="__codelineno-47-21" name="__codelineno-47-21" href="#__codelineno-47-21"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--interval<span class="w"> </span><span class="m">120</span>
+</span><span id="__span-47-22"><a id="__codelineno-47-22" name="__codelineno-47-22" href="#__codelineno-47-22"></a>
+</span><span id="__span-47-23"><a id="__codelineno-47-23" name="__codelineno-47-23" href="#__codelineno-47-23"></a><span class="c1"># 6. 运行 ISCE_SBAS 时间序列分析</span>
+</span><span id="__span-47-24"><a id="__codelineno-47-24" name="__codelineno-47-24" href="#__codelineno-47-24"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run
+</span><span id="__span-47-25"><a id="__codelineno-47-25" name="__codelineno-47-25" href="#__codelineno-47-25"></a>
+</span><span id="__span-47-26"><a id="__codelineno-47-26" name="__codelineno-47-26" href="#__codelineno-47-26"></a><span class="c1"># 7. 将速度场导出为 GeoTIFF</span>
+</span><span id="__span-47-27"><a id="__codelineno-47-27" name="__codelineno-47-27" href="#__codelineno-47-27"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>h5-to-raster<span class="w"> </span>-i<span class="w"> </span>/data/p100_f466/mintpy/geo/geo_velocity.h5
 </span></code></pre></div>
 
 
