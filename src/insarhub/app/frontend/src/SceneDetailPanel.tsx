@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Theme } from './theme'
 import { useResizable, ResizeHandle } from './useResizable'
 
@@ -43,6 +44,7 @@ function fmtList(v: string[] | string | undefined | null): string {
 
 export default function SceneDetailPanel({ feature, theme: t, workdir, onClose }: Props) {
   const { width, onHandleMouseDown } = useResizable(320)
+  const { t: tr } = useTranslation()
   const p = feature.properties ?? {}
 
   const [dlStatus,  setDlStatus]  = useState<'idle'|'downloading'|'done'|'error'>('idle')
@@ -54,7 +56,7 @@ export default function SceneDetailPanel({ feature, theme: t, workdir, onClose }
   async function handleDownload() {
     if (!p.url) return
     setDlStatus('downloading')
-    setDlMessage('Starting…')
+    setDlMessage(tr('scenePanel.starting'))
     try {
       const res  = await fetch(`${API}/api/download-scene`, {
         method: 'POST',
@@ -150,7 +152,7 @@ export default function SceneDetailPanel({ feature, theme: t, workdir, onClose }
         borderBottom: `1px solid ${t.border}`,
         background: t.bg2, flexShrink: 0,
       }}>
-        <span style={{ color: t.text, fontWeight: 600, fontSize: 13 }}>Scene Detail</span>
+        <span style={{ color: t.text, fontWeight: 600, fontSize: 13 }}>{tr('sceneDetail.title')}</span>
         <button onClick={onClose} style={{
           background: 'none', border: 'none', cursor: 'pointer',
           color: t.textMuted, fontSize: 18, lineHeight: 1, padding: '0 2px',
@@ -163,7 +165,7 @@ export default function SceneDetailPanel({ feature, theme: t, workdir, onClose }
         borderBottom: `1px solid ${t.border}`, flexShrink: 0,
       }}>
         <div style={{ color: t.textMuted, fontSize: 10, textTransform: 'uppercase',
-                      letterSpacing: '0.05em', marginBottom: 3 }}>Granule</div>
+                      letterSpacing: '0.05em', marginBottom: 3 }}>{tr('sceneDetail.granule')}</div>
         <div style={{ color: t.text, fontSize: 10, wordBreak: 'break-all',
                       fontFamily: 'monospace', lineHeight: 1.5 }}>
           {p.sceneName ?? p.fileID ?? '—'}
@@ -172,51 +174,51 @@ export default function SceneDetailPanel({ feature, theme: t, workdir, onClose }
 
       <div style={{ overflowY: 'auto', padding: '10px 12px', flex: 1 }}>
 
-        {section('Acquisition', <>
-          {field('Radar Frequency', 'C-band')}
-          {field('Start Time',      fmtTime(p.startTime))}
-          {field('Stop Time',       fmtTime(p.stopTime))}
-          {field('Processing Date', fmtTime(p.processingDate), true)}
+        {section(tr('sceneDetail.acquisition'), <>
+          {field(tr('sceneDetail.radarFrequency'), 'C-band')}
+          {field(tr('sceneDetail.startTime'),      fmtTime(p.startTime))}
+          {field(tr('sceneDetail.stopTime'),       fmtTime(p.stopTime))}
+          {field(tr('sceneDetail.processingDate'), fmtTime(p.processingDate), true)}
         </>)}
 
-        {section('Sensor / Orbit', <>
-          {field('Platform',         p.platform      ?? '—')}
-          {field('Sensor',           p.sensor        ?? '—')}
-          {field('Beam Mode',        p.beamModeType  ?? p.beamMode ?? '—')}
-          {field('Path',             p.pathNumber    ?? '—')}
-          {field('Frame',            p.frameNumber   ?? '—')}
-          {field('Flight Direction', p.flightDirection ?? '—')}
-          {field('Absolute Orbit',   p.orbit         ?? '—')}
-          {field('Polarization',     p.polarization  ?? '—', true)}
+        {section(tr('sceneDetail.sensorOrbit'), <>
+          {field(tr('searchFilters.fields.platform'), p.platform      ?? '—')}
+          {field(tr('sceneDetail.sensor'),             p.sensor        ?? '—')}
+          {field(tr('scenePanel.beamMode'),            p.beamModeType  ?? p.beamMode ?? '—')}
+          {field(tr('searchFilters.fields.path'),      p.pathNumber    ?? '—')}
+          {field(tr('searchFilters.fields.frame'),     p.frameNumber   ?? '—')}
+          {field(tr('searchFilters.fields.flightDirection'), p.flightDirection ?? '—')}
+          {field(tr('sceneDetail.absoluteOrbit'),      p.orbit         ?? '—')}
+          {field(tr('scenePanel.polarization'),        p.polarization  ?? '—', true)}
         </>)}
 
-        {section('Geometry', <>
-          {field('Center Lat', fmtCoord(p.centerLat, 'N/S'))}
-          {field('Center Lon', fmtCoord(p.centerLon, 'E/W'), true)}
+        {section(tr('sceneDetail.geometry'), <>
+          {field(tr('sceneDetail.centerLat'), fmtCoord(p.centerLat, 'N/S'))}
+          {field(tr('sceneDetail.centerLon'), fmtCoord(p.centerLon, 'E/W'), true)}
         </>)}
 
         {(p.perpendicularBaseline != null || p.temporalBaseline != null) &&
-          section('Baseline', <>
+          section(tr('sceneDetail.baseline'), <>
             {p.perpendicularBaseline != null &&
-              field('Perp. Baseline', `${Number(p.perpendicularBaseline).toFixed(1)} m`)}
+              field(tr('sceneDetail.perpBaseline'), `${Number(p.perpendicularBaseline).toFixed(1)} m`)}
             {p.temporalBaseline != null &&
-              field('Temporal Baseline', `${p.temporalBaseline} days`, true)}
+              field(tr('sceneDetail.temporalBaseline'), tr('jobQueue.days', { count: p.temporalBaseline }), true)}
           </>)
         }
 
-        {section('Processing', <>
-          {field('Level',        p.processingLevel ?? '—')}
-          {field('Granule Type', p.granuleType     ?? '—')}
-          {field('PGE Version',  p.pgeVersion      ?? '—')}
-          {field('Group ID',     p.groupID         ?? '—', true)}
+        {section(tr('sceneDetail.processing'), <>
+          {field(tr('scenePanel.level'),        p.processingLevel ?? '—')}
+          {field(tr('sceneDetail.granuleType'), p.granuleType     ?? '—')}
+          {field(tr('sceneDetail.pgeVersion'),  p.pgeVersion      ?? '—')}
+          {field(tr('sceneDetail.groupId'),     p.groupID         ?? '—', true)}
         </>)}
 
-        {section('File', <>
-          {field('File Size', fmtBytes(p.bytes))}
-          {field('MD5',
+        {section(tr('sceneDetail.file'), <>
+          {field(tr('sceneDetail.fileSize'), fmtBytes(p.bytes))}
+          {field(tr('sceneDetail.md5'),
             <span style={{ fontFamily: 'monospace', fontSize: 10 }}>{p.md5sum ?? '—'}</span>
           )}
-          {field('S3 URLs', fmtList(p.s3Urls), true)}
+          {field(tr('sceneDetail.s3Urls'), fmtList(p.s3Urls), true)}
         </>)}
 
         {/* Download section */}
@@ -234,7 +236,7 @@ export default function SceneDetailPanel({ feature, theme: t, workdir, onClose }
                     borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
                   }}
                 >
-                  ■ Stop
+                  {tr('jobQueue.stopSquare')}
                 </button>
                 {dlMessage && (
                   <span style={{
@@ -258,16 +260,16 @@ export default function SceneDetailPanel({ feature, theme: t, workdir, onClose }
                   borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
                 }}
               >
-                {dlStatus === 'done'  ? '✓ Downloaded'
-                : dlStatus === 'error' ? '✕ Retry'
-                : '↓ Download'}
+                {dlStatus === 'done'  ? tr('sceneDetail.downloaded')
+                : dlStatus === 'error' ? tr('scenePanel.retry')
+                : tr('sceneDetail.download')}
               </button>
               )}
 
               {/* Copy URL */}
               <button
                 onClick={handleCopyUrl}
-                title="Copy download URL"
+                title={tr('sceneDetail.copyDownloadUrl')}
                 style={{
                   padding: '7px 10px',
                   background: 'transparent',
@@ -297,7 +299,7 @@ export default function SceneDetailPanel({ feature, theme: t, workdir, onClose }
                 borderRadius: 6, fontSize: 12, fontWeight: 500,
                 textDecoration: 'none',
               }}>
-                ⬚ Browse Image
+                {tr('sceneDetail.browseImage')}
               </a>
             )}
           </div>

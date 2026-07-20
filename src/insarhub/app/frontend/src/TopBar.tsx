@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Theme } from './theme'
 import { Icons } from './assets/icons'
+import { setLanguage } from './i18n'
 
 interface Props {
   downloaderType:          string
@@ -28,6 +30,7 @@ export default function TopBar({
   onSearch, searching,
   theme: t, onThemeToggle, onFiltersOpen, hasActiveFilters, onJobsOpen, jobsOpen, onSettingsOpen,
 }: Props) {
+  const { t: tr, i18n } = useTranslation()
   const [wktInput, setWktInput] = useState(aoiWkt ?? '')
   const [eggClicks, setEggClicks]     = useState(0)
   const [unlocked, setUnlocked]       = useState(false)
@@ -175,7 +178,7 @@ export default function TopBar({
       <div style={dividerStyle} />
 
       {/* Downloader */}
-      <span style={labelStyle}>Downloader</span>
+      <span style={labelStyle}>{tr('topBar.downloader')}</span>
       <select
         value={downloaderType}
         onChange={e => onDownloaderTypeChange(e.target.value)}
@@ -188,10 +191,10 @@ export default function TopBar({
       <div style={dividerStyle} />
 
       {/* AOI WKT */}
-      <span style={labelStyle}>Area of Interest</span>
+      <span style={labelStyle}>{tr('topBar.areaOfInterest')}</span>
       <input
         style={{ ...inputStyle, width: 120, fontFamily: 'monospace', fontSize: 11 }}
-        placeholder="Draw or paste WKT…"
+        placeholder={tr('topBar.wktPlaceholder')}
         value={wktInput}
         onChange={e => setWktInput(e.target.value)}
         onBlur={handleWktBlur}
@@ -201,12 +204,12 @@ export default function TopBar({
       <div style={dividerStyle} />
 
       {/* Dates — shared with Filters panel */}
-      <span style={labelStyle}>Start</span>
+      <span style={labelStyle}>{tr('topBar.start')}</span>
       <input type="date" style={{ ...inputStyle, width: 112 }}
         value={startDate}
         onChange={e => onDatesChange(e.target.value, endDate)} />
 
-      <span style={labelStyle}>End</span>
+      <span style={labelStyle}>{tr('topBar.end')}</span>
       <input type="date" style={{ ...inputStyle, width: 112 }}
         value={endDate}
         onChange={e => onDatesChange(startDate, e.target.value)} />
@@ -225,13 +228,13 @@ export default function TopBar({
           whiteSpace: 'nowrap',
         }}
       >
-        {searching ? 'Searching…' : 'SEARCH'}
+        {searching ? tr('topBar.searching') : tr('topBar.search')}
       </button>
 
       {/* Filters button */}
       <button
         onClick={onFiltersOpen}
-        title="Search filters"
+        title={tr('topBar.searchFilters')}
         style={{
           padding: '4px 12px',
           background: hasActiveFilters ? t.btnActiveBg : 'transparent',
@@ -244,13 +247,13 @@ export default function TopBar({
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
           <path d="M2 4h12M4 8h8M6 12h4" />
         </svg>
-        Filters{hasActiveFilters ? ' •' : ''}
+        {tr('topBar.filters')}{hasActiveFilters ? ' •' : ''}
       </button>
 
       {/* Jobs button */}
       <button
         onClick={onJobsOpen}
-        title="Job folders"
+        title={tr('topBar.jobFolders')}
         style={{
           padding: '4px 12px',
           background: jobsOpen ? t.btnActiveBg : 'transparent',
@@ -263,13 +266,13 @@ export default function TopBar({
         <svg xmlns="http://www.w3.org/2000/svg" height="14" viewBox="0 -960 960 960" width="14" fill="currentColor">
           <path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h168q13-36 43.5-58t68.5-22q38 0 68.5 22t43.5 58h168q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm80-80h280v-80H280v80Zm0-160h400v-80H280v80Zm0-160h400v-80H280v80Zm221.5-198.5Q510-807 510-820t-8.5-21.5Q493-850 480-850t-21.5 8.5Q450-833 450-820t8.5 21.5Q467-790 480-790t21.5-8.5ZM200-200v-560 560Z"/>
         </svg>
-        Jobs
+        {tr('topBar.jobs')}
       </button>
 
       {/* Settings — right-aligned */}
       <button
         onClick={onSettingsOpen}
-        title="Settings"
+        title={tr('topBar.settings')}
         style={{
           marginLeft: 'auto',
           display: 'flex', alignItems: 'center',
@@ -294,10 +297,26 @@ export default function TopBar({
         </svg>
       </button>
 
+      {/* Language switcher */}
+      <button
+        onClick={() => setLanguage(i18n.language === 'zh' ? 'en' : 'zh')}
+        title={tr('topBar.language')}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '4px 8px', minWidth: 32,
+          background: 'transparent',
+          border: `1px solid ${t.border}`,
+          borderRadius: 20, cursor: 'pointer', fontSize: 11, fontWeight: 700,
+          color: t.textMuted,
+        }}
+      >
+        {i18n.language === 'zh' ? 'EN' : '中'}
+      </button>
+
       {/* Theme toggle — icon only */}
       <button
         onClick={onThemeToggle}
-        title={t.isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        title={t.isDark ? tr('topBar.switchToLight') : tr('topBar.switchToDark')}
         style={{
           display: 'flex', alignItems: 'center',
           padding: '4px 8px',

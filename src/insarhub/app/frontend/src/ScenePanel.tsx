@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Theme } from './theme'
 import { useResizable, ResizeHandle } from './useResizable'
 
@@ -20,6 +21,7 @@ interface Props {
   stackStart?: string
   stackEnd?:   string
   stackCount:   number | null
+  stackPlatform?: string
   stackUrls:    string[]
   workdir:       string
   aoiWkt?:       string | null
@@ -42,8 +44,9 @@ const row = (t: Theme, label: string, value: React.ReactNode) => (
 
 export default function ScenePanel({
   feature, theme: t, stackStart, stackEnd,
-  stackCount, workdir, aoiWkt, downloaderType, stackOpen, onClose, onStackClick,
+  stackCount, stackPlatform, workdir, aoiWkt, downloaderType, stackOpen, onClose, onStackClick,
 }: Props) {
+  const { t: tr } = useTranslation()
   const { width, onHandleMouseDown } = useResizable(280)
   const p     = feature.properties ?? {}
   const stack = parseStack(p._stack ?? '')
@@ -127,19 +130,22 @@ export default function ScenePanel({
           end: stackEnd,
           wkt: aoiWkt ?? null,
           flightDirection: (feature.properties?.flightDirection as string) ?? null,
-          platform: (feature.properties?.platform as string) ?? null,
+          // platform intentionally omitted — the clicked feature is one scene
+          // out of the whole stack, and a track/frame can span a satellite
+          // handover (e.g. Sentinel-1C → Sentinel-1D); filtering the stack's
+          // search to one scene's platform would silently drop the rest.
           downloaderType,
         }),
       })
       const d = await res.json()
-      if (!res.ok) { setAjStatus('error'); setAjMessage(d.detail ?? 'Error'); return }
+      if (!res.ok) { setAjStatus('error'); setAjMessage(d.detail ?? tr('scenePanel.error')); return }
       setAjStatus('done')
       setAjMessage(d.path ?? d.name ?? '')
     } catch (e) {
       setAjStatus('error')
       setAjMessage(String(e))
     }
-  }, [stack, stackStart, stackEnd, workdir, aoiWkt, feature.properties])
+  }, [stack, stackStart, stackEnd, workdir, aoiWkt, feature.properties, tr])
 
   function handleStopDownload() {
     if (pollRef.current) clearInterval(pollRef.current)
@@ -149,13 +155,13 @@ export default function ScenePanel({
     }
     _dlJobs.delete(stackKey)
     setDlStatus('idle')
-    setDlMessage('Stopped.')
+    setDlMessage(tr('scenePanel.stopped'))
   }
 
   async function handleDownloadStack() {
     if (!stack || !stackStart || !stackEnd) return
     setDlStatus('downloading')
-    setDlMessage('Searching scenes…')
+    setDlMessage(tr('scenePanel.searchingScenes'))
     try {
       const res  = await fetch(`${API}/api/download-stack`, {
         method: 'POST',
@@ -168,18 +174,21 @@ export default function ScenePanel({
           end: stackEnd,
           wkt: aoiWkt ?? null,
           flightDirection: (feature.properties?.flightDirection as string) ?? null,
-          platform: (feature.properties?.platform as string) ?? null,
+          // platform intentionally omitted — the clicked feature is one scene
+          // out of the whole stack, and a track/frame can span a satellite
+          // handover (e.g. Sentinel-1C → Sentinel-1D); filtering the stack's
+          // search to one scene's platform would silently drop the rest.
           downloaderType,
         }),
       })
       const data = await res.json()
       if (!res.ok) {
         setDlStatus('error')
-        setDlMessage(data.detail ?? `Error ${res.status}`)
+        setDlMessage(data.detail ?? tr('scenePanel.errorStatus', { status: res.status }))
         return
       }
       const { job_id } = data
-      if (!job_id) { setDlStatus('error'); setDlMessage('No job ID returned'); return }
+      if (!job_id) { setDlStatus('error'); setDlMessage(tr('scenePanel.noJobId')); return }
       dlJobIdRef.current = job_id
       _dlJobs.set(stackKey, job_id)
       pollRef.current = setInterval(async () => {
@@ -200,7 +209,7 @@ export default function ScenePanel({
           clearInterval(pollRef.current!)
           _dlJobs.delete(stackKey)
           setDlStatus('error')
-          setDlMessage('Lost connection to server')
+          setDlMessage(tr('scenePanel.lostConnection'))
         }
       }, 1500)
     } catch (e) {
@@ -217,13 +226,13 @@ export default function ScenePanel({
     }
     _orbitJobs.delete(stackKey)
     setOrbitStatus('idle')
-    setOrbitMessage('Stopped.')
+    setOrbitMessage(tr('scenePanel.stopped'))
   }
 
   async function handleDownloadOrbit() {
     if (!stack || !stackStart || !stackEnd) return
     setOrbitStatus('running')
-    setOrbitMessage('Starting…')
+    setOrbitMessage(tr('scenePanel.starting'))
     try {
       const res = await fetch(`${API}/api/download-orbit-stack`, {
         method: 'POST',
@@ -236,7 +245,10 @@ export default function ScenePanel({
           end: stackEnd,
           wkt: aoiWkt ?? null,
           flightDirection: (feature.properties?.flightDirection as string) ?? null,
-          platform: (feature.properties?.platform as string) ?? null,
+          // platform intentionally omitted — the clicked feature is one scene
+          // out of the whole stack, and a track/frame can span a satellite
+          // handover (e.g. Sentinel-1C → Sentinel-1D); filtering the stack's
+          // search to one scene's platform would silently drop the rest.
           downloaderType,
         }),
       })
@@ -281,7 +293,7 @@ export default function ScenePanel({
         borderBottom: `1px solid ${t.border}`,
         background: t.bg2, flexShrink: 0,
       }}>
-        <span style={{ color: t.text, fontWeight: 600, fontSize: 13 }}>Stack Info</span>
+        <span style={{ color: t.text, fontWeight: 600, fontSize: 13 }}>{tr('scenePanel.stackInfo')}</span>
         <button onClick={onClose} style={{
           background: 'none', border: 'none', cursor: 'pointer',
           color: t.textMuted, fontSize: 18, lineHeight: 1, padding: '0 2px',
@@ -299,7 +311,7 @@ export default function ScenePanel({
             background: t.btnActiveBg, color: t.accent,
             borderRadius: 4, padding: '2px 8px', fontSize: 12, fontWeight: 600,
           }}>
-            Path {stack.path} · Frame {stack.frame}
+            {tr('scenePanel.pathFrame', { path: stack.path, frame: stack.frame })}
           </span>
         </div>
       )}
@@ -308,15 +320,15 @@ export default function ScenePanel({
       <div style={{ overflowY: 'auto', padding: '8px 14px', flex: 1 }}>
         <div>
           {/* SCENES — clickable to open stack list */}
-          {row(t, 'Scenes', stackCount ?? '…')}
+          {row(t, tr('scenePanel.scenes'), stackCount ?? '…')}
 
-          {row(t, 'Start', stackStart ?? '—')}
-          {row(t, 'End',   stackEnd   ?? '—')}
-          {row(t, 'Direction',    p.flightDirection ?? '—')}
-          {row(t, 'Platform',     p.platform        ?? '—')}
-          {row(t, 'Beam Mode',    p.beamModeType    ?? p.beamMode ?? '—')}
-          {row(t, 'Polarization', p.polarization    ?? '—')}
-          {p.processingLevel && row(t, 'Level', p.processingLevel)}
+          {row(t, tr('topBar.start'), stackStart ?? '—')}
+          {row(t, tr('topBar.end'),   stackEnd   ?? '—')}
+          {row(t, tr('scenePanel.direction'),    p.flightDirection ?? '—')}
+          {row(t, tr('searchFilters.fields.platform'), stackPlatform || p.platform || '—')}
+          {row(t, tr('scenePanel.beamMode'),    p.beamModeType    ?? p.beamMode ?? '—')}
+          {row(t, tr('scenePanel.polarization'), p.polarization    ?? '—')}
+          {p.processingLevel && row(t, tr('scenePanel.level'), p.processingLevel)}
         </div>
 
         {/* View Detail */}
@@ -331,7 +343,7 @@ export default function ScenePanel({
               borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
             }}
           >
-            {stackOpen ? '◂ Hide Detail' : '▸ View Detail'}
+            {stackOpen ? tr('scenePanel.hideDetail') : tr('scenePanel.viewDetail')}
           </button>
         </div>
 
@@ -348,7 +360,7 @@ export default function ScenePanel({
                   borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
                 }}
               >
-                Stop
+                {tr('scenePanel.stop')}
               </button>
               {dlMessage && (
                 <span style={{
@@ -376,9 +388,9 @@ export default function ScenePanel({
                 borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
               }}
             >
-              {dlStatus === 'done'  ? '✓ Stack Downloaded'
-             : dlStatus === 'error' ? '✕ Retry'
-             : `↓ Download Stack`}
+              {dlStatus === 'done'  ? tr('scenePanel.stackDownloaded')
+             : dlStatus === 'error' ? tr('scenePanel.retry')
+             : tr('scenePanel.downloadStack')}
             </button>
           )}
           {dlMessage && dlStatus !== 'downloading' && (
@@ -399,7 +411,7 @@ export default function ScenePanel({
                   borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
                 }}
               >
-                Stop
+                {tr('scenePanel.stop')}
               </button>
             ) : (
               <button
@@ -416,9 +428,9 @@ export default function ScenePanel({
                   borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
                 }}
               >
-                {orbitStatus === 'done'  ? '✓ Orbit Files Downloaded'
-               : orbitStatus === 'error' ? '✕ Retry'
-               : '⬡ Download Orbit Files'}
+                {orbitStatus === 'done'  ? tr('scenePanel.orbitFilesDownloaded')
+               : orbitStatus === 'error' ? tr('scenePanel.retry')
+               : tr('scenePanel.downloadOrbitFiles')}
               </button>
             )}
             {orbitMessage && (
@@ -451,10 +463,10 @@ export default function ScenePanel({
                 cursor: ajStatus === 'running' ? 'wait' : 'pointer',
               }}
             >
-              {ajStatus === 'running' ? '⟳ Selecting Pairs…'
-              : ajStatus === 'done'   ? '✓ Job Added'
-              : ajStatus === 'error'  ? '✕ Retry'
-              : '+ Add Job'}
+              {ajStatus === 'running' ? tr('scenePanel.selectingPairs')
+              : ajStatus === 'done'   ? tr('scenePanel.jobAdded')
+              : ajStatus === 'error'  ? tr('scenePanel.retry')
+              : tr('scenePanel.addJob')}
             </button>
             {ajMessage && (
               <div style={{

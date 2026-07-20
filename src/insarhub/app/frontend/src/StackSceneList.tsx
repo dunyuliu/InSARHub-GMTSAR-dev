@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { parseStack } from './ScenePanel'
 import type { Theme } from './theme'
 import { useResizable, ResizeHandle } from './useResizable'
@@ -49,6 +50,7 @@ export default function StackSceneList({
   stackKey, scenes, theme: t, selectedScene, onClose, onSceneClick,
 }: Props) {
   const { width, onHandleMouseDown } = useResizable(240)
+  const { t: tr } = useTranslation()
   const stack = parseStack(stackKey)
 
   const sorted = [...scenes].sort((a, b) => {
@@ -75,10 +77,10 @@ export default function StackSceneList({
       }}>
         <div>
           <div style={{ color: t.text, fontWeight: 600, fontSize: 13 }}>
-            {stack ? `Path ${stack.path} · Frame ${stack.frame}` : 'Stack Scenes'}
+            {stack ? tr('scenePanel.pathFrame', { path: stack.path, frame: stack.frame }) : tr('stackSceneList.title')}
           </div>
           <div style={{ color: t.textMuted, fontSize: 11 }}>
-            {scenes.length} scene{scenes.length !== 1 ? 's' : ''}
+            {tr('stackSceneList.scenesCount', { count: scenes.length })}
           </div>
         </div>
         <button onClick={onClose} style={{

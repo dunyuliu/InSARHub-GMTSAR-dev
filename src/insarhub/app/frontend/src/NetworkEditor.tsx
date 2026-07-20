@@ -3,6 +3,7 @@
 // Click an edge to toggle it active / removed. Scroll to zoom. Drag to pan.
 
 import React, { useEffect, useRef, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Application, Container, Graphics, Text, TextStyle, Point, Rectangle,
 } from 'pixi.js'
@@ -134,7 +135,8 @@ function qualityCategory(score: number): 'good' | 'risky' | 'bad' {
 
 const _CAT_HEX  = { good: 0x4caf50, risky: 0xffc107, bad: 0xf44336 } as const
 const _CAT_CSS  = { good: '#4caf50', risky: '#ffc107', bad: '#f44336' } as const
-const _CAT_LABEL = { good: 'Good',   risky: 'Risky',   bad: 'Bad'    } as const
+// JSX render sites translate category labels via networkEditor.quality.<cat>
+const _CAT_LABEL_KEYS = { good: 'networkEditor.quality.good', risky: 'networkEditor.quality.risky', bad: 'networkEditor.quality.bad' } as const
 
 function qualityHex(score: number): number {
   return _CAT_HEX[qualityCategory(score)]
@@ -182,6 +184,7 @@ function dashLine(
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initParamsOpen = false, overrideDataUrl, readOnly = false, saveUrl, analyzerType }: Props) {
+  const { t: tr } = useTranslation()
   // React UI state
   const [stacks,      setStacks]      = useState<Record<string, StackData> | null>(null)
   const [activeKey,   setActiveKey]   = useState('')
@@ -221,6 +224,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
   const [mnKeepMST,        setMnKeepMST]        = useState('auto')
   const [mnRunning,        setMnRunning]        = useState(false)
   const [mnMsg,            setMnMsg]            = useState('')
+  const [mnMsgIsError,     setMnMsgIsError]     = useState(false)
 
   // Load current modify_network config from folder on open (MintPy mode)
   useEffect(() => {
@@ -553,8 +557,8 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
         const t = new Text({ text: '', style: tickLblStyle }); t.visible = false
         app.stage.addChild(t); return t
       })
-      const axisTitleX = new Text({ text: 'Acquisition Date', style: titleLblStyle })
-      const axisTitleY = new Text({ text: '⊥ baseline (m)', style: titleLblStyle })
+      const axisTitleX = new Text({ text: tr('networkEditor.acquisitionDate'), style: titleLblStyle })
+      const axisTitleY = new Text({ text: tr('networkEditor.perpBaselineM'), style: titleLblStyle })
       axisTitleX.alpha = 0.35; axisTitleY.alpha = 0.35
       app.stage.addChild(axisGfx, axisTitleX, axisTitleY)
 
@@ -1046,7 +1050,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
 
   async function handleUpdate() {
     const dtArr = dtTargets.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n))
-    setUpdating(true); setUpdateMsg('Starting…'); setError('')
+    setUpdating(true); setUpdateMsg(tr('scenePanel.starting')); setError('')
     try {
       const res = await fetch(`${API}/api/folder-select-pairs`, {
         method: 'POST',
@@ -1073,14 +1077,14 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
         if (!jr.ok) throw new Error(`Job poll failed: HTTP ${jr.status}`)
         const job = await jr.json()
         if (job.message) setUpdateMsg(job.message)
-        if (job.status === 'failed' || job.status === 'error') throw new Error(job.error ?? job.message ?? 'Job failed')
+        if (job.status === 'failed' || job.status === 'error') throw new Error(job.error ?? job.message ?? tr('networkEditor.jobFailed'))
         if (job.status === 'done') {
           dbJobIds = job.data?.db_job_ids ?? []
           break
         }
       }
 
-      setUpdateMsg('Refreshing network…')
+      setUpdateMsg(tr('networkEditor.refreshingNetwork'))
       const dr = await fetch(`${API}/api/folder-network-data?path=${encodeURIComponent(folderPath)}`)
       if (!dr.ok) throw new Error(`HTTP ${dr.status}`)
       const data: Record<string, StackData> = (await dr.json()).stacks ?? {}
@@ -1120,9 +1124,9 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
       // Scoring the SELECTED pairs is separate and much faster — /api/pair-quality
       // computes it on demand for just this stack's pairs, not all N×(N-1)/2
       // combinations. Await it so edges are actually colored by the time Done shows.
-      setUpdateMsg('Scoring pair quality…')
+      setUpdateMsg(tr('networkEditor.scoringPairQuality'))
       await refreshQualityScores()
-      setUpdateMsg('Done')
+      setUpdateMsg(tr('jobQueue.done'))
     } catch (e) {
       setError(String(e)); setUpdateMsg('')
     } finally {
@@ -1189,7 +1193,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
           background: t.bg2, borderRadius: '8px 8px 0 0', flexShrink: 0,
         }}>
           <span style={{ color: t.text, fontWeight: 700, fontSize: 13 }}>
-            Edit Pair Network
+            {tr('networkEditor.editPairNetwork')}
           </span>
 
           {stackKeys.length > 1 && (
@@ -1209,7 +1213,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
             background: '#132a4a', color: '#90caf9',
             borderRadius: 10, padding: '1px 10px', fontSize: 11, fontVariantNumeric: 'tabular-nums',
           }}>
-            {activeCount} / {totalCount} pairs active
+            {tr('networkEditor.pairsActive', { active: activeCount, total: totalCount })}
           </span>
 
           <div style={{ flex: 1 }} />
@@ -1219,17 +1223,17 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
             background: paramsOpen ? t.inputBg : 'transparent',
             color: paramsOpen ? t.text : t.textMuted,
             border: `1px solid ${paramsOpen ? t.accent : t.border}`,
-          }}>⚙ Parameters</button>
+          }}>{tr('networkEditor.parametersGear')}</button>
 
-          <button onClick={handleReset} title="Restore all pairs" style={{
+          <button onClick={handleReset} title={tr('networkEditor.restoreAllPairs')} style={{
             padding: '3px 10px', fontSize: 11, borderRadius: 4, cursor: 'pointer',
             background: 'transparent', color: t.textMuted, border: `1px solid ${t.border}`,
-          }}>Reset</button>
+          }}>{tr('networkEditor.resetCap')}</button>
 
-          <button onClick={handleFit} title="Fit to window" style={{
+          <button onClick={handleFit} title={tr('networkEditor.fitToWindow')} style={{
             padding: '3px 10px', fontSize: 11, borderRadius: 4, cursor: 'pointer',
             background: 'transparent', color: t.textMuted, border: `1px solid ${t.border}`,
-          }}>Fit</button>
+          }}>{tr('networkEditor.fit')}</button>
 
           {!readOnly && <button onClick={handleSave} disabled={saving} style={{
             padding: '4px 14px', fontSize: 12, borderRadius: 4,
@@ -1237,7 +1241,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
             background: saving ? '#1a2a40' : '#0d3b6e',
             color: saving ? t.textMuted : '#90caf9',
             border: '1px solid #1565c0',
-          }}>{saving ? 'Saving…' : 'Confirm & Save'}</button>}
+          }}>{saving ? tr('jobQueue.savingEllipsis') : tr('networkEditor.confirmAndSave')}</button>}
 
           <button onClick={onClose} style={{
             background: 'none', border: 'none', cursor: 'pointer',
@@ -1266,7 +1270,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
               async function handleRunModifyNetwork() {
                 if (!analyzerType) return
                 setMnRunning(true)
-                setMnMsg('Saving config…')
+                setMnMsg(tr('networkEditor.savingConfig'))
                 try {
                   // 1. Patch config
                   const patch = {
@@ -1284,31 +1288,33 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ analyzer_config: patch }),
                   })
-                  if (!patchRes.ok) throw new Error('Config save failed')
+                  if (!patchRes.ok) throw new Error(tr('networkEditor.configSaveFailed'))
 
                   // 2. Run modify_network step
-                  setMnMsg('Running modify_network…')
+                  setMnMsg(tr('networkEditor.runningModifyNetwork'))
                   const runRes = await fetch(`${API}/api/folder-run-analyzer`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ folder_path: folderPath, analyzer_type: analyzerType, steps: ['modify_network'] }),
                   })
-                  if (!runRes.ok) throw new Error('Run failed')
+                  if (!runRes.ok) throw new Error(tr('networkEditor.runFailed'))
                   const { job_id } = await runRes.json()
 
                   // 3. Poll until done
+                  setMnMsgIsError(false)
                   await new Promise<void>((resolve, reject) => {
                     const iv = setInterval(async () => {
                       const s = await fetch(`${API}/api/jobs/${job_id}`).then(r => r.json())
-                      setMnMsg(s.message?.split('\n').pop() ?? 'Running…')
+                      setMnMsg(s.message?.split('\n').pop() ?? tr('networkEditor.runningEllipsis'))
                       if (s.status === 'done') { clearInterval(iv); resolve() }
                       if (s.status === 'error') { clearInterval(iv); reject(new Error(s.message)) }
                     }, 1500)
                   })
-                  setMnMsg('Done')
+                  setMnMsg(tr('jobQueue.done'))
                   setReloadTick(n => n + 1)
                 } catch (e) {
-                  setMnMsg(`Error: ${e}`)
+                  setMnMsg(tr('jobQueue.errorColon', { error: e }))
+                  setMnMsgIsError(true)
                 } finally {
                   setMnRunning(false)
                 }
@@ -1327,45 +1333,45 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       padding: '9px 14px', borderBottom: `1px solid ${t.border}`, background: t.bg2,
                     }}>
-                      <span style={{ color: t.text, fontWeight: 700, fontSize: 13 }}>modify_network Parameters</span>
+                      <span style={{ color: t.text, fontWeight: 700, fontSize: 13 }}>{tr('networkEditor.modifyNetworkParameters')}</span>
                       <button onClick={() => setParamsOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 18, lineHeight: 1, padding: '0 2px' }}>×</button>
                     </div>
                     <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                         <div>
-                          <label style={lbl}>Max temporal baseline (days)</label>
-                          <input style={inp} value={mnTempBaseMax} onChange={e => setMnTempBaseMax(e.target.value)} placeholder="auto" />
+                          <label style={lbl}>{tr('networkEditor.maxTemporalBaselineDays')}</label>
+                          <input style={inp} value={mnTempBaseMax} onChange={e => setMnTempBaseMax(e.target.value)} placeholder={tr('jobQueue.auto')} />
                         </div>
                         <div>
-                          <label style={lbl}>Max ⊥ baseline (m)</label>
-                          <input style={inp} value={mnPerpBaseMax} onChange={e => setMnPerpBaseMax(e.target.value)} placeholder="auto" />
+                          <label style={lbl}>{tr('networkEditor.maxPerpBaselineM')}</label>
+                          <input style={inp} value={mnPerpBaseMax} onChange={e => setMnPerpBaseMax(e.target.value)} placeholder={tr('jobQueue.auto')} />
                         </div>
                         <div>
-                          <label style={lbl}>Start date (YYYYMMDD)</label>
-                          <input style={inp} value={mnStartDate} onChange={e => setMnStartDate(e.target.value)} placeholder="auto" />
+                          <label style={lbl}>{tr('networkEditor.startDateFmt')}</label>
+                          <input style={inp} value={mnStartDate} onChange={e => setMnStartDate(e.target.value)} placeholder={tr('jobQueue.auto')} />
                         </div>
                         <div>
-                          <label style={lbl}>End date (YYYYMMDD)</label>
-                          <input style={inp} value={mnEndDate} onChange={e => setMnEndDate(e.target.value)} placeholder="auto" />
+                          <label style={lbl}>{tr('networkEditor.endDateFmt')}</label>
+                          <input style={inp} value={mnEndDate} onChange={e => setMnEndDate(e.target.value)} placeholder={tr('jobQueue.auto')} />
                         </div>
                       </div>
                       <div>
-                        <label style={lbl}>Exclude dates (space-separated YYYYMMDD)</label>
-                        <input style={inp} value={mnExcludeDate} onChange={e => setMnExcludeDate(e.target.value)} placeholder="auto" />
+                        <label style={lbl}>{tr('networkEditor.excludeDatesFmt')}</label>
+                        <input style={inp} value={mnExcludeDate} onChange={e => setMnExcludeDate(e.target.value)} placeholder={tr('jobQueue.auto')} />
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                         <div>
-                          <label style={lbl}>Coherence-based</label>
+                          <label style={lbl}>{tr('networkEditor.coherenceBased')}</label>
                           <select style={sel} value={mnCohBased} onChange={e => setMnCohBased(e.target.value)}>
                             {['auto', 'yes', 'no'].map(o => <option key={o} value={o}>{o}</option>)}
                           </select>
                         </div>
                         <div>
-                          <label style={lbl}>Min coherence</label>
-                          <input style={inp} value={mnMinCoherence} onChange={e => setMnMinCoherence(e.target.value)} placeholder="auto" />
+                          <label style={lbl}>{tr('networkEditor.minCoherence')}</label>
+                          <input style={inp} value={mnMinCoherence} onChange={e => setMnMinCoherence(e.target.value)} placeholder={tr('jobQueue.auto')} />
                         </div>
                         <div>
-                          <label style={lbl}>Keep min span tree</label>
+                          <label style={lbl}>{tr('networkEditor.keepMinSpanTree')}</label>
                           <select style={sel} value={mnKeepMST} onChange={e => setMnKeepMST(e.target.value)}>
                             {['auto', 'yes', 'no'].map(o => <option key={o} value={o}>{o}</option>)}
                           </select>
@@ -1376,14 +1382,14 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                       display: 'flex', alignItems: 'center', gap: 10,
                       padding: '10px 16px', borderTop: `1px solid ${t.border}`, background: t.bg2,
                     }}>
-                      {mnMsg && <span style={{ fontSize: 11, fontFamily: 'monospace', flex: 1, color: mnMsg.startsWith('Error') ? '#e53935' : mnMsg === 'Done' ? '#4caf50' : t.textMuted }}>{mnMsg}</span>}
+                      {mnMsg && <span style={{ fontSize: 11, fontFamily: 'monospace', flex: 1, color: mnMsgIsError ? '#e53935' : mnMsg === tr('jobQueue.done') ? '#4caf50' : t.textMuted }}>{mnMsg}</span>}
                       <button onClick={handleRunModifyNetwork} disabled={mnRunning} style={{
                         marginLeft: 'auto', padding: '5px 20px', fontSize: 12, borderRadius: 6, fontWeight: 600,
                         cursor: mnRunning ? 'default' : 'pointer',
                         background: mnRunning ? t.inputBg : '#1b5e20',
                         color: mnRunning ? t.textMuted : '#a5d6a7',
                         border: '1px solid #388e3c',
-                      }}>{mnRunning ? '⟳ Running…' : 'Run modify_network'}</button>
+                      }}>{mnRunning ? tr('networkEditor.runningGlyph') : tr('networkEditor.runModifyNetwork')}</button>
                     </div>
                   </div>
                 </>
@@ -1413,7 +1419,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                     background: t.bg2,
                   }}>
                     <span style={{ color: t.text, fontWeight: 700, fontSize: 13 }}>
-                      Pair Selection Parameters
+                      {tr('networkEditor.pairSelectionParameters')}
                     </span>
                     <button onClick={() => setParamsOpen(false)} style={{
                       background: 'none', border: 'none', cursor: 'pointer',
@@ -1423,32 +1429,32 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                   {/* body */}
                   <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div>
-                      <label style={lbl}>Target temporal baselines (days, comma-separated)</label>
+                      <label style={lbl}>{tr('networkEditor.targetTemporalBaselines')}</label>
                       <input style={inp} value={dtTargets} onChange={e => setDtTargets(e.target.value)} />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
                       <div>
-                        <label style={lbl}>Tolerance (days)</label>
+                        <label style={lbl}>{tr('networkEditor.toleranceDays')}</label>
                         <input type="number" style={inp} value={dtTol} min={0}
                           onChange={e => setDtTol(parseInt(e.target.value) || 0)} />
                       </div>
                       <div>
-                        <label style={lbl}>Max temporal (days)</label>
+                        <label style={lbl}>{tr('networkEditor.maxTemporalDays')}</label>
                         <input type="number" style={inp} value={dtMax} min={1}
                           onChange={e => setDtMax(parseInt(e.target.value) || 1)} />
                       </div>
                       <div>
-                        <label style={lbl}>Max ⊥ baseline (m)</label>
+                        <label style={lbl}>{tr('networkEditor.maxPerpBaselineM')}</label>
                         <input type="number" style={inp} value={pbMax} min={0} step={10}
                           onChange={e => setPbMax(parseFloat(e.target.value) || 0)} />
                       </div>
                       <div>
-                        <label style={lbl}>Min connections</label>
+                        <label style={lbl}>{tr('networkEditor.minConnections')}</label>
                         <input type="number" style={inp} value={minDegree} min={1}
                           onChange={e => setMinDegree(parseInt(e.target.value) || 1)} />
                       </div>
                       <div>
-                        <label style={lbl}>Max connections</label>
+                        <label style={lbl}>{tr('networkEditor.maxConnections')}</label>
                         <input type="number" style={inp} value={maxDegree} min={1}
                           onChange={e => setMaxDegree(parseInt(e.target.value) || 1)} />
                       </div>
@@ -1457,25 +1463,25 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                       <input type="checkbox" checked={forceConnect}
                         onChange={e => setForceConnect(e.target.checked)}
                         style={{ accentColor: t.accent, width: 14, height: 14 }} />
-                      Force connected network
+                      {tr('networkEditor.forceConnectedNetwork')}
                     </label>
                     <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 10 }}>
                       <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: t.text, marginBottom: 8 }}>
                         <input type="checkbox" checked={avoidLowQuality}
                           onChange={e => setAvoidLowQuality(e.target.checked)}
                           style={{ accentColor: t.accent, width: 14, height: 14 }} />
-                        Avoid low-quality acquisition days
-                        <span style={{ color: t.textMuted, fontSize: 10 }}>(fetches weather &amp; snow)</span>
+                        {tr('networkEditor.avoidLowQualityDays')}
+                        <span style={{ color: t.textMuted, fontSize: 10 }}>{tr('networkEditor.fetchesWeatherSnow')}</span>
                       </label>
                       {avoidLowQuality && (
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginLeft: 20 }}>
                           <div>
-                            <label style={lbl}>Snow cover threshold (0–1)</label>
+                            <label style={lbl}>{tr('networkEditor.snowCoverThreshold')}</label>
                             <input type="number" style={inp} value={snowThreshold} min={0} max={1} step={0.05}
                               onChange={e => setSnowThreshold(parseFloat(e.target.value) || 0)} />
                           </div>
                           <div>
-                            <label style={lbl}>3-day precip threshold (mm)</label>
+                            <label style={lbl}>{tr('networkEditor.precipThreshold')}</label>
                             <input type="number" style={inp} value={precipMmThreshold} min={0} step={5}
                               onChange={e => setPrecipMmThreshold(parseFloat(e.target.value) || 0)} />
                           </div>
@@ -1491,7 +1497,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                     {updateMsg && (
                       <span style={{
                         fontSize: 11, fontFamily: 'monospace', flex: 1,
-                        color: updateMsg === 'Done' ? '#4caf50' : t.textMuted,
+                        color: updateMsg === tr('jobQueue.done') ? '#4caf50' : t.textMuted,
                       }}>{updateMsg}</span>
                     )}
                     <button onClick={handleUpdate} disabled={updating} style={{
@@ -1501,7 +1507,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                       background: updating ? t.inputBg : '#1b5e20',
                       color: updating ? t.textMuted : '#a5d6a7',
                       border: '1px solid #388e3c',
-                    }}>{updating ? '⟳ Running…' : 'Update Network'}</button>
+                    }}>{updating ? tr('networkEditor.runningGlyph') : tr('networkEditor.updateNetwork')}</button>
                   </div>
                 </div>
               </>
@@ -1512,7 +1518,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
               position: 'absolute', inset: 0, pointerEvents: 'none',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: t.textMuted, fontSize: 12,
-            }}>Loading network data…</div>
+            }}>{tr('networkEditor.loadingNetworkData')}</div>
           )}
           {error && (
             <div style={{
@@ -1529,19 +1535,19 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
             padding: '6px 10px', fontSize: 12, color: t.textMuted,
             display: 'flex', flexDirection: 'column', gap: 4,
           }}>
-            <span style={{ color: t.text, fontWeight: 600, marginBottom: 2 }}>{saveUrl ? 'Coherence' : 'Pair quality'}</span>
+            <span style={{ color: t.text, fontWeight: 600, marginBottom: 2 }}>{saveUrl ? tr('networkEditor.coherence') : tr('networkEditor.pairQuality')}</span>
             {(saveUrl
-              ? [{ score: 0.8, label: 'Good' }, { score: 0.45, label: 'Risky' }, { score: 0.1, label: 'Bad' }]
-              : [{ score: 100, label: 'Good' }, { score: 50,   label: 'Risky' }, { score: 0,   label: 'Bad' }]
+              ? [{ score: 0.8, label: 'good' as const }, { score: 0.45, label: 'risky' as const }, { score: 0.1, label: 'bad' as const }]
+              : [{ score: 100, label: 'good' as const }, { score: 50,   label: 'risky' as const }, { score: 0,   label: 'bad' as const }]
             ).map(({ score, label }) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, pointerEvents: 'none' }}>
                 <div style={{ width: 28, height: 3, background: qualityCSS(score, 0.9), borderRadius: 1 }} />
-                <span>{label}</span>
+                <span>{tr(_CAT_LABEL_KEYS[label])}</span>
               </div>
             ))}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, pointerEvents: 'none' }}>
               <div style={{ width: 28, height: 0, borderTop: `2px dashed #e57373` }} />
-              <span style={{ color: '#e57373' }}>removed</span>
+              <span style={{ color: '#e57373' }}>{tr('networkEditor.removed')}</span>
             </div>
 
           </div>
@@ -1568,7 +1574,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                 minWidth: 204, fontSize: 12, color: t.text,
               }}>
                 <div style={{ fontWeight: 700, marginBottom: 6, color: t.accent, fontSize: 12 }}>
-                  SLC Scene
+                  {tr('networkEditor.slcScene')}
                 </div>
                 <div style={{
                   fontFamily: 'monospace', fontSize: 10, color: t.textMuted,
@@ -1577,13 +1583,13 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                   {hovNode.id}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 12px' }}>
-                  <span style={{ color: t.textMuted }}>Date</span>
+                  <span style={{ color: t.textMuted }}>{tr('jobQueue.date')}</span>
                   <span style={{ fontFamily: 'monospace' }}>{hovNode.date}</span>
-                  <span style={{ color: t.textMuted }}>⊥ baseline</span>
+                  <span style={{ color: t.textMuted }}>{tr('networkEditor.perpBaseline')}</span>
                   <span style={{ fontFamily: 'monospace' }}>{hovNode.bperp.toFixed(1)} m</span>
-                  <span style={{ color: t.textMuted }}>Pairs</span>
+                  <span style={{ color: t.textMuted }}>{tr('jobQueue.pairs')}</span>
                   <span style={{ color: active > 0 ? '#4caf50' : '#e57373' }}>
-                    {active} active / {nodeEdges.length} total
+                    {tr('networkEditor.activeTotal', { active, total: nodeEdges.length })}
                   </span>
                 </div>
               </div>
@@ -1603,13 +1609,13 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
 
             // Normalise hard kills: coherence_score uses singular string, lc_score uses array
             const _KILL_LABEL: Record<string, string> = {
-              water_dominant:   'Water dominant (>50%)',
-              snow_ice_dominant:'Snow/ice dominant (>40%)',
-              heavy_rain:       'Heavy rain (>30 mm/day)',
-              wet_snow:         'Wet snow (temp >0°C + snow >30%)',
-              fresh_snowfall:   'Fresh snowfall (Δcover >50%)',
-              heavy_snow_cover: 'Heavy snow cover (>90%)',
-              fire:             'Fire detected (FIRMS)',
+              water_dominant:   tr('networkEditor.kills2.waterDominant'),
+              snow_ice_dominant:tr('networkEditor.kills2.snowIceDominant'),
+              heavy_rain:       tr('networkEditor.kills2.heavyRain'),
+              wet_snow:         tr('networkEditor.kills2.wetSnow'),
+              fresh_snowfall:   tr('networkEditor.kills2.freshSnowfall'),
+              heavy_snow_cover: tr('networkEditor.kills2.heavySnowCover'),
+              fire:             tr('networkEditor.kills2.fire'),
             }
             const _killLabel = (k: string) => _KILL_LABEL[k] ?? k.replace(/_/g, ' ')
             const kills: string[] = isCohMode
@@ -1619,7 +1625,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
 
             // Coherence source badge
             const cohSrc     = fct?.coherence_source as string | undefined
-            const cohSrcLabel = cohSrc === 's3' ? 'Global S1 coherence' : cohSrc === 'failed' ? 'NDVI/LC' : cohSrc === 'climatology' ? 'Climatology' : undefined
+            const cohSrcLabel = cohSrc === 's3' ? tr('networkEditor.globalS1Coherence') : cohSrc === 'failed' ? tr('networkEditor.ndviLc') : cohSrc === 'climatology' ? tr('networkEditor.climatology') : undefined
             const cohSrcColor = cohSrc === 's3' ? '#4caf50' : cohSrc === 'failed' ? '#90caf9' : '#ffc107'
 
             // Coherence segments from _coherence.py: [(dt, season, coh), ...]
@@ -1650,37 +1656,37 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                 boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
                 minWidth: 240, fontSize: 12, color: t.text,
               }}>
-                <div style={{ fontWeight: 700, marginBottom: 6, color: t.accent }}>{saveUrl ? 'Interferogram' : 'Pair Quality'}</div>
+                <div style={{ fontWeight: 700, marginBottom: 6, color: t.accent }}>{saveUrl ? tr('networkEditor.interferogram') : tr('networkEditor.pairQuality')}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 12px', marginBottom: 8 }}>
-                  <span style={{ color: t.textMuted }}>Ref</span>
+                  <span style={{ color: t.textMuted }}>{tr('networkEditor.ref')}</span>
                   <span style={{ fontFamily: 'monospace', fontSize: 10 }}>{saveUrl ? hovEdge.ref : hovEdge.ref.slice(17, 25)}</span>
-                  <span style={{ color: t.textMuted }}>Sec</span>
+                  <span style={{ color: t.textMuted }}>{tr('networkEditor.sec')}</span>
                   <span style={{ fontFamily: 'monospace', fontSize: 10 }}>{saveUrl ? hovEdge.sec : hovEdge.sec.slice(17, 25)}</span>
                   <span style={{ color: t.textMuted }}>Δt</span>
-                  <span>{Math.round(hovEdge.dt)} days</span>
-                  <span style={{ color: t.textMuted }}>⊥ baseline</span>
+                  <span>{tr('jobQueue.days', { count: Math.round(hovEdge.dt) })}</span>
+                  <span style={{ color: t.textMuted }}>{tr('networkEditor.perpBaseline')}</span>
                   <span>{Math.round(hovEdge.bperpDiff)} m</span>
                   {sc !== null && cat && <>
-                    <span style={{ color: t.textMuted }}>{saveUrl ? 'Coherence' : 'Score'}</span>
+                    <span style={{ color: t.textMuted }}>{saveUrl ? tr('networkEditor.coherence') : tr('networkEditor.score')}</span>
                     <span style={{ color: _CAT_CSS[cat], fontWeight: 700 }}>
-                      {_CAT_LABEL[cat]} ({Number.isInteger(sc) ? sc : sc.toFixed(2)})
+                      {tr(_CAT_LABEL_KEYS[cat])} ({Number.isInteger(sc) ? sc : sc.toFixed(2)})
                     </span>
                   </>}
                   {/* Coherence mode: show source + expected coherence */}
                   {isCohMode && cohSrcLabel && <>
-                    <span style={{ color: t.textMuted }}>Source</span>
+                    <span style={{ color: t.textMuted }}>{tr('networkEditor.source')}</span>
                     <span style={{ color: cohSrcColor, fontSize: 10 }}>{cohSrcLabel}</span>
                   </>}
                   {isCohMode && fct?.coherence_abs != null && <>
-                    <span style={{ color: t.textMuted }}>Abs. coherence</span>
+                    <span style={{ color: t.textMuted }}>{tr('networkEditor.absCoherence')}</span>
                     <span style={{ fontFamily: 'monospace' }}>{Number(fct.coherence_abs).toFixed(3)}</span>
                   </>}
                   {isCohMode && (fct?.rho_inf ?? 0) > 0 && <>
-                    <span style={{ color: t.textMuted }}>PS floor (ρ∞)</span>
+                    <span style={{ color: t.textMuted }}>{tr('networkEditor.psFloor')}</span>
                     <span style={{ fontFamily: 'monospace' }}>{Number(fct!.rho_inf).toFixed(3)}</span>
                   </>}
                   {isCohMode && fct?.coherence_same_season === false && <>
-                    <span style={{ color: t.textMuted }}>Seasons</span>
+                    <span style={{ color: t.textMuted }}>{tr('networkEditor.seasons')}</span>
                     <span style={{ color: '#ffc107', fontSize: 10 }}>
                       {fct?.coherence_season_d1} → {fct?.coherence_season_d2}
                     </span>
@@ -1690,7 +1696,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                 {/* Cross-season segments */}
                 {isCohMode && segments.length > 1 && (
                   <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 6 }}>
-                    <div style={{ fontWeight: 600, marginBottom: 2, color: t.text }}>Segments:</div>
+                    <div style={{ fontWeight: 600, marginBottom: 2, color: t.text }}>{tr('networkEditor.segments')}</div>
                     {segments.map(([dt, season, coh], i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
                         <span>{dt}d {season}</span>
@@ -1702,13 +1708,13 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
 
                 {kills.length > 0 && (
                   <div style={{ color: '#f44336', fontSize: 10, marginBottom: 6 }}>
-                    <div style={{ fontWeight: 600, marginBottom: 2 }}>Hard kills:</div>
+                    <div style={{ fontWeight: 600, marginBottom: 2 }}>{tr('networkEditor.hardKills')}</div>
                     {kills.map(k => <div key={k}>✕ {k.replace(/_/g, ' ')}</div>)}
                   </div>
                 )}
                 {warnings.length > 0 && (
                   <div style={{ color: '#ffc107', fontSize: 10, marginBottom: 6 }}>
-                    <div style={{ fontWeight: 600, marginBottom: 2 }}>Warnings:</div>
+                    <div style={{ fontWeight: 600, marginBottom: 2 }}>{tr('networkEditor.warnings')}</div>
                     {warnings.map(w => <div key={w}>⚠ {w.replace(/_/g, ' ')}</div>)}
                   </div>
                 )}
@@ -1716,7 +1722,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                 {/* Coherence mode: environmental penalties (quality % lost per feature) */}
                 {isCohMode && cohPenalties.length > 0 && (
                   <div style={{ fontSize: 10, color: t.textMuted }}>
-                    <div style={{ fontWeight: 600, marginBottom: 4, color: t.text }}>Quality penalties:</div>
+                    <div style={{ fontWeight: 600, marginBottom: 4, color: t.text }}>{tr('networkEditor.qualityPenalties')}</div>
                     {cohPenalties.map(([k, v]) => {
                       // Show the raw sensor value alongside the quality loss
                       const rawMap: Record<string, string> = {
@@ -1742,7 +1748,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                 {/* LC mode: contributions dict */}
                 {isLcMode && Object.keys(lcContribs).length > 0 && (
                   <div style={{ fontSize: 10, color: t.textMuted }}>
-                    <div style={{ fontWeight: 600, marginBottom: 4, color: t.text }}>Penalties:</div>
+                    <div style={{ fontWeight: 600, marginBottom: 4, color: t.text }}>{tr('networkEditor.penalties')}</div>
                     {Object.entries(lcContribs)
                       .filter(([, v]) => Math.abs(v) > 0.001)
                       .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
@@ -1771,7 +1777,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
           color: t.textMuted, fontSize: 10, flexShrink: 0, minHeight: 26,
         }}>
           {hovNode ? (
-            <span style={{ color: t.textMuted }}>● {hovNode.date} — hover for details</span>
+            <span style={{ color: t.textMuted }}>● {hovNode.date} — {tr('networkEditor.hoverForDetails')}</span>
           ) : hovEdge ? (
             <>
               <span style={{ color: '#90caf9', fontFamily: 'monospace' }}>
@@ -1787,15 +1793,15 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                 const fct2 = qualityFactors?.[`${hovEdge.ref}:${hovEdge.sec}`]
                           ?? qualityFactors?.[`${hovEdge.sec}:${hovEdge.ref}`]
                 const sc = edgeScore(hovEdge, qualityScores)
-                if (sc === null) return <span style={{ color: _UNSCORED_CSS }}>● Unscored</span>
+                if (sc === null) return <span style={{ color: _UNSCORED_CSS }}>● {tr('networkEditor.unscored')}</span>
                 const cat = qualityCategory(sc)
                 const fct = fct2
                 const isCohMode = fct && 'coherence_source' in fct
                 const _KILL_LABEL: Record<string, string> = {
-                  water_dominant:   'Water dominant',
-                  heavy_rain:       'Heavy rain (>30 mm)',
-                  heavy_snow_cover: 'Heavy snow cover (>90%)',
-                  deep_snow:        'Deep snow (>50 cm)',
+                  water_dominant:   tr('networkEditor.kills.waterDominant'),
+                  heavy_rain:       tr('networkEditor.kills.heavyRain'),
+                  heavy_snow_cover: tr('networkEditor.kills.heavySnowCover'),
+                  deep_snow:        tr('networkEditor.kills.deepSnow'),
                 }
                 const _killLabel = (k: string) => _KILL_LABEL[k] ?? k.replace(/_/g, ' ')
                 const kills: string[] = isCohMode
@@ -1805,13 +1811,13 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                 const contribs: Record<string, number> = (!isCohMode && fct?.contributions) ? fct.contributions : {}
                 // Coherence mode footer: show source badge + expected coh
                 const cohSrc = fct?.coherence_source as string | undefined
-                const cohSrcLabel = cohSrc === 's3' ? 'S1 Global' : cohSrc === 'failed' ? 'NDVI/LC' : cohSrc === 'climatology' ? 'Clim' : undefined
+                const cohSrcLabel = cohSrc === 's3' ? tr('networkEditor.s1Global') : cohSrc === 'failed' ? tr('networkEditor.ndviLc') : cohSrc === 'climatology' ? tr('networkEditor.clim') : undefined
                 const cohSrcColor = cohSrc === 's3' ? '#4caf50' : '#ffc107'
                 const sameSeason  = fct?.coherence_same_season as boolean | undefined
                 return (
                   <>
                     <span style={{ color: _CAT_CSS[cat], fontWeight: 600 }}>
-                      ● {_CAT_LABEL[cat]} ({sc.toFixed(2)})
+                      ● {tr(_CAT_LABEL_KEYS[cat])} ({sc.toFixed(2)})
                     </span>
                     {isCohMode && cohSrcLabel && (
                       <span style={{ color: cohSrcColor, fontSize: 10 }}>[{cohSrcLabel}]</span>
@@ -1845,27 +1851,27 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                 )
               })()}
               <span style={{ color: hovEdge.active ? '#4caf50' : '#e57373' }}>
-                {hovEdge.active ? '● active' : '○ removed'}
+                {hovEdge.active ? tr('networkEditor.activeDot') : tr('networkEditor.removedDot')}
               </span>
               <span style={{ color: t.textMuted, marginLeft: 'auto' }}>
-                click to {hovEdge.active ? 'remove' : 'restore'}
+                {hovEdge.active ? tr('networkEditor.clickToRemove') : tr('networkEditor.clickToRestore')}
               </span>
             </>
           ) : (
             <>
-              <span>Left-click edge to toggle</span>
-              <span>Drag node→node to add pair</span>
-              <span>Scroll to zoom</span>
-              <span>Right-drag to pan</span>
+              <span>{tr('networkEditor.leftClickToggle')}</span>
+              <span>{tr('networkEditor.dragToAddPair')}</span>
+              <span>{tr('networkEditor.scrollToZoom')}</span>
+              <span>{tr('networkEditor.rightDragToPan')}</span>
               {error && <span style={{ color: '#e53935', marginLeft: 'auto' }}>{error}</span>}
               {!error && dbStatus === 'building' && (
                 <span style={{ color: '#ffc107', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
                   <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#ffc107', animation: 'pulse 1.2s ease-in-out infinite' }} />
-                  Building DB…
+                  {tr('networkEditor.buildingDb')}
                 </span>
               )}
               {!error && dbStatus === 'error' && (
-                <span style={{ color: '#e53935', marginLeft: 'auto' }}>DB build failed</span>
+                <span style={{ color: '#e53935', marginLeft: 'auto' }}>{tr('networkEditor.dbBuildFailed')}</span>
               )}
             </>
           )}
@@ -1891,7 +1897,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
               display: 'inline-block', width: 7, height: 7, borderRadius: '50%',
               background: '#ffc107', animation: 'pulse 1.2s ease-in-out infinite',
             }} />
-            Building pair database…
+            {tr('networkEditor.buildingPairDatabase')}
           </div>
         )}
       </div>

@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import Map from './Map'
 import TopBar from './TopBar'
 import MapToolbar, { type DrawMode, type Basemap } from './MapToolbar'
@@ -61,6 +62,7 @@ function Colorbar({ overlay }: { overlay: import('./JobQueueDrawer').RasterOverl
 interface TsData { dates: string[]; values: number[]; file: string; unit: string }
 
 function TimeSeriesDrawer({ data, onClose, theme: t }: { data: TsData; onClose: () => void; theme: import('./theme').Theme }) {
+  const { t: tr } = useTranslation()
   const raw    = data.values.map(v => isFinite(v) ? v * 100 : NaN)
   const first  = raw.find(v => isFinite(v)) ?? 0
   const vals_mm = raw.map(v => isFinite(v) ? v - first : NaN)
@@ -121,8 +123,8 @@ function TimeSeriesDrawer({ data, onClose, theme: t }: { data: TsData; onClose: 
         display: 'flex', alignItems: 'center', padding: '5px 14px',
         borderBottom: `1px solid ${t.border}`, flexShrink: 0,
       }}>
-        <span style={{ color: t.accent, fontSize: 11, fontWeight: 600 }}>Time Series</span>
-        <span style={{ color: t.textMuted, fontSize: 10, marginLeft: 8 }}>{data.file} · {data.unit} · relative to first date</span>
+        <span style={{ color: t.accent, fontSize: 11, fontWeight: 600 }}>{tr('app.timeSeries')}</span>
+        <span style={{ color: t.textMuted, fontSize: 10, marginLeft: 8 }}>{data.file} · {data.unit} · {tr('app.relativeToFirstDate')}</span>
         <button onClick={onClose} style={{
           marginLeft: 'auto', background: 'none', border: 'none',
           color: t.textMuted, cursor: 'pointer', fontSize: 18, lineHeight: 1,
@@ -165,13 +167,13 @@ function TimeSeriesDrawer({ data, onClose, theme: t }: { data: TsData; onClose: 
   )
 }
 
-function EdgeHandle({ label, theme: t, onClick }: {
-  label: string; theme: import('./theme').Theme; onClick: () => void
+function EdgeHandle({ label, title, theme: t, onClick }: {
+  label: string; title: string; theme: import('./theme').Theme; onClick: () => void
 }) {
   return (
     <button
       onClick={onClick}
-      title={`Open ${label}`}
+      title={title}
       style={{
         background: t.bg2, border: `1px solid ${t.border}`, borderRight: 'none',
         borderRadius: '6px 0 0 6px',
@@ -184,6 +186,7 @@ function EdgeHandle({ label, theme: t, onClick }: {
 }
 
 export default function App() {
+  const { t: tr } = useTranslation()
   // Theme
   const [isDark, setIsDark] = useState(true)
   const theme = isDark ? DARK : LIGHT
@@ -259,6 +262,16 @@ export default function App() {
     return { start: dates[0], end: dates[dates.length - 1] }
   }, [stackScenes])
 
+  // Every distinct platform across the whole stack — a track/frame can span a
+  // satellite handover (e.g. Sentinel-1C → Sentinel-1D), so the single clicked
+  // scene's own platform is not representative of the stack as a whole.
+  const stackPlatform = useMemo(() => {
+    const set = new Set(
+      stackScenes.map(f => f.properties?.platform as string | undefined).filter(Boolean) as string[]
+    )
+    return Array.from(set).sort().join(', ')
+  }, [stackScenes])
+
   // Filter state
   const [filters,      setFilters]      = useState<Filters>(DEFAULT_FILTERS)
   const [filtersOpen,  setFiltersOpen]  = useState(false)
@@ -275,10 +288,10 @@ export default function App() {
         clearInterval(pollRef.current!)
         setSearching(false)
         if (job.status === 'done') onDone(job.data)
-        else setResultCount(`Error: ${job.message}`)
+        else setResultCount(tr('app.errorPrefix', { message: job.message }))
       }
     }, 1500)
-  }, [])
+  }, [tr])
 
   // ── Universal close-all — fires on EVERY non-draw-mode map click ────────────
   // Intentionally does NOT touch selectedFeature/stackOpen/detailScene:
@@ -319,13 +332,13 @@ export default function App() {
   async function handleSearch() {
     const byName = filters.granuleNames && filters.granuleNames.length > 0
     if (!byName && (!filters.startDate || !filters.endDate)) {
-      setResultCount('Set start and end dates in Filters')
+      setResultCount(tr('app.setDatesInFilters'))
       setFiltersOpen(true)
       return
     }
     setSearching(true)
     setDrawMode(null)
-    setResultCount('Searching…')
+    setResultCount(tr('topBar.searching'))
 
     const wkt = aoiWkt ?? bboxToWkt(aoi)
 
@@ -335,13 +348,10 @@ export default function App() {
       body: JSON.stringify({
         west: aoi[0], south: aoi[1], east: aoi[2], north: aoi[3],
         wkt, start: filters.startDate || null, end: filters.endDate || null,
-        maxResults:      filters.maxResults ? parseInt(filters.maxResults) : 2000,
-        flightDirection: filters.flightDirection  || null,
-        pathStart:       filters.pathStart  ? parseInt(filters.pathStart)  : null,
-        pathEnd:         filters.pathEnd    ? parseInt(filters.pathEnd)    : null,
-        frameStart:      filters.frameStart ? parseInt(filters.frameStart) : null,
-        frameEnd:        filters.frameEnd   ? parseInt(filters.frameEnd)   : null,
-        granule_names:   byName ? filters.granuleNames : null,
+        maxResults:     filters.maxResults ? parseInt(filters.maxResults) : 2000,
+        downloaderType,
+        overrides:      Object.keys(filters.overrides).length > 0 ? filters.overrides : null,
+        granule_names:  byName ? filters.granuleNames : null,
       }),
     })
     const { job_id } = await res.json()
@@ -392,7 +402,7 @@ export default function App() {
         })
         if (!res.ok) {
           const err = await res.json().catch(() => ({ detail: res.statusText }))
-          setResultCount(`GeoPackage error: ${err.detail}`)
+          setResultCount(tr('app.geoPackageError', { detail: err.detail }))
           return
         }
         const { feature: f } = await res.json()
@@ -403,12 +413,12 @@ export default function App() {
         feature = fc.features[0]
       }
 
-      if (!feature) { setResultCount('No features found in file'); return }
+      if (!feature) { setResultCount(tr('app.noFeaturesFound')); return }
       const wkt  = geometryToWkt(feature.geometry)
       const bbox = getGeometryBbox(feature.geometry)
       handleAoiDrawn(wkt, bbox, feature)   // pass feature → polygon shape preserved
     } catch (err) {
-      setResultCount(`File error: ${err}`)
+      setResultCount(tr('app.fileError', { error: String(err) }))
     }
   }
 
@@ -510,6 +520,7 @@ export default function App() {
               stackStart={stackDateRange.start}
               stackEnd={stackDateRange.end}
               stackCount={stackScenes.length}
+              stackPlatform={stackPlatform}
               stackUrls={stackScenes.map(f => f.properties?.url).filter(Boolean)}
               workdir={workdir}
               aoiWkt={aoiWkt}
@@ -544,10 +555,10 @@ export default function App() {
           boxShadow: '-2px 0 8px rgba(0,0,0,0.25)',
         }}>
           {footprints && !stackDrawerOpen && (
-            <EdgeHandle label="Stacks" theme={theme} onClick={() => setStackDrawerOpen(true)} />
+            <EdgeHandle label={tr('app.stacks')} title={tr('app.openStacks')} theme={theme} onClick={() => setStackDrawerOpen(true)} />
           )}
           {!jobsOpen && (
-            <EdgeHandle label="Jobs" theme={theme} onClick={() => setJobsOpen(true)} />
+            <EdgeHandle label={tr('app.jobs')} title={tr('app.openJobs')} theme={theme} onClick={() => setJobsOpen(true)} />
           )}
         </div>
       )}
@@ -595,6 +606,7 @@ export default function App() {
           open={filtersOpen}
           filters={filters}
           theme={theme}
+          downloaderType={downloaderType}
           onClose={() => setFiltersOpen(false)}
           onApply={setFilters}
         />

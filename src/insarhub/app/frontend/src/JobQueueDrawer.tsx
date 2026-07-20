@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Theme } from './theme'
 import { NetworkEditor } from './NetworkEditor'
 import { useResizable, ResizeHandle } from './useResizable'
@@ -69,7 +70,8 @@ const ROLE_COLORS: Record<string, { bg: string; color: string; border: string }>
 }
 const ROLE_FALLBACK = { bg: '#1e1e2e', color: '#aaa', border: '#444' }
 
-// Config fields to display and their labels (in order)
+// Config fields to display and their labels (in order) — label here is only
+// the English fallback; the render site translates via CFG_FIELD_LABEL_KEYS.
 const CFG_FIELDS: { key: string; label: string }[] = [
   { key: 'start',          label: 'Start' },
   { key: 'end',            label: 'End' },
@@ -83,6 +85,19 @@ const CFG_FIELDS: { key: string; label: string }[] = [
   { key: 'beamMode',       label: 'Beam Mode' },
   { key: 'polarization',   label: 'Polarization' },
 ]
+const CFG_FIELD_LABEL_KEYS: Record<string, string> = {
+  start:           'topBar.start',
+  end:             'topBar.end',
+  relativeOrbit:   'searchFilters.fields.path',
+  frame:           'searchFilters.fields.frame',
+  flightDirection: 'scenePanel.direction',
+  intersectsWith:  'jobQueue.aoi',
+  dataset:         'jobQueue.dataset',
+  platform:        'searchFilters.fields.platform',
+  maxResults:      'searchFilters.maxResults',
+  beamMode:        'scenePanel.beamMode',
+  polarization:    'scenePanel.polarization',
+}
 
 function fmtVal(key: string, val: any): string {
   if (val === null || val === undefined || val === '') return ''
@@ -111,6 +126,7 @@ function parseScene(name: string) {
 interface PairDetailProps { theme: Theme; ref_: string; sec: string; onClose: () => void; rightOffset: number }
 
 function PairDetailDrawer({ theme: t, ref_, sec, onClose, rightOffset }: PairDetailProps) {
+  const { t: tr } = useTranslation()
   const { width, onHandleMouseDown } = useResizable(300)
   const r = parseScene(ref_)
   const s = parseScene(sec)
@@ -139,12 +155,12 @@ function PairDetailDrawer({ theme: t, ref_, sec, onClose, rightOffset }: PairDet
   const sceneCard = (label: string, accent: string, sc: ReturnType<typeof parseScene>) => (
     <div>
       <div style={{ color: accent, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 6 }}>{label}</div>
-      {cfgRow('Platform', sc.platform)}
-      {cfgRow('Date', sc.date)}
-      {cfgRow('Time UTC', sc.time)}
-      {cfgRow('Abs. Orbit', sc.orbit)}
+      {cfgRow(tr('searchFilters.fields.platform'), sc.platform)}
+      {cfgRow(tr('jobQueue.date'), sc.date)}
+      {cfgRow(tr('jobQueue.timeUtc'), sc.time)}
+      {cfgRow(tr('jobQueue.absOrbit'), sc.orbit)}
       <div style={{ padding: '5px 0' }}>
-        <span style={{ width: 80, flexShrink: 0, color: t.textMuted, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 2 }}>Scene ID</span>
+        <span style={{ width: 80, flexShrink: 0, color: t.textMuted, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 2 }}>{tr('jobQueue.sceneId')}</span>
         <span style={{ color: t.textMuted, fontSize: 9, fontFamily: 'monospace', wordBreak: 'break-all' }} title={sc.full}>{sc.full}</span>
       </div>
     </div>
@@ -163,22 +179,22 @@ function PairDetailDrawer({ theme: t, ref_, sec, onClose, rightOffset }: PairDet
         padding: '10px 14px', borderBottom: `1px solid ${t.border}`,
         background: t.bg2, flexShrink: 0,
       }}>
-        <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>Pair Detail</span>
+        <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>{tr('jobQueue.pairDetail')}</span>
         <button onClick={onClose} style={{ background: 'none', border: 'none',
           cursor: 'pointer', color: t.textMuted, fontSize: 20, lineHeight: 1, padding: '0 4px' }}>×</button>
       </div>
 
       {dtDays !== null && (
         <div style={{ padding: '8px 14px', background: t.bg2, borderBottom: `1px solid ${t.border}`, flexShrink: 0 }}>
-          <span style={{ color: t.textMuted, fontSize: 11 }}>Temporal baseline: </span>
-          <span style={{ color: t.accent, fontWeight: 700, fontSize: 13 }}>{dtDays} days</span>
+          <span style={{ color: t.textMuted, fontSize: 11 }}>{tr('jobQueue.temporalBaseline')} </span>
+          <span style={{ color: t.accent, fontWeight: 700, fontSize: 13 }}>{tr('jobQueue.days', { count: dtDays })}</span>
         </div>
       )}
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {sceneCard('Reference', '#90caf9', r)}
+        {sceneCard(tr('jobQueue.reference'), '#90caf9', r)}
         <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12 }}>
-          {sceneCard('Secondary', '#a5d6a7', s)}
+          {sceneCard(tr('jobQueue.secondary'), '#a5d6a7', s)}
         </div>
       </div>
     </div>
@@ -190,6 +206,7 @@ function PairDetailDrawer({ theme: t, ref_, sec, onClose, rightOffset }: PairDet
 interface PairsDrawerProps { theme: Theme; folderPath: string; onClose: () => void; rightOffset: number }
 
 function PairsDrawer({ theme: t, folderPath, onClose, rightOffset }: PairsDrawerProps) {
+  const { t: tr } = useTranslation()
   const { width, onHandleMouseDown } = useResizable(280)
   const [pairs,       setPairs]       = useState<string[][]>([])
   const [count,       setCount]       = useState(0)
@@ -242,9 +259,9 @@ function PairsDrawer({ theme: t, folderPath, onClose, rightOffset }: PairsDrawer
           background: t.bg2, flexShrink: 0,
         }}>
           <div>
-            <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>Pairs</span>
+            <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>{tr('jobQueue.pairs')}</span>
             {count > 0 && (
-              <span style={{ color: t.textMuted, fontSize: 10, marginLeft: 8 }}>{count} pairs · {fname}</span>
+              <span style={{ color: t.textMuted, fontSize: 10, marginLeft: 8 }}>{tr('jobQueue.pairsCount', { count })} · {fname}</span>
             )}
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none',
@@ -253,7 +270,7 @@ function PairsDrawer({ theme: t, folderPath, onClose, rightOffset }: PairsDrawer
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {loading ? (
-            <div style={{ color: t.textMuted, fontSize: 11, textAlign: 'center', padding: '32px 0' }}>Loading…</div>
+            <div style={{ color: t.textMuted, fontSize: 11, textAlign: 'center', padding: '32px 0' }}>{tr('jobQueue.loading')}</div>
           ) : error ? (
             <div style={{ color: '#e53935', fontSize: 11, padding: 14 }}>{error}</div>
           ) : pairs.map(([ref, sec], i) => {
@@ -289,16 +306,18 @@ interface ProcMeta  { label: string; fields: FieldMeta[]; groups?: Array<{ label
 interface SbatchOptionsModalProps { theme: Theme; folderPath: string; onClose: () => void; onSaved?: (msg: string) => void; zIndex?: number }
 
 function SbatchOptionsModal({ theme: t, folderPath, onClose, onSaved, zIndex = 220 }: SbatchOptionsModalProps) {
+  const { t: tr } = useTranslation()
   const [text,    setText]    = useState('')
   const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
   const [msg,     setMsg]     = useState('')
+  const [msgOk,   setMsgOk]   = useState(false)
 
   useEffect(() => {
     fetch(`${API}/api/folder-sbatch-options?path=${encodeURIComponent(folderPath)}`)
       .then(r => r.json())
       .then(d => { setText(d.content ?? ''); setLoading(false) })
-      .catch(e => { setMsg(String(e)); setLoading(false) })
+      .catch(e => { setMsg(String(e)); setMsgOk(false); setLoading(false) })
   }, [folderPath])
 
   function save() {
@@ -309,8 +328,8 @@ function SbatchOptionsModal({ theme: t, folderPath, onClose, onSaved, zIndex = 2
       body: JSON.stringify({ content: text }),
     })
       .then(r => r.json())
-      .then(d => { const m = d.ok ? 'Saved.' : (d.detail ?? 'Error'); setMsg(m); onSaved?.(m) })
-      .catch(e => { setMsg(String(e)); onSaved?.(String(e)) })
+      .then(d => { const m = d.ok ? tr('jobQueue.savedDot') : (d.detail ?? tr('scenePanel.error')); setMsg(m); setMsgOk(!!d.ok); onSaved?.(m) })
+      .catch(e => { setMsg(String(e)); setMsgOk(false); onSaved?.(String(e)) })
       .finally(() => setSaving(false))
   }
 
@@ -322,14 +341,14 @@ function SbatchOptionsModal({ theme: t, folderPath, onClose, onSaved, zIndex = 2
         width: 500, maxWidth: '95vw',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ color: t.text, fontWeight: 600, fontSize: 13 }}>sbatch options per step</span>
+          <span style={{ color: t.text, fontWeight: 600, fontSize: 13 }}>{tr('jobQueue.sbatchOptionsPerStep')}</span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 18 }}>×</button>
         </div>
         <span style={{ color: t.textMuted, fontSize: 10 }}>
           JSON object mapping two-digit step number → <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>Slurmjob_Config</code> fields. <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>"default"</code> applies to any unlisted step; step keys override it. Step <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>"17"</code> configures the MintPy SBAS analyzer's HPC job. Available fields: <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>time, partition, nodes, ntasks, cpus_per_task, mem, account, qos, nodelist, gpus, mail_user</code>.
         </span>
         {loading ? (
-          <div style={{ color: t.textMuted, fontSize: 12, textAlign: 'center', padding: '20px 0' }}>Loading…</div>
+          <div style={{ color: t.textMuted, fontSize: 12, textAlign: 'center', padding: '20px 0' }}>{tr('jobQueue.loading')}</div>
         ) : (
           <textarea
             value={text}
@@ -344,18 +363,18 @@ function SbatchOptionsModal({ theme: t, folderPath, onClose, onSaved, zIndex = 2
           />
         )}
         {msg && (
-          <span style={{ fontSize: 10, color: msg === 'Saved.' ? '#81c784' : '#e57373', fontFamily: 'monospace' }}>{msg}</span>
+          <span style={{ fontSize: 10, color: msgOk ? '#81c784' : '#e57373', fontFamily: 'monospace' }}>{msg}</span>
         )}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button onClick={onClose} style={{
             padding: '5px 14px', fontSize: 11, borderRadius: 4,
             background: 'none', color: t.textMuted, border: `1px solid ${t.border}`, cursor: 'pointer',
-          }}>Close</button>
+          }}>{tr('jobQueue.close')}</button>
           <button disabled={saving || loading} onClick={save} style={{
             padding: '5px 14px', fontSize: 11, borderRadius: 4,
             background: '#4a2500', color: '#ffcc80', border: '1px solid #e65100',
             cursor: (saving || loading) ? 'default' : 'pointer', opacity: (saving || loading) ? 0.6 : 1,
-          }}>Save</button>
+          }}>{tr('jobQueue.save')}</button>
         </div>
       </div>
     </div>
@@ -365,6 +384,7 @@ function SbatchOptionsModal({ theme: t, folderPath, onClose, onSaved, zIndex = 2
 interface ProcessModalProps { theme: Theme; folderPath: string; downloaderType: string; aoiWkt: string | null; onClose: () => void; onDone: () => void }
 
 function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, onDone }: ProcessModalProps) {
+  const { t: tr } = useTranslation()
   const [loading,      setLoading]      = useState(true)
   const [procType,     setProcType]     = useState('')
   const [procOptions,  setProcOptions]  = useState<Record<string, ProcMeta>>({})
@@ -428,7 +448,7 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
   }
 
   async function handleRun() {
-    setStatus('running'); setMessage('Submitting…')
+    setStatus('running'); setMessage(tr('jobQueue.submitting'))
     try {
       let submitConfig = procConfig
       if (procType === 'ISCE_S1') {
@@ -445,12 +465,12 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ folder_path: folderPath, processor_type: procType, processor_config: submitConfig, dry_run: dryRun }),
       })
-      if (!res.ok) { const d = await res.json(); setStatus('error'); setMessage(d.detail ?? 'Error'); return }
+      if (!res.ok) { const d = await res.json(); setStatus('error'); setMessage(d.detail ?? tr('scenePanel.error')); return }
       const { job_id } = await res.json()
       pollRef.current = setInterval(async () => {
         try {
           const r = await fetch(`${API}/api/jobs/${job_id}`)
-          if (!r.ok) { clearInterval(pollRef.current!); setStatus('error'); setMessage('Job not found — server may have restarted.'); return }
+          if (!r.ok) { clearInterval(pollRef.current!); setStatus('error'); setMessage(tr('jobQueue.jobNotFound')); return }
           const job = await r.json()
           setMessage(job.message ?? '')
           if (job.status === 'done')  { clearInterval(pollRef.current!); setStatus('done') }
@@ -526,18 +546,18 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '11px 18px', borderBottom: `1px solid ${t.border}`, background: t.bg2, flexShrink: 0,
         }}>
-          <span style={{ color: t.text, fontWeight: 700, fontSize: 14 }}>Submit to Processor</span>
+          <span style={{ color: t.text, fontWeight: 700, fontSize: 14 }}>{tr('jobQueue.submitToProcessor')}</span>
           <button onClick={onClose} style={{ background: 'none', border: 'none',
             cursor: 'pointer', color: t.textMuted, fontSize: 20, lineHeight: 1, padding: '0 4px' }}>×</button>
         </div>
 
         {loading ? (
-          <div style={{ color: t.textMuted, fontSize: 12, textAlign: 'center', padding: '40px 0' }}>Loading…</div>
+          <div style={{ color: t.textMuted, fontSize: 12, textAlign: 'center', padding: '40px 0' }}>{tr('jobQueue.loading')}</div>
         ) : (
           <div style={{ overflowY: 'auto', padding: '16px 18px', flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
             {/* Processor type */}
             <div>
-              <label style={lbl}>Processor</label>
+              <label style={lbl}>{tr('jobQueue.processor')}</label>
               <select value={procType} onChange={e => handleProcTypeChange(e.target.value)}
                 style={{ ...inp, fontFamily: 'monospace' }}>
                 {Object.keys(procOptions).map(k => <option key={k} value={k}>{k}</option>)}
@@ -573,15 +593,15 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
                             <input type="checkbox" checked={!!procConfig.hpc_mode}
                               onChange={e => setProcConfig(c => ({ ...c, hpc_mode: e.target.checked }))}
                               style={{ accentColor: t.accent, width: 13, height: 13 }} />
-                            HPC mode (SLURM sbatch)
+                            {tr('jobQueue.hpcModeSlurm')}
                           </label>
                           <button onClick={() => { setSbatchMsg(''); setSbatchOpen(true) }} style={{
                             padding: '3px 10px', fontSize: 10, borderRadius: 4,
                             background: 'none', color: t.textMuted, border: `1px solid ${t.border}`,
                             cursor: 'pointer',
-                          }}>Edit sbatch options…</button>
+                          }}>{tr('jobQueue.editSbatchOptions')}</button>
                           {sbatchMsg && !sbatchOpen && (
-                            <span style={{ fontSize: 10, color: sbatchMsg === 'Saved.' ? '#81c784' : '#e57373', fontFamily: 'monospace' }}>{sbatchMsg}</span>
+                            <span style={{ fontSize: 10, color: sbatchMsg === tr('jobQueue.savedDot') ? '#81c784' : '#e57373', fontFamily: 'monospace' }}>{sbatchMsg}</span>
                           )}
                         </div>
                       )
@@ -613,13 +633,13 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
             <input type="checkbox" checked={dryRun} onChange={e => { setDryRun(e.target.checked); if (status !== 'running') setStatus('idle') }}
               style={{ accentColor: '#ffb74d', width: 13, height: 13 }} />
-            <span style={{ color: t.textMuted, fontSize: 11 }}>Dry run</span>
+            <span style={{ color: t.textMuted, fontSize: 11 }}>{tr('jobQueue.dryRun')}</span>
           </label>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => { if (status === 'done' && !dryRun) onDone(); else onClose() }} style={{
               padding: '5px 16px', background: 'transparent', color: t.textMuted,
               border: `1px solid ${t.border}`, borderRadius: 6, fontSize: 12, cursor: 'pointer',
-            }}>{status === 'done' ? 'Close' : 'Cancel'}</button>
+            }}>{status === 'done' ? tr('jobQueue.close') : tr('searchFilters.cancel')}</button>
             <button onClick={status === 'done' ? (dryRun ? onClose : onDone) : handleRun} disabled={loading || status === 'running'} style={{
               padding: '5px 20px', borderRadius: 6, fontSize: 12, fontWeight: 600,
               background: status === 'done' ? '#1b3a2a' : status === 'error' ? '#b71c1c' : dryRun ? '#2a2000' : '#4a2500',
@@ -627,7 +647,10 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
               border: `1px solid ${status === 'done' ? '#2e7d32' : status === 'error' ? '#c62828' : dryRun ? '#f9a825' : '#e65100'}`,
               cursor: loading || status === 'running' ? 'default' : 'pointer',
             }}>
-              {status === 'running' ? (dryRun ? '⟳ Checking…' : '⟳ Submitting…') : status === 'done' ? '✓ Done' : status === 'error' ? '✕ Retry' : dryRun ? 'Dry Run' : 'Submit'}
+              {status === 'running' ? (dryRun ? tr('jobQueue.checking') : tr('jobQueue.submitting'))
+                : status === 'done' ? tr('jobQueue.done')
+                : status === 'error' ? tr('scenePanel.retry')
+                : dryRun ? tr('jobQueue.dryRunButton') : tr('jobQueue.submit')}
             </button>
           </div>
         </div>
@@ -654,11 +677,13 @@ interface AzCompMeta {
 interface AnalyzerConfigModalProps { theme: Theme; folderPath: string; analyzerType: string; onClose: () => void }
 
 function AnalyzerConfigModal({ theme: t, folderPath, analyzerType, onClose }: AnalyzerConfigModalProps) {
+  const { t: tr } = useTranslation()
   const [config,     setConfig]     = useState<Record<string, any>>({})
   const [meta,       setMeta]       = useState<AzCompMeta | null>(null)
   const [loading,    setLoading]    = useState(true)
   const [saving,     setSaving]     = useState(false)
   const [msg,        setMsg]        = useState('')
+  const [msgIsError, setMsgIsError] = useState(false)
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set())
   const [sbatchOpen, setSbatchOpen] = useState(false)
   const [sbatchMsg,  setSbatchMsg]  = useState('')
@@ -685,7 +710,7 @@ function AnalyzerConfigModal({ theme: t, folderPath, analyzerType, onClose }: An
   }
 
   async function save() {
-    setSaving(true); setMsg('')
+    setSaving(true); setMsg(''); setMsgIsError(false)
     try {
       const r = await fetch(`${API}/api/folder-config?path=${encodeURIComponent(folderPath)}`, {
         method: 'PATCH',
@@ -693,9 +718,9 @@ function AnalyzerConfigModal({ theme: t, folderPath, analyzerType, onClose }: An
         body: JSON.stringify({ analyzer_config: config }),
       })
       if (!r.ok) throw new Error(await r.text())
-      setMsg('Saved')
+      setMsg(tr('jobQueue.saved'))
       setTimeout(onClose, 600)
-    } catch (e) { setMsg(`Error: ${e}`) }
+    } catch (e) { setMsg(tr('jobQueue.errorColon', { error: e })); setMsgIsError(true) }
     setSaving(false)
   }
 
@@ -714,35 +739,35 @@ function AnalyzerConfigModal({ theme: t, folderPath, analyzerType, onClose }: An
         </label>
         {f.type === 'select' && (
           <select value={val ?? ''} onChange={e => setField(f.key, e.target.value)} style={{ ...inputSt, width: '100%' }}>
-            {f.options!.map(o => <option key={o} value={o}>{o === '' ? '(any)' : o}</option>)}
+            {f.options!.map(o => <option key={o} value={o}>{o === '' ? tr('jobQueue.any') : o}</option>)}
           </select>
         )}
         {f.type === 'bool' && f.key === 'hpc_mode' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
               <input type="checkbox" checked={val === true} onChange={e => setField(f.key, e.target.checked)} style={{ accentColor: t.accent, width: 14, height: 14 }} />
-              <span style={{ color: t.text, fontSize: 12 }}>{val === true ? 'Enabled' : 'Disabled'}</span>
+              <span style={{ color: t.text, fontSize: 12 }}>{val === true ? tr('jobQueue.enabled') : tr('jobQueue.disabled')}</span>
             </label>
             <button onClick={() => { setSbatchMsg(''); setSbatchOpen(true) }} style={{
               padding: '3px 10px', fontSize: 10, borderRadius: 4,
               background: 'none', color: t.textMuted, border: `1px solid ${t.border}`,
               cursor: 'pointer',
-            }}>Edit sbatch options…</button>
+            }}>{tr('jobQueue.editSbatchOptions')}</button>
             {sbatchMsg && !sbatchOpen && (
-              <span style={{ fontSize: 10, color: sbatchMsg === 'Saved.' ? '#81c784' : '#e57373', fontFamily: 'monospace' }}>{sbatchMsg}</span>
+              <span style={{ fontSize: 10, color: sbatchMsg === tr('jobQueue.savedDot') ? '#81c784' : '#e57373', fontFamily: 'monospace' }}>{sbatchMsg}</span>
             )}
           </div>
         )}
         {f.type === 'bool' && f.key !== 'hpc_mode' && (
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
             <input type="checkbox" checked={val === true} onChange={e => setField(f.key, e.target.checked)} style={{ accentColor: t.accent, width: 14, height: 14 }} />
-            <span style={{ color: t.text, fontSize: 12 }}>{val === true ? 'Enabled' : 'Disabled'}</span>
+            <span style={{ color: t.text, fontSize: 12 }}>{val === true ? tr('jobQueue.enabled') : tr('jobQueue.disabled')}</span>
           </label>
         )}
         {f.type === 'bool_str' && (
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
             <input type="checkbox" checked={val === 'yes'} onChange={e => setField(f.key, e.target.checked ? 'yes' : 'no')} style={{ accentColor: t.accent, width: 14, height: 14 }} />
-            <span style={{ color: t.text, fontSize: 12 }}>{val === 'yes' ? 'Yes' : 'No'}</span>
+            <span style={{ color: t.text, fontSize: 12 }}>{val === 'yes' ? tr('jobQueue.yes') : tr('jobQueue.no')}</span>
           </label>
         )}
         {f.type === 'number' && (
@@ -752,12 +777,12 @@ function AnalyzerConfigModal({ theme: t, folderPath, analyzerType, onClose }: An
         {f.type === 'auto_number' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <input type="number" value={val === 'auto' || val == null ? '' : val}
-              min={f.min} max={f.max} step={f.step ?? 1} placeholder="auto"
+              min={f.min} max={f.max} step={f.step ?? 1} placeholder={tr('jobQueue.auto')}
               onChange={e => setField(f.key, e.target.value === '' ? (f.default == null ? null : 'auto') : parseFloat(e.target.value))}
               style={{ ...inputSt, width: 100 }} />
             {val !== 'auto' && val != null && (
               <button onClick={() => setField(f.key, f.default == null ? null : 'auto')}
-                style={{ fontSize: 11, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>reset</button>
+                style={{ fontSize: 11, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>{tr('jobQueue.reset')}</button>
             )}
           </div>
         )}
@@ -802,22 +827,22 @@ function AnalyzerConfigModal({ theme: t, folderPath, analyzerType, onClose }: An
       <div style={{ background: t.bg2, border: `1px solid ${t.border}`, borderRadius: 8, width: 500, maxHeight: '82vh', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderBottom: `1px solid ${t.divider}` }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{analyzerType} — Config</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{tr('jobQueue.analyzerConfig', { analyzerType })}</span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 18, lineHeight: 1 }}>×</button>
         </div>
         {/* Body */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px' }}>
           {loading
-            ? <span style={{ color: t.textMuted, fontSize: 11 }}>Loading…</span>
+            ? <span style={{ color: t.textMuted, fontSize: 11 }}>{tr('jobQueue.loading')}</span>
             : renderBody()
           }
         </div>
         {/* Footer */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, padding: '10px 16px', borderTop: `1px solid ${t.divider}` }}>
-          {msg && <span style={{ fontSize: 11, color: msg.startsWith('Error') ? '#e53935' : '#4caf50', marginRight: 'auto' }}>{msg}</span>}
-          <button onClick={onClose} style={{ fontSize: 12, padding: '4px 12px', borderRadius: 4, cursor: 'pointer', background: 'transparent', color: t.textMuted, border: `1px solid ${t.border}` }}>Cancel</button>
+          {msg && <span style={{ fontSize: 11, color: msgIsError ? '#e53935' : '#4caf50', marginRight: 'auto' }}>{msg}</span>}
+          <button onClick={onClose} style={{ fontSize: 12, padding: '4px 12px', borderRadius: 4, cursor: 'pointer', background: 'transparent', color: t.textMuted, border: `1px solid ${t.border}` }}>{tr('searchFilters.cancel')}</button>
           <button onClick={save} disabled={saving || loading} style={{ fontSize: 12, padding: '4px 12px', borderRadius: 4, cursor: saving ? 'default' : 'pointer', background: t.accent, color: '#fff', border: 'none', opacity: saving ? 0.6 : 1 }}>
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? tr('jobQueue.savingEllipsis') : tr('jobQueue.save')}
           </button>
         </div>
       </div>
@@ -833,6 +858,7 @@ function AnalyzerConfigModal({ theme: t, folderPath, analyzerType, onClose }: An
 interface AnalyzerPanelProps { theme: Theme; folderPath: string; analyzerType: string }
 
 function AnalyzerPanel({ theme: t, folderPath, analyzerType }: AnalyzerPanelProps) {
+  const { t: tr } = useTranslation()
   const [steps,       setSteps]      = useState<string[]>([])
   const [checked,     setChecked]    = useState<Set<string>>(new Set())
   const [loading,     setLoading]    = useState(true)
@@ -861,7 +887,7 @@ function AnalyzerPanel({ theme: t, folderPath, analyzerType }: AnalyzerPanelProp
         if (!r.ok) {
           // 404 = server restarted, job is gone
           clearInterval(pollRef.current!); setRunStat('error')
-          setRunMsg('Job not found — server may have restarted. Please re-run.')
+          setRunMsg(tr('jobQueue.jobNotFoundRerun'))
           setActiveJobId(null); _clearState()
           return
         }
@@ -952,14 +978,14 @@ function AnalyzerPanel({ theme: t, folderPath, analyzerType }: AnalyzerPanelProp
     if (selected.length === 0) return
     setRunStat('running')
     setProgress(0)
-    setRunMsg('Submitting…')
+    setRunMsg(tr('jobQueue.submitting'))
     fetch(`${API}/api/folder-run-analyzer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ folder_path: folderPath, analyzer_type: analyzerType, steps: selected }),
     })
       .then(r => r.json())
-      .then(({ job_id }) => { _saveState(job_id, 'Submitting…', 0); _startPolling(job_id) })
+      .then(({ job_id }) => { _saveState(job_id, tr('jobQueue.submitting'), 0); _startPolling(job_id) })
       .catch(e => { setRunStat('error'); setRunMsg(String(e)) })
   }
 
@@ -971,8 +997,8 @@ function AnalyzerPanel({ theme: t, folderPath, analyzerType }: AnalyzerPanelProp
   const rc = ROLE_COLORS.analyzer
   const busy = runStat === 'running'
 
-  if (loading) return <span style={{ color: t.textMuted, fontSize: 11 }}>Loading steps…</span>
-  if (steps.length === 0) return <span style={{ color: t.textMuted, fontSize: 11 }}>No steps available for this analyzer.</span>
+  if (loading) return <span style={{ color: t.textMuted, fontSize: 11 }}>{tr('jobQueue.loadingSteps')}</span>
+  if (steps.length === 0) return <span style={{ color: t.textMuted, fontSize: 11 }}>{tr('jobQueue.noStepsAvailable')}</span>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -981,11 +1007,11 @@ function AnalyzerPanel({ theme: t, folderPath, analyzerType }: AnalyzerPanelProp
       )}
       {/* Step checklist */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ color: t.textMuted, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Steps</div>
+        <div style={{ color: t.textMuted, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{tr('jobQueue.steps')}</div>
         <div style={{ display: 'flex', gap: 6 }}>
-          <button onClick={() => setConfigOpen(true)} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, cursor: 'pointer', background: 'transparent', color: t.accent, border: `1px solid ${t.border}` }}>Config</button>
-          <button onClick={() => toggleAll(true)} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, cursor: 'pointer', background: 'transparent', color: t.textMuted, border: `1px solid ${t.border}` }}>All</button>
-          <button onClick={() => toggleAll(false)} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, cursor: 'pointer', background: 'transparent', color: t.textMuted, border: `1px solid ${t.border}` }}>None</button>
+          <button onClick={() => setConfigOpen(true)} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, cursor: 'pointer', background: 'transparent', color: t.accent, border: `1px solid ${t.border}` }}>{tr('jobQueue.config')}</button>
+          <button onClick={() => toggleAll(true)} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, cursor: 'pointer', background: 'transparent', color: t.textMuted, border: `1px solid ${t.border}` }}>{tr('jobQueue.all')}</button>
+          <button onClick={() => toggleAll(false)} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, cursor: 'pointer', background: 'transparent', color: t.textMuted, border: `1px solid ${t.border}` }}>{tr('jobQueue.none')}</button>
         </div>
       </div>
 
@@ -1019,7 +1045,7 @@ function AnalyzerPanel({ theme: t, folderPath, analyzerType }: AnalyzerPanelProp
         <button onClick={stopAnalyzer} style={{
           padding: '6px 0', fontSize: 11, borderRadius: 4, cursor: 'pointer',
           background: '#e53935', color: '#fff', border: '1px solid #e53935',
-        }}>Stop</button>
+        }}>{tr('scenePanel.stop')}</button>
       ) : (
         <button
           disabled={checked.size === 0}
@@ -1031,7 +1057,7 @@ function AnalyzerPanel({ theme: t, folderPath, analyzerType }: AnalyzerPanelProp
             opacity: checked.size === 0 ? 0.5 : 1,
           }}
         >
-          Run {checked.size} step{checked.size !== 1 ? 's' : ''}
+          {tr('jobQueue.runSteps', { count: checked.size })}
         </button>
       )}
 
@@ -1039,24 +1065,24 @@ function AnalyzerPanel({ theme: t, folderPath, analyzerType }: AnalyzerPanelProp
       <button
         disabled={busy}
         onClick={() => {
-          if (!confirm('Remove tmp dirs and zip archives in this folder?')) return
-          setCleanupMsg('Cleaning…')
+          if (!confirm(tr('jobQueue.confirmCleanup'))) return
+          setCleanupMsg(tr('jobQueue.cleaning'))
           fetch(`${API}/api/folder-analyzer-cleanup`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ folder_path: folderPath, analyzer_type: analyzerType, steps: [] }),
           })
             .then(r => r.json())
-            .then(() => setCleanupMsg('Cleaned'))
-            .catch(e => setCleanupMsg(`Error: ${e}`))
+            .then(() => setCleanupMsg(tr('jobQueue.cleaned')))
+            .catch(e => setCleanupMsg(tr('jobQueue.errorColon', { error: e })))
         }}
         style={{
           padding: '6px 0', fontSize: 11, borderRadius: 4,
           cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.5 : 1,
           background: 'transparent', color: t.textMuted, border: `1px solid ${t.border}`,
         }}
-        title="Remove tmp dirs and zip archives"
-      >Cleanup</button>
+        title={tr('jobQueue.removeTmpDirsTitle')}
+      >{tr('jobQueue.cleanup')}</button>
       {cleanupMsg && <div style={{ fontSize: 10, color: t.textMuted }}>{cleanupMsg}</div>}
 
       {/* Status message */}
@@ -1125,6 +1151,7 @@ interface IfgViewerProps {
 }
 
 function IfgViewerDrawer({ theme: t, folderPath, onClose, onRasterSelect, rightOffset }: IfgViewerProps) {
+  const { t: tr } = useTranslation()
   const { width, onHandleMouseDown } = useResizable(300)
   const [pairs,        setPairs]       = useState<IfgPair[]>([])
   const [loading,      setLoading]     = useState(true)
@@ -1172,7 +1199,7 @@ function IfgViewerDrawer({ theme: t, folderPath, onClose, onRasterSelect, rightO
         padding: '10px 14px', borderBottom: `1px solid ${t.border}`,
         background: t.bg2, flexShrink: 0,
       }}>
-        <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>Data</span>
+        <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>{tr('jobQueue.data')}</span>
         <button onClick={onClose} style={{
           background: 'none', border: 'none', cursor: 'pointer',
           color: t.textMuted, fontSize: 20, lineHeight: 1, padding: '0 4px',
@@ -1181,18 +1208,18 @@ function IfgViewerDrawer({ theme: t, folderPath, onClose, onRasterSelect, rightO
 
       {decoding && (
         <div style={{ padding: '4px 14px', background: '#0d3b6e', fontSize: 10, color: '#90caf9' }}>
-          Decoding TIF…
+          {tr('jobQueue.decodingTif')}
         </div>
       )}
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {loading ? (
-          <div style={{ color: t.textMuted, fontSize: 11, textAlign: 'center', padding: '32px 0' }}>Loading…</div>
+          <div style={{ color: t.textMuted, fontSize: 11, textAlign: 'center', padding: '32px 0' }}>{tr('jobQueue.loading')}</div>
         ) : error ? (
           <div style={{ color: '#e53935', fontSize: 11, padding: 14 }}>{error}</div>
         ) : pairs.length === 0 ? (
           <div style={{ color: t.textMuted, fontSize: 11, textAlign: 'center', padding: '32px 0' }}>
-            No zip files found. Download results first.
+            {tr('jobQueue.noZipFiles')}
           </div>
         ) : pairs.map(pair => {
           const isExpanded = expandedPair === pair.zip
@@ -1235,7 +1262,7 @@ function IfgViewerDrawer({ theme: t, folderPath, onClose, onRasterSelect, rightO
                       {f.type}
                     </span>
                     {!pair.bounds && (
-                      <span style={{ fontSize: 9, color: t.textMuted, marginLeft: 'auto' }}>no bounds</span>
+                      <span style={{ fontSize: 9, color: t.textMuted, marginLeft: 'auto' }}>{tr('jobQueue.noBounds')}</span>
                     )}
                   </button>
                 )
@@ -1255,6 +1282,7 @@ interface Hyp3File { name: string; total: number; users: string[] }
 interface ProcessorPanelProps { theme: Theme; folderPath: string; processorType: string; aoiWkt: string | null; onFolderRefresh: () => void; ifgViewerOpen: boolean; onViewIfgToggle: () => void }
 
 function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, onFolderRefresh, ifgViewerOpen, onViewIfgToggle }: ProcessorPanelProps) {
+  const { t: tr } = useTranslation()
   const [files,      setFiles]      = useState<Hyp3File[]>([])
   const [loading,    setLoading]    = useState(true)
   const [selected,   setSelected]   = useState('')
@@ -1317,7 +1345,7 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
   function runInitAnalyzer() {
     if (!selectedAnalyzer) return
     setAnalyzerStat('idle')
-    setAnalyzerMsg('Initializing…')
+    setAnalyzerMsg(tr('jobQueue.initializing'))
     fetch(`${API}/api/folder-init-analyzer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1327,11 +1355,11 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
       .then(d => {
         if (d.ok) {
           setAnalyzerStat('ok')
-          setAnalyzerMsg(`Analyzer set to ${d.analyzer}`)
+          setAnalyzerMsg(tr('jobQueue.analyzerSetTo', { analyzer: d.analyzer }))
           onFolderRefresh()
         } else {
           setAnalyzerStat('error')
-          setAnalyzerMsg(d.detail ?? 'Failed')
+          setAnalyzerMsg(d.detail ?? tr('jobQueue.failed'))
         }
       })
       .catch(e => { setAnalyzerStat('error'); setAnalyzerMsg(String(e)) })
@@ -1349,8 +1377,8 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
     setActionStat('running')
     setActionProgress(0)
     setActionMsg(
-      action === 'refresh' ? 'Refreshing…' : action === 'retry' ? 'Retrying…' :
-      action === 'cancel' ? 'Cancelling…' : action === 'force_steps' ? 'Forcing step(s)…' : 'Downloading…'
+      action === 'refresh' ? tr('jobQueue.refreshingEllipsis') : action === 'retry' ? tr('jobQueue.retryingEllipsis') :
+      action === 'cancel' ? tr('jobQueue.cancellingEllipsis') : action === 'force_steps' ? tr('jobQueue.forcingSteps') : tr('jobQueue.downloadingEllipsis')
     )
     const actionEndpoint = isLocal ? `${API}/api/folder-local-action` : `${API}/api/folder-hyp3-action`
     fetch(actionEndpoint, {
@@ -1400,14 +1428,14 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
 
       {loading ? (
-        <span style={{ color: t.textMuted, fontSize: 11 }}>Loading…</span>
+        <span style={{ color: t.textMuted, fontSize: 11 }}>{tr('jobQueue.loading')}</span>
       ) : files.length === 0 ? (
-        <span style={{ color: t.textMuted, fontSize: 11 }}>{isLocal ? 'No ISCE job files found.' : 'No HyP3 job files found.'}</span>
+        <span style={{ color: t.textMuted, fontSize: 11 }}>{isLocal ? tr('jobQueue.noIsceJobFiles') : tr('jobQueue.noHyp3JobFiles')}</span>
       ) : (
         <>
           {/* File selector */}
           <div>
-            <div style={{ color: t.textMuted, fontSize: 10, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Job file</div>
+            <div style={{ color: t.textMuted, fontSize: 10, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{tr('jobQueue.jobFile')}</div>
             <select
               value={selected}
               onChange={e => { setSelected(e.target.value); setActionStat('idle'); setActionMsg('') }}
@@ -1426,25 +1454,25 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
           {/* Action buttons */}
           <div style={{ display: 'flex', gap: 6 }}>
             <button disabled={busy} onClick={() => runAction('refresh')} style={btnStyle(false)}>
-              Refresh
+              {tr('jobQueue.refresh')}
             </button>
             <button disabled={busy} onClick={() => runAction('retry')} style={btnStyle(false)}>
-              Retry
+              {tr('jobQueue.retry')}
             </button>
             {isLocal && (
               <button disabled={busy} onClick={() => runAction('cancel')}
                 style={{ ...btnStyle(false), color: '#e53935', borderColor: '#e53935' }}>
-                Cancel
+                {tr('searchFilters.cancel')}
               </button>
             )}
             {!isLocal && (
               currentAction === 'download' && actionStat === 'running' ? (
                 <button onClick={stopDownload} style={{ ...btnStyle(true), background: '#e53935', borderColor: '#e53935', color: '#fff' }}>
-                  Stop
+                  {tr('scenePanel.stop')}
                 </button>
               ) : (
                 <button disabled={busy} onClick={() => runAction('download')} style={btnStyle(true)}>
-                  Download
+                  {tr('jobQueue.download')}
                 </button>
               )
             )}
@@ -1454,7 +1482,7 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
           {isLocal && availSteps.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ color: t.textMuted, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Force step(s) to (re)run
+                {tr('jobQueue.forceStepsToRerun')}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 {availSteps.map((s, i) => (
@@ -1475,7 +1503,7 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
               </div>
               {forceSteps.length > 0 && (
                 <div style={{ fontSize: 10, color: '#ffb74d' }}>
-                  ⚠ Only the selected step(s) will be forced to (re)run — every other step is left untouched regardless of its current status.
+                  {tr('jobQueue.forceStepsWarning')}
                 </div>
               )}
               <button disabled={busy || forceSteps.length === 0}
@@ -1486,7 +1514,7 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
                   opacity: (busy || forceSteps.length === 0) ? 0.5 : 1,
                   background: rc.bg, color: rc.color, border: `1px solid ${rc.border}`,
                 }}>
-                Force {forceSteps.length > 0 ? `${forceSteps.length} ` : ''}Step{forceSteps.length === 1 ? '' : 's'}
+                {tr('jobQueue.forceStepsCount', { count: forceSteps.length })}
               </button>
             </div>
           )}
@@ -1507,7 +1535,7 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
               <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
               <polyline points="21 15 16 10 5 21"/>
             </svg>
-            {ifgViewerOpen ? 'Hide Data' : 'View Data'}
+            {ifgViewerOpen ? tr('jobQueue.hideData') : tr('jobQueue.viewData')}
           </button>
 
           {/* Progress bar — shown during download */}
@@ -1533,7 +1561,7 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
           {/* ── Analyzer section ── */}
           {analyzers.length > 0 && (
             <div style={{ borderTop: `1px solid ${t.divider}`, marginTop: 4, paddingTop: 8 }}>
-              <div style={{ color: t.textMuted, fontSize: 10, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Run Analyzer</div>
+              <div style={{ color: t.textMuted, fontSize: 10, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{tr('jobQueue.runAnalyzer')}</div>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 <select
                   value={selectedAnalyzer}
@@ -1549,7 +1577,7 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
                   fontSize: 11, padding: '3px 10px', borderRadius: 4, cursor: 'pointer',
                   background: ROLE_COLORS.analyzer.bg, color: ROLE_COLORS.analyzer.color,
                   border: `1px solid ${ROLE_COLORS.analyzer.border}`,
-                }}>Init</button>
+                }}>{tr('jobQueue.init')}</button>
               </div>
               {analyzerMsg && (
                 <div style={{
@@ -1580,6 +1608,7 @@ interface MintpyViewerProps {
 }
 
 function MintpyViewerDrawer({ theme: t, folderPath, tsList, hidden, onClose, onRasterSelect, rightOffset }: MintpyViewerProps) {
+  const { t: tr } = useTranslation()
   const { width, onHandleMouseDown } = useResizable(260)
   const [active,         setActive]         = useState(false)
   const [decoding,       setDecoding]       = useState(false)
@@ -1609,7 +1638,7 @@ function MintpyViewerDrawer({ theme: t, folderPath, tsList, hidden, onClose, onR
         height:    d.pixel_height,
         nodata:    null,
         type:      'velocity',
-        label:     `Velocity (${d.unit ?? 'm/year'})`,
+        label:     tr('jobQueue.velocityUnit', { unit: d.unit ?? 'm/year' }),
         vmin:      d.vmin,
         vmax:      d.vmax,
         source:    { kind: 'mintpy', folderPath, tsFile: selectedTsFile },
@@ -1634,7 +1663,7 @@ function MintpyViewerDrawer({ theme: t, folderPath, tsList, hidden, onClose, onR
         padding: '10px 14px', borderBottom: `1px solid ${t.border}`,
         background: t.bg2, flexShrink: 0,
       }}>
-        <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>Results</span>
+        <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>{tr('jobQueue.results')}</span>
         <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer',
           color: t.textMuted, fontSize: 20, lineHeight: 1, padding: '0 4px' }}>×</button>
       </div>
@@ -1643,7 +1672,7 @@ function MintpyViewerDrawer({ theme: t, folderPath, tsList, hidden, onClose, onR
         {tsList.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span style={{ fontSize: 10, color: t.textMuted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Time Series File
+              {tr('jobQueue.timeSeriesFile')}
             </span>
             {tsList.map(f => (
               <button key={f} onClick={() => setSelectedTsFile(f)} style={{
@@ -1666,7 +1695,7 @@ function MintpyViewerDrawer({ theme: t, folderPath, tsList, hidden, onClose, onR
         {active && (
           <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 10, lineHeight: 1.6,
             background: t.bg2, border: `1px solid ${t.divider}`, color: t.textMuted }}>
-            Click on the velocity map to extract the time series at that location.
+            {tr('jobQueue.clickVelocityHint')}
           </div>
         )}
       </div>
@@ -1679,7 +1708,7 @@ function MintpyViewerDrawer({ theme: t, folderPath, tsList, hidden, onClose, onR
           border: `1px solid ${active ? rc.border : t.btnActiveBorder}`,
           cursor: decoding ? 'wait' : 'pointer', fontSize: 12, fontWeight: 600,
         }}>
-          {decoding ? 'Loading…' : active ? 'Hide Velocity' : 'Plot'}
+          {decoding ? tr('jobQueue.loading') : active ? tr('jobQueue.hideVelocity') : tr('jobQueue.plot')}
         </button>
       </div>
     </div>
@@ -1689,12 +1718,26 @@ function MintpyViewerDrawer({ theme: t, folderPath, tsList, hidden, onClose, onR
 
 // ── L3: MintPy Overview Drawer ────────────────────────────────────────────────
 
+// label/title here are English fallbacks; render site translates via
+// DIAG_ITEM_LABEL_KEYS/DIAG_ITEM_TITLE_KEYS (module scope can't call useTranslation).
 const DIAG_ITEMS = [
   { name: 'avgSpatialCoh',             label: 'Spatial Coh.',  title: 'Avg Spatial Coherence' },
   { name: 'avgPhaseVelocity',          label: 'Phase Vel.',    title: 'Avg Phase Velocity' },
   { name: 'numTriNonzeroIntAmbiguity', label: 'Unw. Errors',  title: 'Unwrapping Error Count' },
   { name: 'maskConnComp',              label: 'Mask',          title: 'Connected Component Mask' },
 ] as const
+const DIAG_ITEM_LABEL_KEYS: Record<string, string> = {
+  avgSpatialCoh:             'jobQueue.diag.spatialCoh',
+  avgPhaseVelocity:          'jobQueue.diag.phaseVel',
+  numTriNonzeroIntAmbiguity: 'jobQueue.diag.unwErrors',
+  maskConnComp:              'jobQueue.diag.mask',
+}
+const DIAG_ITEM_TITLE_KEYS: Record<string, string> = {
+  avgSpatialCoh:             'jobQueue.diag.avgSpatialCoherence',
+  avgPhaseVelocity:          'jobQueue.diag.avgPhaseVelocity',
+  numTriNonzeroIntAmbiguity: 'jobQueue.diag.unwrappingErrorCount',
+  maskConnComp:              'jobQueue.diag.connectedComponentMask',
+}
 
 interface MintpyOverviewProps {
   theme:          Theme
@@ -1706,6 +1749,7 @@ interface MintpyOverviewProps {
 }
 
 function MintpyOverviewDrawer({ theme: t, folderPath, hidden, onClose, onRasterSelect, rightOffset }: MintpyOverviewProps) {
+  const { t: tr } = useTranslation()
   const { width, onHandleMouseDown } = useResizable(240)
   const [active,   setActive]   = useState<string | null>(null)
   const [decoding, setDecoding] = useState(false)
@@ -1756,7 +1800,7 @@ function MintpyOverviewDrawer({ theme: t, folderPath, hidden, onClose, onRasterS
         padding: '10px 14px', borderBottom: `1px solid ${t.border}`,
         background: t.bg2, flexShrink: 0,
       }}>
-        <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>Overview</span>
+        <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>{tr('jobQueue.overview')}</span>
         <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer',
           color: t.textMuted, fontSize: 20, lineHeight: 1, padding: '0 4px' }}>×</button>
       </div>
@@ -1765,8 +1809,8 @@ function MintpyOverviewDrawer({ theme: t, folderPath, hidden, onClose, onRasterS
         {error && <span style={{ color: '#e53935', fontSize: 10 }}>{error}</span>}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {DIAG_ITEMS.map((item) => (
-            <button key={item.name} onClick={() => handleDiagClick(item.name, item.label)}
-              disabled={decoding} title={item.title} style={{
+            <button key={item.name} onClick={() => handleDiagClick(item.name, tr(DIAG_ITEM_LABEL_KEYS[item.name], { defaultValue: item.label }))}
+              disabled={decoding} title={tr(DIAG_ITEM_TITLE_KEYS[item.name], { defaultValue: item.title })} style={{
                 width: '100%', padding: '6px 12px', borderRadius: 4, fontSize: 11,
                 textAlign: 'left', cursor: decoding ? 'wait' : 'pointer',
                 background: active === item.name ? rc.bg : 'transparent',
@@ -1774,13 +1818,13 @@ function MintpyOverviewDrawer({ theme: t, folderPath, hidden, onClose, onRasterS
                 border:     `1px solid ${active === item.name ? rc.border : t.border}`,
                 display: 'flex', alignItems: 'center', gap: 8,
               }}>
-              {item.title}
+              {tr(DIAG_ITEM_TITLE_KEYS[item.name], { defaultValue: item.title })}
             </button>
           ))}
         </div>
         {active && (
           <span style={{ fontSize: 9, color: t.textMuted }}>
-            {DIAG_ITEMS.find(d => d.name === active)?.title}
+            {(() => { const it = DIAG_ITEMS.find(d => d.name === active); return it ? tr(DIAG_ITEM_TITLE_KEYS[it.name], { defaultValue: it.title }) : null })()}
           </span>
         )}
       </div>
@@ -1814,6 +1858,7 @@ interface CohDecayMapsProps {
 }
 
 function CohDecayMapsDrawer({ theme: t, folderPath, onClose, onRasterSelect, rightOffset }: CohDecayMapsProps) {
+  const { t: tr } = useTranslation()
   const { width, onHandleMouseDown } = useResizable(260)
 
   const [maps,     setMaps]     = useState<CohMapEntry[]>([])
@@ -1825,9 +1870,9 @@ function CohDecayMapsDrawer({ theme: t, folderPath, onClose, onRasterSelect, rig
 
   // Band definitions
   const BANDS = [
-    { band: 1, label: 'γ∞ PS floor',     desc: 'Permanent-scatterer floor (0–1)' },
-    { band: 2, label: 'γ0 initial coh',  desc: 'Initial coherence at t=0 (0–1)' },
-    { band: 3, label: 'τ decay',         desc: 'Decorrelation time constant (days)' },
+    { band: 1, label: tr('jobQueue.bands.psFloorLabel'),     desc: tr('jobQueue.bands.psFloorDesc') },
+    { band: 2, label: tr('jobQueue.bands.initCohLabel'),     desc: tr('jobQueue.bands.initCohDesc') },
+    { band: 3, label: tr('jobQueue.bands.decayLabel'),       desc: tr('jobQueue.bands.decayDesc') },
   ] as const
 
   useEffect(() => {
@@ -1899,9 +1944,9 @@ function CohDecayMapsDrawer({ theme: t, folderPath, onClose, onRasterSelect, rig
         background: t.bg2, flexShrink: 0,
       }}>
         <div>
-          <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>Coherence Decay Maps</span>
+          <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>{tr('jobQueue.coherenceDecayMaps')}</span>
           {maps.length > 0 && (
-            <span style={{ color: t.textMuted, fontSize: 10, marginLeft: 8 }}>{maps.length} season{maps.length !== 1 ? 's' : ''}</span>
+            <span style={{ color: t.textMuted, fontSize: 10, marginLeft: 8 }}>{tr('jobQueue.seasonsCount', { count: maps.length })}</span>
           )}
         </div>
         <button onClick={onClose} style={{
@@ -1930,12 +1975,12 @@ function CohDecayMapsDrawer({ theme: t, folderPath, onClose, onRasterSelect, rig
       {/* Content */}
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {loading ? (
-          <span style={{ color: t.textMuted, fontSize: 11 }}>Loading…</span>
+          <span style={{ color: t.textMuted, fontSize: 11 }}>{tr('jobQueue.loading')}</span>
         ) : maps.length === 0 ? (
           <div style={{ color: t.textMuted, fontSize: 11 }}>
-            <div>No decay maps found.</div>
+            <div>{tr('jobQueue.noDecayMaps')}</div>
             <div style={{ marginTop: 4, fontSize: 10 }}>
-              Run pair-quality scoring first — maps are saved to <code>decay_maps/</code> inside the folder.
+              {tr('jobQueue.runPairQualityFirst')} <code>decay_maps/</code> {tr('jobQueue.insideFolder')}
             </div>
           </div>
         ) : (
@@ -2009,7 +2054,7 @@ function CohDecayMapsDrawer({ theme: t, folderPath, onClose, onRasterSelect, rig
         )}
 
         {error && <div style={{ color: '#e53935', fontSize: 10 }}>{error}</div>}
-        {decoding && <div style={{ color: t.textMuted, fontSize: 10 }}>Rendering…</div>}
+        {decoding && <div style={{ color: t.textMuted, fontSize: 10 }}>{tr('jobQueue.renderingEllipsis')}</div>}
       </div>
 
       {/* Clear button */}
@@ -2023,7 +2068,7 @@ function CohDecayMapsDrawer({ theme: t, folderPath, onClose, onRasterSelect, rig
               border: `1px solid ${t.border}`, borderRadius: 4, cursor: 'pointer',
             }}
           >
-            Clear map overlay
+            {tr('jobQueue.clearMapOverlay')}
           </button>
         </div>
       )}
@@ -2049,6 +2094,7 @@ interface L2Props {
 }
 
 function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWkt, onClose, onFolderRefresh, onRasterSelect, rightOffset }: L2Props) {
+  const { t: tr } = useTranslation()
   const { width, onHandleMouseDown } = useResizable(240)
   const rc = ROLE_COLORS[role] ?? ROLE_FALLBACK
 
@@ -2135,7 +2181,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
   }, [dlJobId])
 
   function handleDownload() {
-    setDlStatus('Starting…')
+    setDlStatus(tr('scenePanel.starting'))
     fetch(`${API}/api/folder-download`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2167,7 +2213,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
   }, [orbitJobId])
 
   function handleDownloadOrbit() {
-    setOrbitStatus('Starting…')
+    setOrbitStatus(tr('scenePanel.starting'))
     fetch(`${API}/api/folder-download-orbit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2183,7 +2229,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
     fetch(`${API}/api/jobs/${dlJobId}/stop`, { method: 'POST' }).catch(() => {})
     _dlJobs.delete(job.path)
     setDlJobId(null)
-    setDlStatus('Stopped.')
+    setDlStatus(tr('scenePanel.stopped'))
   }
 
   function handleStopOrbit() {
@@ -2191,14 +2237,15 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
     fetch(`${API}/api/jobs/${orbitJobId}/stop`, { method: 'POST' }).catch(() => {})
     _orbitJobs.delete(job.path)
     setOrbitJobId(null)
-    setOrbitStatus('Stopped.')
+    setOrbitStatus(tr('scenePanel.stopped'))
   }
 
   const cfgRows = role === 'downloader' && details?.downloader_config
     ? CFG_FIELDS
         .map(({ key, label }) => {
           const raw = details.downloader_config![key]
-          return { label, val: fmtVal(key, raw), full: String(raw ?? '') }
+          const trLabel = tr(CFG_FIELD_LABEL_KEYS[key] ?? `_unmapped.${key}`, { defaultValue: label })
+          return { label: trLabel, val: fmtVal(key, raw), full: String(raw ?? '') }
         })
         .filter(r => r.val !== '')
     : []
@@ -2328,7 +2375,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
               fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 3,
               background: rc.bg, color: rc.color, border: `1px solid ${rc.border}`,
               textTransform: 'capitalize',
-            }}>{role}</span>
+            }}>{tr(`jobQueue.role.${role}`, { defaultValue: role })}</span>
             <span style={{ color: t.text, fontWeight: 700, fontSize: 13 }}>{cls}</span>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none',
@@ -2339,9 +2386,17 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
         <div style={{
           padding: '6px 16px', borderBottom: `1px solid ${t.divider}`,
           background: t.bg2, flexShrink: 0,
+          display: 'flex', alignItems: 'baseline', gap: 4,
         }}>
-          <span style={{ color: t.textMuted, fontSize: 10 }}>Folder: </span>
-          <span style={{ color: t.text, fontSize: 11, fontFamily: 'monospace' }}>{job.name}</span>
+          <span style={{ color: t.textMuted, fontSize: 10, flexShrink: 0 }}>{tr('jobQueue.folderColon')} </span>
+          <span
+            title={job.name}
+            style={{
+              color: t.text, fontSize: 11, fontFamily: 'monospace',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              minWidth: 0, flex: 1,
+            }}
+          >{job.name}</span>
         </div>
 
         {/* Content */}
@@ -2350,7 +2405,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
           {/* ── Downloader: config params ── */}
           {role === 'downloader' && (
             detLoading ? (
-              <span style={{ color: t.textMuted, fontSize: 11 }}>Loading…</span>
+              <span style={{ color: t.textMuted, fontSize: 11 }}>{tr('jobQueue.loading')}</span>
             ) : cfgRows.length > 0 ? (
               <div style={{ border: `1px solid ${t.border}`, borderRadius: 4, overflow: 'hidden' }}>
                 {cfgRows.map(({ label, val, full }, i) => (
@@ -2391,7 +2446,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
                 <circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/>
                 <line x1="7" y1="11" x2="17" y2="6"/><line x1="7" y1="13" x2="17" y2="18"/>
               </svg>
-              Edit Network
+              {tr('jobQueue.editNetwork')}
             </button>
           )}
 
@@ -2413,7 +2468,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
                 <line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/>
                 <line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
               </svg>
-              {pairsOpen ? 'Hide Pairs' : 'View Pairs'}
+              {pairsOpen ? tr('jobQueue.hidePairs') : tr('jobQueue.viewPairs')}
             </button>
           )}
 
@@ -2435,7 +2490,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
                 <path d="M3 9h18M9 21V9"/>
                 <circle cx="15" cy="15" r="2"/>
               </svg>
-              {cohMapOpen ? 'Hide Decay Maps' : 'Decay Maps'}
+              {cohMapOpen ? tr('jobQueue.hideDecayMaps') : tr('jobQueue.decayMaps')}
             </button>
           )}
 
@@ -2458,7 +2513,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
                 <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
                 <path d="M4.93 4.93a10 10 0 0 0 0 14.14"/>
               </svg>
-              Process
+              {tr('jobQueue.process')}
             </button>
           )}
 
@@ -2476,7 +2531,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
                       borderRadius: 4, cursor: 'pointer',
                     }}
                   >
-                    ■ Stop
+                    {tr('jobQueue.stopSquare')}
                   </button>
                   {dlStatus && (
                     <span style={{ fontSize: 10, color: t.textMuted, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{dlStatus}</span>
@@ -2498,7 +2553,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                       <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
                     </svg>
-                    Download
+                    {tr('jobQueue.download')}
                   </button>
                   {dlStatus && (
                     <span style={{ fontSize: 10, color: t.textMuted, fontFamily: 'monospace' }}>{dlStatus}</span>
@@ -2518,7 +2573,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
                         display: 'flex', alignItems: 'center', gap: 8,
                       }}
                     >
-                      Stop
+                      {tr('scenePanel.stop')}
                     </button>
                   ) : (
                     <button
@@ -2536,7 +2591,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
                         <ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(30 12 12)"/>
                         <circle cx="12" cy="12" r="2"/>
                       </svg>
-                      Download Orbit Files
+                      {tr('jobQueue.downloadOrbitFiles')}
                     </button>
                   )}
                   {orbitStatus && (
@@ -2580,7 +2635,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
                     <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
                     <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
                   </svg>
-                  {mintpyNetOpen ? 'Hide Network' : 'Edit Network'}
+                  {mintpyNetOpen ? tr('jobQueue.hideNetwork') : tr('jobQueue.editNetwork')}
                 </button>
               )}
               {mintpyHasOverview && (
@@ -2599,7 +2654,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
                     <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
                     <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
                   </svg>
-                  {mintpyOverviewOpen ? 'Hide Overview' : 'Overview'}
+                  {mintpyOverviewOpen ? tr('jobQueue.hideOverview') : tr('jobQueue.overview')}
                 </button>
               )}
               {mintpyHasData && (
@@ -2617,7 +2672,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
                   </svg>
-                  {mintpyViewerOpen ? 'Hide Results' : 'View Results'}
+                  {mintpyViewerOpen ? tr('jobQueue.hideResults') : tr('jobQueue.viewResults')}
                 </button>
               )}
             </>
@@ -2625,7 +2680,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
 
           {/* ── Other roles: placeholder ── */}
           {role !== 'downloader' && role !== 'processor' && role !== 'analyzer' && (
-            <span style={{ color: t.textMuted, fontSize: 11 }}>Actions coming soon.</span>
+            <span style={{ color: t.textMuted, fontSize: 11 }}>{tr('jobQueue.actionsComingSoon')}</span>
           )}
         </div>
       </div>
@@ -2636,6 +2691,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
 // ── Main Drawer ───────────────────────────────────────────────────────────────
 
 export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiWkt, onClose, onRasterSelect }: Props) {
+  const { t: tr } = useTranslation()
   const { width: l1Width, onHandleMouseDown: onL1Handle } = useResizable(260)
   const [jobs,    setJobs]    = useState<JobFolder[]>([])
   const [loading, setLoading] = useState(true)
@@ -2720,12 +2776,12 @@ export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiW
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               {browsePath && (
-                <button onClick={navigateUp} title="Go up" style={{
+                <button onClick={navigateUp} title={tr('jobQueue.goUp')} style={{
                   background: 'none', border: 'none', cursor: 'pointer',
                   color: t.accent, fontSize: 14, padding: '0 2px', flexShrink: 0,
                 }}>↑</button>
               )}
-              <span style={{ color: t.text, fontWeight: 700, fontSize: 14, flexShrink: 0 }}>Job Folders</span>
+              <span style={{ color: t.text, fontWeight: 700, fontSize: 14, flexShrink: 0 }}>{tr('jobQueue.jobFolders')}</span>
             </div>
             <div style={{
               color: t.textMuted, fontSize: 10, marginTop: 1,
@@ -2752,13 +2808,13 @@ export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiW
         <div style={{ overflowY: 'auto', flex: 1, padding: '10px 0' }}>
           {loading ? (
             <div style={{ color: t.textMuted, fontSize: 12, textAlign: 'center', padding: '40px 0' }}>
-              Loading…
+              {tr('jobQueue.loading')}
             </div>
           ) : error ? (
             <div style={{ color: '#e53935', fontSize: 12, padding: '16px' }}>{error}</div>
           ) : jobs.length === 0 ? (
             <div style={{ color: t.textMuted, fontSize: 12, textAlign: 'center', padding: '40px 16px' }}>
-              No subfolders found in workdir.
+              {tr('jobQueue.noSubfolders')}
             </div>
           ) : jobs.map(job => {
             if (job.type === 'file') {
@@ -2772,6 +2828,7 @@ export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiW
                 }}>
                   <span style={{ fontSize: 12 }}>📄</span>
                   <span style={{ fontSize: 11, fontFamily: 'monospace', color: t.text, flex: 1,
+                    minWidth: 0,
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                     title={job.path}>{job.name}</span>
                   {kb && <span style={{ fontSize: 10, color: t.textMuted, flexShrink: 0 }}>{kb}</span>}
@@ -2792,15 +2849,16 @@ export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiW
                       color: t.accent,
                       fontSize: 12, fontFamily: 'monospace', textAlign: 'left',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+                      minWidth: 0,
                       padding: 0,
                     }}
                   >
                     {'📁 '}{job.name}
                   </button>
                   <button
-                    title="Remove job folder"
+                    title={tr('jobQueue.removeJobFolder')}
                     onClick={() => {
-                      if (!confirm(`Delete "${job.name}" and all its contents?`)) return
+                      if (!confirm(tr('jobQueue.confirmDeleteFolder', { name: job.name }))) return
                       fetch(`${API}/api/job-folder?path=${encodeURIComponent(job.path)}`, { method: 'DELETE' })
                         .then(r => { if (r.ok) { if (l2?.job.path === job.path) { setL2(null); setL2Visible(false) } loadJobs() } })
                         .catch(() => {})
@@ -2829,7 +2887,7 @@ export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiW
                               if (isActive && l2Visible) { setL2Visible(false) }
                               else { setL2({ job, role, cls }); setL2Visible(true) }
                             }}
-                            title={`${role}: ${cls}`}
+                            title={`${tr(`jobQueue.role.${role}`, { defaultValue: role })}: ${cls}`}
                             style={{
                               fontSize: 10, fontWeight: 600,
                               padding: '2px 7px', borderRadius: 3,
@@ -2862,7 +2920,7 @@ export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiW
                 padding: '6px 10px', fontSize: 12,
                 background: 'transparent', color: loading ? t.textMuted : t.text,
                 border: `1px solid ${t.border}`, borderRadius: 5, cursor: loading ? 'wait' : 'pointer',
-              }}>↑ Up</button>
+              }}>{tr('jobQueue.upArrow')}</button>
             )}
             <button
               onClick={() => loadJobs()}
@@ -2874,7 +2932,7 @@ export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiW
                 borderRadius: 5, cursor: loading ? 'wait' : 'pointer',
               }}
             >
-              {loading ? 'Loading…' : 'Refresh'}
+              {loading ? tr('jobQueue.loading') : tr('jobQueue.refresh')}
             </button>
           </div>
         </div>

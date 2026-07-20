@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { Theme } from './theme'
 
 export type DrawMode = 'box' | 'polygon' | 'pin' | null
@@ -59,10 +60,10 @@ function IconDelete() {
 
 // ── Draw tool config ────────────────────────────────────────────────────────
 
-const DRAW_TOOLS: { mode: DrawMode; icon: React.ReactNode; title: string }[] = [
-  { mode: 'box',     icon: <IconBox />,     title: 'Drag box AOI' },
-  { mode: 'polygon', icon: <IconPolygon />, title: 'Draw polygon AOI' },
-  { mode: 'pin',     icon: <IconPin />,     title: 'Place point AOI' },
+const DRAW_TOOLS: { mode: DrawMode; icon: React.ReactNode; titleKey: string }[] = [
+  { mode: 'box',     icon: <IconBox />,     titleKey: 'mapToolbar.dragBoxAoi' },
+  { mode: 'polygon', icon: <IconPolygon />, titleKey: 'mapToolbar.drawPolygonAoi' },
+  { mode: 'pin',     icon: <IconPin />,     titleKey: 'mapToolbar.placePointAoi' },
 ]
 
 // ── Component ───────────────────────────────────────────────────────────────
@@ -71,6 +72,7 @@ export default function MapToolbar({
   drawMode, theme, onDrawModeChange, onClearAoi, onShapefileUpload, mouseCoords, rasterValue,
 }: Props) {
   const t = theme
+  const { t: tr } = useTranslation()
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
@@ -86,28 +88,28 @@ export default function MapToolbar({
       height: 36,
     }}>
 
-      <Section label="Area of Interest" t={t}>
-        {DRAW_TOOLS.map(({ mode, icon, title }) => (
-          <ToolBtn key={mode!} icon={icon} title={title}
+      <Section label={tr('mapToolbar.areaOfInterest')} t={t}>
+        {DRAW_TOOLS.map(({ mode, icon, titleKey }) => (
+          <ToolBtn key={mode!} icon={icon} title={tr(titleKey)}
             active={drawMode === mode} t={t}
             onClick={() => onDrawModeChange(drawMode === mode ? null : mode)} />
         ))}
-        <label style={btnStyle(false, t)} title="Upload shapefile (.zip)">
+        <label style={btnStyle(false, t)} title={tr('mapToolbar.uploadShapefile')}>
           <IconUpload />
           <input type="file" accept=".zip,.shp,.gpkg" style={{ display: 'none' }} onChange={handleFile} />
         </label>
-        <ToolBtn icon={<IconDelete />} title="Clear AOI" active={false} t={t} onClick={onClearAoi} />
+        <ToolBtn icon={<IconDelete />} title={tr('mapToolbar.clearAoi')} active={false} t={t} onClick={onClearAoi} />
       </Section>
 
       {/* ── Legend + coords (right-aligned) ── */}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: t.text }}>
           <span style={{ width: 22, height: 3, background: '#00bcd4', display: 'inline-block', borderRadius: 2 }} />
-          Descending
+          {tr('mapToolbar.descending')}
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: t.text }}>
           <span style={{ width: 22, height: 3, background: '#f39c12', display: 'inline-block', borderRadius: 2 }} />
-          Ascending
+          {tr('mapToolbar.ascending')}
         </span>
         {mouseCoords && (
           <span style={{ color: t.textMuted, fontSize: 11, fontFamily: 'monospace', marginLeft: 8 }}>

@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Theme } from './theme'
 import { useResizable, ResizeHandle } from './useResizable'
 
@@ -38,10 +39,16 @@ export default function StackSummaryDrawer({
   footprints, theme: t, selectedStackKey, workdir, aoiWkt, downloaderType,
   onStackHover, onStackClick, onCheckedChange, onClose,
 }: Props) {
+  const { t: tr } = useTranslation()
   const { width, onHandleMouseDown } = useResizable(260)
 
   const stacks = useMemo<StackSummary[]>(() => {
     const map = new Map<string, StackSummary>()
+    // Tracks every distinct platform seen per stack — a satellite handover
+    // (e.g. Sentinel-1C → Sentinel-1D on the same track) means one (path,
+    // frame) group can legitimately span multiple platforms. Using only the
+    // first-seen scene's platform silently mislabels the whole group.
+    const platformsByKey = new Map<string, Set<string>>()
     for (const feature of footprints.features) {
       const key = feature.properties?._stack as string | undefined
       if (!key) continue
@@ -54,12 +61,19 @@ export default function StackSummaryDrawer({
           startDate:             '',
           endDate:               '',
           flightDirection:       (feature.properties?.flightDirection as string) ?? '',
-          platform:              (feature.properties?.platform as string) ?? '',
+          platform:              '',
           representativeFeature: feature,
         })
       }
       const s = map.get(key)!
       s.sceneCount++
+      const pf = feature.properties?.platform as string | undefined
+      if (pf) {
+        let set = platformsByKey.get(key)
+        if (!set) { set = new Set(); platformsByKey.set(key, set) }
+        set.add(pf)
+        s.platform = Array.from(set).sort().join(', ')
+      }
       const date = ((feature.properties?.startTime as string) ?? '').slice(0, 10)
       if (date) {
         if (!s.startDate || date < s.startDate) s.startDate = date
@@ -116,12 +130,15 @@ export default function StackSummaryDrawer({
             end:             s.endDate,
             wkt:             aoiWkt ?? undefined,
             flightDirection: s.flightDirection || undefined,
-            platform:        s.platform || undefined,
+            // platform intentionally omitted for merges — a (path, frame)
+            // group can legitimately span a satellite handover (e.g.
+            // Sentinel-1C → Sentinel-1D on the same track); filtering the
+            // merged re-search to one platform would silently drop the rest.
           })),
         }),
       })
       const d = await res.json()
-      if (!res.ok) { setAjStatus('error'); setAjMsg(d.detail ?? 'Error'); return }
+      if (!res.ok) { setAjStatus('error'); setAjMsg(d.detail ?? tr('scenePanel.error')); return }
       setAjStatus('done')
       setAjMsg(d.name ?? d.path ?? '')
     } catch (e) {
@@ -157,7 +174,7 @@ export default function StackSummaryDrawer({
         end:             s.endDate,
         wkt:             aoiWkt ?? undefined,
         flightDirection: s.flightDirection || undefined,
-        platform:        s.platform || undefined,
+        // platform intentionally omitted for merges — see startAddJob for why.
       })),
     }
 
@@ -169,7 +186,7 @@ export default function StackSummaryDrawer({
       const { job_id } = await r.json()
       setDlJobId(job_id)
       setDlStatus('running')
-      setDlMsg('Starting…')
+      setDlMsg(tr('scenePanel.starting'))
 
       if (pollRef.current) clearInterval(pollRef.current)
       pollRef.current = setInterval(async () => {
@@ -212,10 +229,10 @@ export default function StackSummaryDrawer({
             ref={el => { if (el) el.indeterminate = checkedCount > 0 && checkedCount < stacks.length }}
             onChange={toggleAll}
             style={{ accentColor: t.accent, cursor: 'pointer' }}
-            title="Select all stacks"
+            title={tr('stackSummary.selectAll')}
           />
           <span style={{ color: t.text, fontWeight: 700, fontSize: 13 }}>
-            {stacks.length} Stack{stacks.length !== 1 ? 's' : ''}
+            {tr('stackSummary.stackCount', { count: stacks.length })}
           </span>
         </div>
         <button
@@ -250,10 +267,10 @@ export default function StackSummaryDrawer({
               fontWeight: 600, fontSize: 12,
             }}
           >
-            {ajStatus === 'running' ? '⟳ Adding Job…'
-            : ajStatus === 'done'   ? '✓ Job Added'
-            : ajStatus === 'error'  ? '✕ Retry'
-            : `+ Add Job (${checkedCount} stack${checkedCount !== 1 ? 's' : ''} merged)`}
+            {ajStatus === 'running' ? tr('stackSummary.addingJob')
+            : ajStatus === 'done'   ? tr('scenePanel.jobAdded')
+            : ajStatus === 'error'  ? tr('scenePanel.retry')
+            : tr('stackSummary.addJobMerged', { count: checkedCount })}
           </button>
           {ajMsg && (
             <span style={{
@@ -273,8 +290,8 @@ export default function StackSummaryDrawer({
             }}
           >
             {dlStatus === 'running'
-              ? 'Downloading…'
-              : `Download SLC + Orbit (${checkedCount} stack${checkedCount !== 1 ? 's' : ''})`}
+              ? tr('stackSummary.downloading')
+              : tr('stackSummary.downloadSlcOrbit', { count: checkedCount })}
           </button>
           {dlStatus !== 'idle' && (
             <span style={{ fontSize: 10, color: dlColor, wordBreak: 'break-all' }}>{dlMsg}</span>
@@ -326,7 +343,7 @@ export default function StackSummaryDrawer({
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
                   <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>
-                    Path {s.path} · Frame {s.frame}
+                    {tr('scenePanel.pathFrame', { path: s.path, frame: s.frame })}
                   </span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     {isTriggered && (

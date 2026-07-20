@@ -1,11 +1,12 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Basemap } from './MapToolbar'
 import type { Theme } from './theme'
 
-const OPTIONS: { id: Basemap; label: string }[] = [
-  { id: 'osm',       label: 'Street' },
-  { id: 'satellite', label: 'Satellite' },
-  { id: 'topo',      label: 'Topo' },
+const OPTIONS: { id: Basemap; labelKey: string }[] = [
+  { id: 'osm',       labelKey: 'basemapSwitcher.street' },
+  { id: 'satellite', labelKey: 'basemapSwitcher.satellite' },
+  { id: 'topo',      labelKey: 'basemapSwitcher.topo' },
 ]
 
 function IconLayers() {
@@ -27,6 +28,7 @@ interface Props {
 
 export default function BasemapSwitcher({ basemap, onBasemapChange, theme: t }: Props) {
   const [open, setOpen] = useState(false)
+  const { t: tr } = useTranslation()
 
   return (
     /* Positioned to the right of MapLibre's scale bar (bottom-left corner) */
@@ -41,7 +43,7 @@ export default function BasemapSwitcher({ basemap, onBasemapChange, theme: t }: 
           boxShadow: '0 4px 14px rgba(0,0,0,0.4)',
           minWidth: 96,
         }}>
-          {OPTIONS.map(({ id, label }, i) => (
+          {OPTIONS.map(({ id, labelKey }, i) => (
             <button
               key={id}
               onClick={() => { onBasemapChange(id); setOpen(false) }}
@@ -55,7 +57,7 @@ export default function BasemapSwitcher({ basemap, onBasemapChange, theme: t }: 
                 borderBottom: i < OPTIONS.length - 1 ? `1px solid ${t.border}` : 'none',
               }}
             >
-              {label}
+              {tr(labelKey)}
             </button>
           ))}
         </div>
@@ -63,7 +65,7 @@ export default function BasemapSwitcher({ basemap, onBasemapChange, theme: t }: 
 
       {/* Round icon button */}
       <button
-        title="Switch basemap"
+        title={tr('basemapSwitcher.switchBasemap')}
         onClick={() => setOpen(o => !o)}
         style={{
           width: 30, height: 30, borderRadius: '50%',

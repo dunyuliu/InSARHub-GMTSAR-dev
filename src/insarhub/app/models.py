@@ -18,12 +18,15 @@ class SearchRequest(BaseModel):
     maxResults: int | None = Field(default=2000)
     beamMode:        str | None       = Field(default=None)
     polarization:    list[str] | None = Field(default=None)
-    flightDirection: str | None       = Field(default=None)
-    pathStart:       int | None       = Field(default=None)
-    pathEnd:         int | None       = Field(default=None)
-    frameStart:      int | None       = Field(default=None)
-    frameEnd:        int | None       = Field(default=None)
     granule_names:   list[str] | None = Field(default=None)
+    downloaderType:  str = Field(default="S1_SLC")
+    overrides: dict[str, Any] | None = Field(
+        default=None,
+        description="Extra downloader-specific config field overrides, keyed by field "
+                     "name from that downloader's search_filter_schema (see "
+                     "GET /api/downloader-schema) — e.g. "
+                     "{'flightDirection': 'ASCENDING', 'relativeOrbit': [100, 101]}.",
+    )
 
 
 class DownloadRequest(BaseModel):

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Theme } from './theme'
 
 const API = import.meta.env.DEV ? 'http://localhost:8080' : ''
@@ -89,8 +90,10 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
   const [credToken, setCredToken] = useState('')
   const [credSaving, setCredSaving] = useState(false)
   const [credMsg,   setCredMsg]   = useState('')
+  const { t: tr } = useTranslation()
   const [saving,      setSaving]      = useState(false)
   const [saveMsg,     setSaveMsg]     = useState('')
+  const [saveMsgIsError, setSaveMsgIsError] = useState(false)
 
   // General
   const [workdir,    setWorkdir]    = useState('')
@@ -228,7 +231,7 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
   }
 
   async function handleSave() {
-    setSaving(true); setSaveMsg('')
+    setSaving(true); setSaveMsg(''); setSaveMsgIsError(false)
     try {
       const res = await fetch(`${API}/api/settings`, {
         method: 'PATCH',
@@ -248,10 +251,11 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
       const updated: ServerSettings = await res.json()
       setWorkdir(updated.workdir)
       setAllAnalyzerConfigs(updated.analyzer_configs ?? {})
-      setSaveMsg('Saved')
+      setSaveMsg(tr('jobQueue.saved'))
       setTimeout(() => setSaveMsg(''), 2500)
     } catch (e) {
-      setSaveMsg(`Error: ${e}`)
+      setSaveMsg(tr('jobQueue.errorColon', { error: e }))
+      setSaveMsgIsError(true)
     } finally {
       setSaving(false)
     }
@@ -307,7 +311,7 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
             onChange={e => setter(f.key, e.target.value)}
             style={{ ...inputStyle, width: '100%' }}
           >
-            {f.options!.map(o => <option key={o} value={o}>{o === '' ? '(any)' : o}</option>)}
+            {f.options!.map(o => <option key={o} value={o}>{o === '' ? tr('jobQueue.any') : o}</option>)}
           </select>
         )}
         {f.type === 'bool' && (
@@ -333,7 +337,7 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <input type="number" value={val === 'auto' || val == null ? '' : val}
               min={f.min} max={f.max} step={f.step ?? 1}
-              placeholder="auto"
+              placeholder={tr('jobQueue.auto')}
               onChange={e => setter(f.key, e.target.value === ''
                 ? (f.default == null ? null : 'auto')
                 : parseFloat(e.target.value))}
@@ -342,7 +346,7 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
               <button onClick={() => setter(f.key, f.default == null ? null : 'auto')}
                 style={{ fontSize: 11, color: t.textMuted, background: 'none', border: 'none',
                          cursor: 'pointer', padding: 0 }}>
-                reset
+                {tr('jobQueue.reset')}
               </button>
             )}
           </div>
@@ -438,8 +442,8 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      if (!res.ok) { const d = await res.json(); setCredMsg(d.detail ?? 'Error'); return }
-      setCredMsg('Saved'); setExpandedCred(null)
+      if (!res.ok) { const d = await res.json(); setCredMsg(d.detail ?? tr('scenePanel.error')); return }
+      setCredMsg(tr('jobQueue.saved')); setExpandedCred(null)
       startAuthStream()
     } catch (e) { setCredMsg(String(e)) }
     finally { setCredSaving(false) }
@@ -457,7 +461,7 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
                     padding: '9px 14px', cursor: 'pointer' }} onClick={() => openCred(key)}>
         <span style={{ color: t.text, fontSize: 13 }}>{key === 'earthdata' ? 'NASA Earthdata Login' : key === 'cdse' ? 'Copernicus Data Space (CDSE)' : key === 'cds' ? 'Copernicus Climate Data Store (CDS)' : key === 'hyp3' ? 'HyP3 (NASA ASF)' : 'HyP3 Credit Pool'}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {expandedCred !== key && (() => { const connected = key === 'earthdata' ? auth.earthdata_connected : key === 'cdse' ? auth.cdse_connected : key === 'cds' ? auth.cds_connected : key === 'hyp3' ? (hyp3 === undefined ? undefined : !hyp3?.error) : (auth.credit_pool_exists ?? undefined); return connected === undefined ? <span style={{ color: t.textMuted, fontSize: 12 }}>Checking…</span> : <span style={{ fontSize: 12, fontWeight: 600, color: connected ? '#4caf50' : '#e53935' }}>{connected ? '✓ Connected' : '✕ Not connected'}</span> })()}
+          {expandedCred !== key && (() => { const connected = key === 'earthdata' ? auth.earthdata_connected : key === 'cdse' ? auth.cdse_connected : key === 'cds' ? auth.cds_connected : key === 'hyp3' ? (hyp3 === undefined ? undefined : !hyp3?.error) : (auth.credit_pool_exists ?? undefined); return connected === undefined ? <span style={{ color: t.textMuted, fontSize: 12 }}>{tr('settings.checkingEllipsis')}</span> : <span style={{ fontSize: 12, fontWeight: 600, color: connected ? '#4caf50' : '#e53935' }}>{connected ? tr('settings.connected') : tr('settings.notConnected')}</span> })()}
           <span style={{ color: t.textMuted, fontSize: 11 }}>{expandedCred === key ? '▲' : '▼'}</span>
         </div>
       </div>
@@ -469,12 +473,12 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
               padding: '4px 14px', background: t.btnActiveBg, color: t.accent,
               border: `1px solid ${t.btnActiveBorder}`, borderRadius: 5, fontSize: 12,
               fontWeight: 600, cursor: credSaving ? 'wait' : 'pointer',
-            }}>{credSaving ? 'Saving…' : 'Save'}</button>
+            }}>{credSaving ? tr('jobQueue.savingEllipsis') : tr('jobQueue.save')}</button>
             <button onClick={() => setExpandedCred(null)} style={{
               padding: '4px 10px', background: 'transparent', color: t.textMuted,
               border: `1px solid ${t.border}`, borderRadius: 5, fontSize: 12, cursor: 'pointer',
-            }}>Cancel</button>
-            {credMsg && <span style={{ fontSize: 11, color: credMsg === 'Saved' ? '#4caf50' : '#e53935' }}>{credMsg}</span>}
+            }}>{tr('searchFilters.cancel')}</button>
+            {credMsg && <span style={{ fontSize: 11, color: credMsg === tr('jobQueue.saved') ? '#4caf50' : '#e53935' }}>{credMsg}</span>}
           </div>
         </div>
       )}
@@ -490,7 +494,7 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
   ) => (
     <div style={{ marginBottom: 16 }}>
       <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: 4 }}>
-        Type
+        {tr('settings.type')}
         {options[current]?.description && (
           <span title={options[current].description} style={{
             cursor: 'help', color: t.textMuted, fontSize: 10,
@@ -531,7 +535,7 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
           padding: '13px 18px', borderBottom: `1px solid ${t.border}`,
           background: t.bg2, flexShrink: 0,
         }}>
-          <span style={{ color: t.text, fontWeight: 700, fontSize: 15 }}>Settings</span>
+          <span style={{ color: t.text, fontWeight: 700, fontSize: 15 }}>{tr('settings.title')}</span>
           <button onClick={onClose} style={{
             background: 'none', border: 'none', cursor: 'pointer',
             color: t.textMuted, fontSize: 20, lineHeight: 1, padding: '0 4px',
@@ -543,21 +547,21 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
           display: 'flex', borderBottom: `1px solid ${t.border}`,
           background: t.bg2, flexShrink: 0, overflowX: 'auto',
         }}>
-          {tabBtn('general',    'General')}
-          {tabBtn('auth',       'Auth')}
-          {tabBtn('downloader', 'Downloader')}
-          {tabBtn('processor',  'Processor')}
-          {tabBtn('analyzer',   'Analyzer')}
+          {tabBtn('general',    tr('settings.tabGeneral'))}
+          {tabBtn('auth',       tr('settings.tabAuth'))}
+          {tabBtn('downloader', tr('topBar.downloader'))}
+          {tabBtn('processor',  tr('jobQueue.processor'))}
+          {tabBtn('analyzer',   tr('settings.tabAnalyzer'))}
         </div>
 
         {/* Tab content */}
         <div style={{ overflowY: 'auto', padding: '18px 20px 8px', flex: 1 }}>
           {loading && tab !== 'auth' ? (
-            <div style={{ color: t.textMuted, textAlign: 'center', padding: '40px 0' }}>Loading…</div>
+            <div style={{ color: t.textMuted, textAlign: 'center', padding: '40px 0' }}>{tr('jobQueue.loading')}</div>
 
           ) : tab === 'general' ? (
             <div style={fieldStyle}>
-              <label style={labelStyle}>Work Directory</label>
+              <label style={labelStyle}>{tr('settings.workDirectory')}</label>
               <div style={{ display: 'flex', gap: 6 }}>
                 <input style={{ ...inputStyle, flex: 1 }} value={workdir}
                   onChange={e => setWorkdir(e.target.value)} placeholder="/path/to/workdir" />
@@ -567,11 +571,11 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
                       .then(r => r.json())
                       .then(d => { if (d.path) setWorkdir(d.path) })
                   }
-                  title="Browse for folder"
+                  title={tr('settings.browseForFolder')}
                   style={{ ...inputStyle, width: 'auto', padding: '0 10px', cursor: 'pointer', flexShrink: 0 }}
-                >Browse…</button>
+                >{tr('settings.browseEllipsis')}</button>
               </div>
-              <div style={hintStyle}>Downloaded scenes and processed results are saved here.</div>
+              <div style={hintStyle}>{tr('settings.workDirHint')}</div>
             </div>
 
           ) : tab === 'auth' ? (<>
@@ -588,7 +592,7 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
                   <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
                   <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
                 </svg>
-                {authLoading ? 'Checking…' : 'Refresh'}
+                {authLoading ? tr('settings.checkingEllipsis') : tr('jobQueue.refresh')}
               </button>
             </div>
             <div style={{ background: t.bg2, borderRadius: 6, border: `1px solid ${t.border}`,
@@ -628,23 +632,23 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
               )}
             </div>
             <div style={{ color: t.textMuted, fontSize: 11, marginBottom: 16, lineHeight: 1.6 }}>
-              Credentials are read from <code>~/.netrc</code>.
+              {tr('settings.credentialsReadFrom')} <code>~/.netrc</code>.
             </div>
             {hyp3 && !hyp3.error && (
               <>
                 <div style={{ color: t.textMuted, fontSize: 10, textTransform: 'uppercase',
                               letterSpacing: '0.06em', marginBottom: 6, fontWeight: 600 }}>
-                  HyP3 Main Account
+                  {tr('settings.hyp3MainAccount')}
                 </div>
                 <div style={{ background: t.bg2, borderRadius: 6, border: `1px solid ${t.border}`,
                               overflow: 'hidden', marginBottom: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between',
                                 padding: '8px 14px', borderBottom: `1px solid ${t.divider}` }}>
-                    <span style={{ color: t.textMuted, fontSize: 12 }}>User</span>
+                    <span style={{ color: t.textMuted, fontSize: 12 }}>{tr('settings.user')}</span>
                     <span style={{ color: t.text, fontSize: 12 }}>{hyp3.username}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 14px' }}>
-                    <span style={{ color: t.textMuted, fontSize: 12 }}>Credits Remaining</span>
+                    <span style={{ color: t.textMuted, fontSize: 12 }}>{tr('settings.creditsRemaining')}</span>
                     <span style={{ color: t.accent, fontSize: 13, fontWeight: 700 }}>
                       {hyp3.credits_remaining?.toLocaleString() ?? '—'}
                     </span>
@@ -656,14 +660,14 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
               <>
                 <div style={{ color: t.textMuted, fontSize: 10, textTransform: 'uppercase',
                               letterSpacing: '0.06em', marginBottom: 6, fontWeight: 600 }}>
-                  HyP3 Credit Pool
+                  {tr('settings.hyp3CreditPool')}
                 </div>
                 <div style={{ background: t.bg2, borderRadius: 6, border: `1px solid ${t.border}`,
                               overflow: 'hidden' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr auto',
                                 gap: '0 16px', padding: '6px 14px', borderBottom: `1px solid ${t.divider}` }}>
-                    <span style={{ color: t.textMuted, fontSize: 11, fontWeight: 600 }}>Username</span>
-                    <span style={{ color: t.textMuted, fontSize: 11, fontWeight: 600, textAlign: 'right' }}>Remaining</span>
+                    <span style={{ color: t.textMuted, fontSize: 11, fontWeight: 600 }}>{tr('settings.username')}</span>
+                    <span style={{ color: t.textMuted, fontSize: 11, fontWeight: 600, textAlign: 'right' }}>{tr('settings.remaining')}</span>
                   </div>
                   {creditPool.map((acct, i) => (
                     <div key={acct.username} style={{
@@ -673,7 +677,7 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
                     }}>
                       <span style={{ color: t.text, fontSize: 12, fontFamily: 'monospace' }}>{acct.username}</span>
                       {acct.error
-                        ? <span style={{ color: '#e53935', fontSize: 11 }}>error</span>
+                        ? <span style={{ color: '#e53935', fontSize: 11 }}>{tr('scenePanel.error').toLowerCase()}</span>
                         : <span style={{ color: t.accent, fontSize: 12, fontWeight: 700, textAlign: 'right' }}>
                             {acct.credits_remaining?.toLocaleString() ?? '—'}
                           </span>}
@@ -690,10 +694,10 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
               {procOptions
                 ? Object.keys(procOptions).length === 0
                   ? <div style={{ color: t.textMuted, fontSize: 12, padding: '8px 0' }}>
-                      No compatible processors for <code>{downloaderType}</code>.
+                      {tr('settings.noCompatibleProcessors')} <code>{downloaderType}</code>.
                     </div>
                   : typeSelector(processorType, procOptions, handleProcessorTypeChange)
-                : <div style={{ color: t.textMuted, fontSize: 12 }}>Loading…</div>}
+                : <div style={{ color: t.textMuted, fontSize: 12 }}>{tr('jobQueue.loading')}</div>}
               {procOptions?.[processorType] && (
                 <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 14, marginTop: 4 }}>
                   {renderGroupedFields(procOptions[processorType], processorConfig, setProcessorField)}
@@ -708,10 +712,10 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
               {analOptions
                 ? Object.keys(analOptions).length === 0
                   ? <div style={{ color: t.textMuted, fontSize: 12, padding: '8px 0' }}>
-                      No compatible analyzers for <code>{processorType}</code>.
+                      {tr('settings.noCompatibleAnalyzers')} <code>{processorType}</code>.
                     </div>
                   : typeSelector(analyzerType, analOptions, handleAnalyzerTypeChange)
-                : <div style={{ color: t.textMuted, fontSize: 12 }}>Loading…</div>}
+                : <div style={{ color: t.textMuted, fontSize: 12 }}>{tr('jobQueue.loading')}</div>}
               {analOptions?.[analyzerType] && (
                 <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 14, marginTop: 4 }}>
                   {renderGroupedFields(analOptions[analyzerType], analyzerConfig, setAnalyzerField)}
@@ -721,18 +725,18 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
           })() : tab === 'downloader' ? (<>
             {meta?.downloaders
               ? typeSelector(downloaderType, meta.downloaders, handleDownloaderTypeChange)
-              : <div style={{ color: t.textMuted, fontSize: 12 }}>Loading…</div>}
+              : <div style={{ color: t.textMuted, fontSize: 12 }}>{tr('jobQueue.loading')}</div>}
             {meta?.downloaders[downloaderType] && (
               <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 14, marginTop: 4 }}>
                 {renderGroupedFields(meta.downloaders[downloaderType], effectiveDownloaderConfig, setDownloaderField)}
               </div>
             )}
             <div style={{ ...fieldStyle, marginTop: 16, borderTop: `1px solid ${t.border}`, paddingTop: 14 }}>
-              <label style={labelStyle}>Parallel Download Workers</label>
+              <label style={labelStyle}>{tr('settings.parallelDownloadWorkers')}</label>
               <input type="number" min={1} max={99} value={maxWorkers}
                 onChange={e => setMaxWorkers(Math.max(1, parseInt(e.target.value) || 1))}
                 style={{ ...inputStyle, width: 80 }} />
-              <div style={hintStyle}>Simultaneous file downloads. Recommended: 3–5.</div>
+              <div style={hintStyle}>{tr('settings.downloadWorkersHint')}</div>
             </div>
           </>) : null}
         </div>
@@ -754,11 +758,11 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style={{ width: 13, height: 13, fill: 'currentColor' }}>
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
               </svg>
-              Docs
+              {tr('settings.docs')}
             </a>
             {saveMsg && (
               <span style={{ fontSize: 12,
-                color: saveMsg.startsWith('Error') ? '#e53935' : '#4caf50' }}>
+                color: saveMsgIsError ? '#e53935' : '#4caf50' }}>
                 {saveMsg}
               </span>
             )}
@@ -766,14 +770,14 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
               padding: '6px 18px', background: 'transparent',
               color: t.textMuted, border: `1px solid ${t.border}`,
               borderRadius: 6, fontSize: 12, cursor: 'pointer',
-            }}>Cancel</button>
+            }}>{tr('searchFilters.cancel')}</button>
             <button onClick={handleSave} disabled={saving} style={{
               padding: '6px 22px', background: t.btnActiveBg, color: t.accent,
               border: `1px solid ${t.btnActiveBorder}`,
               borderRadius: 6, fontSize: 12, fontWeight: 600,
               cursor: saving ? 'wait' : 'pointer',
             }}>
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? tr('jobQueue.savingEllipsis') : tr('jobQueue.save')}
             </button>
           </div>
         )}
