@@ -14,6 +14,16 @@ class S1_SLC(ASF_Base_Downloader):
     description = "Sentinel-1 SLC scene search and download via ASF."
     default_config = S1_SLC_Config
 
+    search_filter_schema = [
+        {"name": "flightDirection", "label": "Flight Direction", "kind": "select",
+         "group": "Additional Filters", "choices": ["ASCENDING", "DESCENDING"]},
+        {"name": "platform", "label": "Platform", "kind": "select",
+         "group": "Additional Filters",
+         "choices": ["Sentinel-1A", "Sentinel-1B", "Sentinel-1C", "Sentinel-1D"]},
+        {"name": "relativeOrbit", "label": "Path", "kind": "range", "group": "Path and Frame Filters"},
+        {"name": "asfFrame", "label": "Frame", "kind": "range", "group": "Path and Frame Filters"},
+    ]
+
     """
     A class to search and download Sentinel-1 data using ASF Search API."""
 

@@ -1366,13 +1366,18 @@ def cmd_downloader(args, extra_args: list[str]):
         merge = getattr(args, "merge", False)
 
         if merge:
-            merged_dir = workdir / "merged"
+            # Must match the merge directory asf_base.download(merge=True) actually
+            # writes SLCs to (StackPaths.merge_dir) — a bare "merged" dir here would
+            # save orbit files to a different, empty folder than the SLCs landed in.
+            _paths = {p for (p, _f) in downloader.active_results.keys()}
+            _frames = [f for (_p, f) in downloader.active_results.keys()]
+            merged_dir = StackPaths(workdir).merge_dir(next(iter(_paths)), _frames)
             print(f"[merge] Downloading all stacks → {merged_dir}/slc/")
             dl_kwargs: dict = {"max_workers": args.worker, "merge": True}
             result = DownloadScenesCommand(downloader, **dl_kwargs).run()
             _fail(result, "download")
             if args.orbit_files and hasattr(downloader, "download_orbit"):
-                print("[merge] Downloading orbit files → merged/slc/")
+                print(f"[merge] Downloading orbit files → {merged_dir.name}/slc/")
                 downloader.download_orbit(save_dir=str(merged_dir))
         else:
             dl_kwargs = {"max_workers": args.worker}

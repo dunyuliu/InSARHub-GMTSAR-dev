@@ -52,6 +52,21 @@ def _to_geojson(results: dict) -> dict:
 # Endpoints
 # ---------------------------------------------------------------------------
 
+@router.get("/api/downloader-schema")
+async def downloader_schema(downloaderType: str = "S1_SLC"):
+    """Return the extra search-filter fields the given downloader declares.
+
+    The frontend renders "Additional Filters" / "Path and Frame Filters"
+    generically from this list instead of hardcoding one downloader's fields —
+    every downloader gets AOI/date/maxResults/granule-names for free and can
+    layer on whatever else (platform, path/frame range, ...) makes sense for it.
+    """
+    dl_cls = Downloader._registry.get(downloaderType)
+    if dl_cls is None:
+        raise HTTPException(status_code=404, detail=f"Unknown downloader: {downloaderType}")
+    return {"fields": getattr(dl_cls, "search_filter_schema", [])}
+
+
 @router.post("/api/parse-granule-file")
 async def parse_granule_file(file: UploadFile = File(...)):
     from insarhub.utils.tool import parse_scene_names_from_file
@@ -81,19 +96,17 @@ async def start_search(req: SearchRequest, background_tasks: BackgroundTasks):
 async def _run_search(job_id: str, session_id: str, req: SearchRequest):
     def run():
         try:
-            if req.granule_names:
-                config     = S1_SLC_Config(workdir=req.workdir, granule_names=req.granule_names)
-                downloader = Downloader.create("S1_SLC", config)
-            else:
-                rel_orbit = None
-                if req.pathStart is not None:
-                    p_end     = req.pathEnd if req.pathEnd is not None else req.pathStart
-                    rel_orbit = list(range(req.pathStart, p_end + 1))
-                asf_frame = None
-                if req.frameStart is not None:
-                    f_end     = req.frameEnd if req.frameEnd is not None else req.frameStart
-                    asf_frame = list(range(req.frameStart, f_end + 1))
+            dl_cls = Downloader._registry.get(req.downloaderType)
+            if dl_cls is None:
+                _finish_job(job_id, status="error", progress=0,
+                            message=f"Unknown downloader: {req.downloaderType}")
+                return
+            cfg_cls = getattr(dl_cls, "default_config", S1_SLC_Config)
 
+            if req.granule_names:
+                config = cfg_cls(workdir=req.workdir)
+                _apply_config_from_dict(config, {"granule_names": req.granule_names}, skip_keys={"workdir"})
+            else:
                 intersects_with = req.wkt if req.wkt else (req.west, req.south, req.east, req.north)
                 if isinstance(intersects_with, str):
                     try:
@@ -106,18 +119,22 @@ async def _run_search(job_id: str, session_id: str, req: SearchRequest):
                     except Exception:
                         pass
 
-                config = S1_SLC_Config(
-                    intersectsWith=intersects_with,
-                    start=req.start, end=req.end,
-                    workdir=req.workdir,
-                    maxResults=req.maxResults,
-                    beamMode=req.beamMode or None,
-                    polarization=req.polarization or None,
-                    flightDirection=req.flightDirection or None,
-                    relativeOrbit=rel_orbit or None,
-                    asfFrame=asf_frame or None,
-                )
-                downloader = Downloader.create("S1_SLC", config)
+                config = cfg_cls(workdir=req.workdir)
+                # Universal fields every downloader gets for free; anything else
+                # (platform, path/frame range, ...) comes through req.overrides,
+                # sourced from that downloader's own search_filter_schema.
+                _apply_config_from_dict(config, {
+                    "intersectsWith": intersects_with,
+                    "start":          req.start,
+                    "end":            req.end,
+                    "maxResults":     req.maxResults,
+                    "beamMode":       req.beamMode or None,
+                    "polarization":   req.polarization or None,
+                }, skip_keys={"workdir"})
+                if req.overrides:
+                    _apply_config_from_dict(config, req.overrides, skip_keys={"workdir"})
+
+            downloader = Downloader.create(req.downloaderType, config)
 
             cmd    = SearchCommand(downloader, progress_callback=state._make_progress(job_id))
             result = cmd.run()
@@ -326,7 +343,10 @@ async def add_merged_job(req: AddMergedJobRequest):
         # resolves the real frame set from the search itself.
         "intersectsWith": first.wkt,
         "flightDirection": first.flightDirection,
-        "platform": first.platform,
+        # platform intentionally omitted — a merged track can span a satellite
+        # handover (e.g. Sentinel-1C → Sentinel-1D); using only the first
+        # selected stack's platform would silently restrict every future
+        # re-search on this folder to one satellite and starve the network.
     })
     cfg = {k: v for k, v in dataclasses.asdict(cfg_instance).items() if k != "workdir"}
     write_insarhub_config(subdir, {"downloader": {"type": req.downloaderType, "config": cfg}})
@@ -409,7 +429,10 @@ async def _run_download_merged(job_id: str, req: DownloadMergedRequest, stop_ev:
                     "start": spec.start, "end": spec.end,
                     "relativeOrbit": spec.relativeOrbit, "frame": spec.frame,
                     "intersectsWith": spec.wkt, "flightDirection": spec.flightDirection,
-                    "platform": spec.platform,
+                    # platform intentionally omitted — see add_merged_job for why
+                    # (a frame's own scene history can span a satellite handover;
+                    # spec.platform here is derived client-side from a single
+                    # representative scene and must not gate the real search).
                 })
                 downloader    = Downloader.create(req.downloaderType, cfg)
                 search_result = SearchCommand(downloader).run()

@@ -23,6 +23,22 @@ class BaseDownloader(ABC):
     name: str
     default_config: Optional[Type] = None
 
+    # Declarative schema for the "Search Filters" UI — each entry describes one
+    # extra field beyond the universal AOI/date/maxResults/granule-name inputs
+    # every downloader gets for free. Empty by default (no extra filters shown).
+    # A subclass overrides this to expose whichever of its own config fields
+    # make sense as a search filter; the frontend renders the form generically
+    # from this list instead of hardcoding one downloader's fields.
+    #
+    # Entry shape: {
+    #   "name":  str   — the actual config dataclass field name to set,
+    #   "label": str   — UI label,
+    #   "kind":  str   — "select" | "range" | "number" | "text",
+    #   "group": str   — section heading to render under,
+    #   "choices": list[str]  — required when kind == "select",
+    # }
+    search_filter_schema: List[dict] = []
+
     def __init__(self, config=None):
         """Initializes the downloader with an optional config.
 
