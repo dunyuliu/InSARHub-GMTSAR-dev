@@ -14,7 +14,7 @@ import shutil
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from dateutil.parser import isoparse
 from pathlib import Path
 from typing import Optional, Union, List, Dict
@@ -43,6 +43,11 @@ logger = logging.getLogger(__name__)
 # Large enough to fail every filter condition.
 _MISSING: float = 10_000.0
 _WKT_MAX_LEN = 2000
+
+# ── POEORB / precise-orbit constants ────────────────────────────────────────
+# download_eofs() from the `eof` package (already used by s1_slc.py) handles
+# file discovery, ASF/CDSE selection, and local caching automatically.
+_POEORB_DEFAULT_CACHE: Path = Path.home() / ".insarhub" / "poeorb"
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  TYPE ALIASES
@@ -141,6 +146,256 @@ def _fetch_stack_with_retry(
     raise ASFSearchError(f"Unreachable: failed to fetch stack for {rid}")
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  POEORB-based precise baseline computation
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _poeorb_center_time(props: dict) -> float:
+    """UTC timestamp of scene center from product properties."""
+    t_start = isoparse(props["startTime"]).timestamp()
+    t_stop  = isoparse(props["stopTime"]).timestamp()
+    return (t_start + t_stop) / 2.0
+
+
+def _ensure_poeorb(scene_name: str, cache_dir: Path) -> Path | None:
+    """
+    Return path to the POEORB/RESORB EOF file for *scene_name*, downloading
+    into *cache_dir* if not already present.
+
+    Delegates to ``eof.download.download_eofs`` — the same function used by
+    the S1_SLC downloader — which handles ASF-vs-CDSE selection, validity-
+    window matching, and local caching automatically.
+    Returns None if the file is unavailable (not yet released, network error).
+    """
+    from eof.download import download_eofs
+
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        # force_asf=True → prefer ASF (no credentials); falls back to CDSE
+        paths = download_eofs(
+            sentinel_file=scene_name,
+            save_dir=str(cache_dir),
+            force_asf=True,
+        )
+        if paths:
+            return Path(paths[0])
+        # ASF returned nothing — try CDSE
+        paths = download_eofs(
+            sentinel_file=scene_name,
+            save_dir=str(cache_dir),
+            force_asf=False,
+        )
+        return Path(paths[0]) if paths else None
+    except Exception as exc:
+        logger.warning(
+            "POEORB unavailable for %s (%s) — will use fallback", scene_name, exc
+        )
+        return None
+
+
+def _parse_poeorb(eof_path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Parse a POEORB/RESORB EOF XML file.
+    Returns (times, positions, velocities) where:
+        times      shape (N,)    Unix timestamps
+        positions  shape (N, 3)  ECEF XYZ metres
+        velocities shape (N, 3)  ECEF XYZ metres/second
+    State vectors are recorded every 10 s in the file.
+    """
+    from xml.etree import ElementTree as ET   # stdlib
+
+    tree = ET.parse(eof_path)
+    root = tree.getroot()
+    times, positions, velocities = [], [], []
+
+    for osv in root.iter("OSV"):
+        utc_raw = osv.findtext("UTC", "")
+        utc_str = utc_raw[4:] if utc_raw.startswith("UTC=") else utc_raw
+        # Force UTC: the XML has no tz suffix; isoparse returns a naive datetime
+        # which .timestamp() would interpret as local time on this MDT (UTC-6) system.
+        t = isoparse(utc_str).replace(tzinfo=timezone.utc).timestamp()
+        x  = float(osv.findtext("X",  0))
+        y  = float(osv.findtext("Y",  0))
+        z  = float(osv.findtext("Z",  0))
+        vx = float(osv.findtext("VX", 0))
+        vy = float(osv.findtext("VY", 0))
+        vz = float(osv.findtext("VZ", 0))
+        times.append(t)
+        positions.append((x, y, z))
+        velocities.append((vx, vy, vz))
+
+    return (np.asarray(times,      dtype=np.float64),
+            np.asarray(positions,  dtype=np.float64),
+            np.asarray(velocities, dtype=np.float64))
+
+
+def _orbit_at_time(
+    svs: tuple[np.ndarray, np.ndarray, np.ndarray],
+    t: float,
+    n_pts: int = 8,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    8-point Lagrange polynomial interpolation of POEORB state at time *t*.
+    Returns (position, velocity) each shape (3,), in ECEF metres / metres·s⁻¹.
+    """
+    times, positions, velocities = svs
+    idx = int(np.searchsorted(times, t))
+    half = n_pts // 2
+    lo = max(0, idx - half)
+    hi = min(len(times), lo + n_pts)
+    lo = max(0, hi - n_pts)
+
+    ts = times[lo:hi]
+    ps = positions[lo:hi]
+    vs = velocities[lo:hi]
+
+    # Lagrange weights
+    w = np.ones(len(ts))
+    for i in range(len(ts)):
+        for j in range(len(ts)):
+            if i != j:
+                w[i] *= (t - ts[j]) / (ts[i] - ts[j])
+
+    return np.dot(w, ps), np.dot(w, vs)
+
+
+def _ecef_from_latlon(lat_deg: float, lon_deg: float) -> np.ndarray:
+    """WGS84 ECEF position from geodetic lat/lon (degrees). Returns shape (3,)."""
+    from math import radians, cos, sin, sqrt
+    a = 6_378_137.0
+    f = (1.0 - 1.0 / 298.257224) ** 2
+    lat = radians(lat_deg)
+    lon = radians(lon_deg)
+    cl, sl = cos(lat), sin(lat)
+    C = 1.0 / sqrt(cl * cl + f * sl * sl)
+    return np.array([a * C * cl * cos(lon),
+                     a * C * cl * sin(lon),
+                     a * f * C * sl])
+
+
+def _build_baseline_table_poeorb(
+    prods: list[ASFProduct],
+    ids: set[SceneID],
+    id_time_dt: dict[SceneID, DateFloat],
+    cache_dir: Path = _POEORB_DEFAULT_CACHE,
+) -> tuple[BaselineTable, dict[SceneID, float], list[ASFProduct]]:
+    """
+    Compute baselines using ESA POEORB precise orbit files (primary method).
+
+    Algorithm
+    ---------
+    1. Download / cache the POEORB file for every scene (one file covers ~2 days,
+       so many scenes share the same download).
+    2. Interpolate each scene's satellite position at the **anchor's center time**
+       using 8-point Lagrange interpolation (same as ISCE2 / topsApp).
+    3. Derive pairwise bperp as  |bperp_anchor[B] − bperp_anchor[A]|  — identical
+       to the anchor-relative approach in asf_search's calculate_perpendicular_baselines
+       but with POEORB accuracy and no dependence on the buggy ascendingNodeTime field.
+
+    Returns
+    -------
+    (B, scene_bperp, failed_prods)
+        B             : pairwise (dt_days, bperp_m) table for successfully resolved scenes
+        scene_bperp   : signed per-scene bperp relative to anchor
+        failed_prods  : products whose POEORB was unavailable → routed to fallback
+    """
+    if not prods:
+        return {}, {}, []
+
+    # ── Step 1: resolve POEORB paths for all scenes ───────────────────────────
+    eof_path_map: dict[str, Path | None] = {}   # scene_name → EOF path
+    for p in prods:
+        nm = p.properties["sceneName"]
+        eof_path_map[nm] = _ensure_poeorb(nm, cache_dir)
+
+    # ── Step 2: parse unique POEORB files (deduplicated) ─────────────────────
+    parsed: dict[Path, tuple | None] = {}
+    for eof_path in set(v for v in eof_path_map.values() if v is not None):
+        try:
+            parsed[eof_path] = _parse_poeorb(eof_path)
+        except Exception as exc:
+            logger.warning("Failed to parse POEORB %s: %s", eof_path.name, exc)
+            parsed[eof_path] = None
+
+    # ── Step 3: anchor setup ──────────────────────────────────────────────────
+    anchor   = prods[0]
+    anc_nm   = anchor.properties["sceneName"]
+    anc_tc   = _poeorb_center_time(anchor.properties)
+    anc_lat  = float(anchor.properties.get("centerLat", 0))
+    anc_lon  = float(anchor.properties.get("centerLon", 0))
+    anc_eof  = eof_path_map.get(anc_nm)
+
+    if anc_eof is None or parsed.get(anc_eof) is None:
+        logger.warning(
+            "POEORB unavailable for anchor scene %s — skipping POEORB method entirely",
+            anc_nm,
+        )
+        return {}, {}, list(prods)
+
+    # Anchor geometry at its own acquisition time
+    r_anc, v_anc = _orbit_at_time(parsed[anc_eof], anc_tc)
+    ground_anc   = _ecef_from_latlon(anc_lat, anc_lon)
+
+    along_beam = r_anc - ground_anc
+    along_beam /= np.linalg.norm(along_beam)
+    up_beam = np.cross(v_anc, along_beam)
+    up_beam /= np.linalg.norm(up_beam)
+
+    # ── Step 4: per-scene bperp relative to anchor ───────────────────────────
+    # Each secondary is evaluated at ITS OWN center time (its POEORB covers
+    # its own 2-day window, not the anchor's time).  bperp_sec = up_beam · (r_sec - r_anc)
+    # is the component of the inter-orbit separation perpendicular to the
+    # anchor look direction.  Pairwise cancellation still holds:
+    #   bperp(A,B) = bperp_B − bperp_A = up_beam · (r_B − r_A)
+    bp_vector: dict[SceneID, float] = {anc_nm: 0.0}
+    failed_prods: list[ASFProduct] = []
+
+    for p in prods:
+        nm = p.properties["sceneName"]
+        if nm == anc_nm:
+            continue
+        eof = eof_path_map.get(nm)
+        if eof is None or parsed.get(eof) is None:
+            failed_prods.append(p)
+            continue
+        try:
+            tc_sec = _poeorb_center_time(p.properties)   # secondary's OWN time
+            r_sec, _ = _orbit_at_time(parsed[eof], tc_sec)
+            bperp = float(np.dot(up_beam, r_sec - r_anc))
+            if abs(bperp) > 5_000:   # sanity cap; true S1 baselines << 5 km
+                logger.warning("Implausible bperp=%.0f m for %s — routing to fallback", bperp, nm)
+                failed_prods.append(p)
+            else:
+                bp_vector[nm] = bperp
+        except Exception as exc:
+            logger.warning("POEORB bperp failed for %s: %s — routing to fallback", nm, exc)
+            failed_prods.append(p)
+
+    # ── Step 5: pairwise baseline table ──────────────────────────────────────
+    B: BaselineTable = {}
+    for i, a in enumerate(prods):
+        for b in prods[i + 1:]:
+            aid = a.properties["sceneName"]
+            bid = b.properties["sceneName"]
+            if aid not in ids or bid not in ids:
+                continue
+            if aid not in bp_vector or bid not in bp_vector:
+                continue   # at least one scene in fallback → skip here
+            dt = abs(id_time_dt[bid] - id_time_dt[aid]) / 86_400.0
+            bp = abs(bp_vector[bid] - bp_vector[aid])
+            early, late = (
+                (aid, bid) if id_time_dt[aid] <= id_time_dt[bid] else (bid, aid)
+            )
+            B[(early, late)] = (dt, round(bp))
+
+    scene_bperp = {k: float(v) for k, v in bp_vector.items()}
+    logger.info(
+        "POEORB baseline table: %d pairs from %d scenes (%d routed to fallback)",
+        len(B), len(bp_vector), len(failed_prods),
+    )
+    return B, scene_bperp, failed_prods
+
+
 def _build_baseline_table_local(
     prods: list[ASFProduct],
     ids: set[SceneID],
@@ -167,6 +422,39 @@ def _build_baseline_table_local(
     B: BaselineTable = {}
     if not prods:
         return B
+
+    # ── Fix: some scenes have ascendingNodeTime off by whole orbital periods ──
+    # Sentinel-1 orbital period ≈ 5929 s.  When CMR metadata stores the
+    # ascending-node crossing from the *previous* orbit, the relative SV times
+    # become ~5929 s instead of the expected ~200–400 s.
+    # calculate_perpendicular_baselines then extrapolates the reference orbit
+    # far outside its SV window → |bperp| > 100 000 m → gets capped to None.
+    # Detect and correct by shifting ascendingNodeTime forward by N orbits so
+    # that prePositionTime lands in the expected 0–600 s window.
+    _S1_PERIOD = 5929.0   # seconds, Sentinel-1 orbital period
+    _MAX_NORMAL_REL_TIME = 600.0   # pre-position should be within 10 min of asc node
+    for p in prods:
+        b   = p.baseline
+        asc = b.get("ascendingNodeTime")
+        pos = b.get("stateVectors", {}).get("positions", {})
+        pre_t_str = pos.get("prePositionTime")
+        if not (asc and pre_t_str):
+            continue
+        t_asc = isoparse(asc).timestamp()
+        t_pre = isoparse(pre_t_str).timestamp()
+        delta = t_pre - t_asc
+        if delta > _MAX_NORMAL_REL_TIME:
+            n_shift = int(round((delta - _MAX_NORMAL_REL_TIME / 2) / _S1_PERIOD))
+            if n_shift > 0:
+                corrected_ts = t_asc + n_shift * _S1_PERIOD
+                corrected_str = datetime.utcfromtimestamp(corrected_ts).strftime(
+                    "%Y-%m-%dT%H:%M:%SZ"
+                )
+                logger.debug(
+                    "Correcting ascendingNodeTime for %s: %s → %s (shift=%d orbit(s))",
+                    p.properties.get("sceneName", "?"), asc, corrected_str, n_shift,
+                )
+                b["ascendingNodeTime"] = corrected_str
 
     try:
         anchored = calculate_perpendicular_baselines(
@@ -302,39 +590,62 @@ def _build_baseline_table(
     ids: set[SceneID],
     id_time_dt: dict[SceneID, DateFloat],
     max_workers: int,
+    poeorb_cache: Path | None = None,
 ) -> tuple[BaselineTable, dict]:
     """
-    Route each product to the fastest available baseline source.
+    Compute the full pairwise baseline table using a three-tier strategy:
 
-    - Products with stateVectors or insarBaseline  →  local (no network)
-    - Products missing that data                   →  API fallback (threaded)
+    1. **POEORB** (primary) — ESA precise orbit files downloaded from ASF aux_poeorb.
+       Accurate to ~2 cm; immune to the ascendingNodeTime CMR metadata bug.
+       Results are cached in *poeorb_cache* (default: ~/.insarhub/poeorb/).
 
-    Returns (BaselineTable, scene_bperp) where scene_bperp maps scene name
-    to signed perpendicular baseline relative to the anchor scene.
+    2. **Local SV** (fast fallback) — state vectors embedded in the SLC CMR
+       metadata (same source as asf_search's calculate_perpendicular_baselines).
+       Used for scenes where POEORB is unavailable (e.g. not yet released,
+       network failure).  Includes the ascendingNodeTime correction applied
+       before calling calculate_perpendicular_baselines.
+
+    3. **API** (last resort) — ASF baseline API via ref.stack().  Used for
+       scenes that have neither POEORB coverage nor local SV data.
+
+    Returns (BaselineTable, scene_bperp).
     """
-    local_prods = [p for p in prods if _has_local_baseline(p)]
-    api_prods   = [p for p in prods if not _has_local_baseline(p)]
+    cache_dir = Path(poeorb_cache) if poeorb_cache else _POEORB_DEFAULT_CACHE
+    B: BaselineTable      = {}
+    scene_bperp: dict     = {}
 
-    if not api_prods:
-        logger.info(
-            "All %d products have local baseline data — no API calls needed.",
-            len(prods),
-        )
-    else:
-        logger.warning(
-            "%d / %d products missing local baseline data — API fallback for those.",
-            len(api_prods), len(prods),
-        )
+    # ── Tier 1: POEORB ───────────────────────────────────────────────────────
+    logger.info("Baseline tier-1: POEORB precise orbits (cache=%s)", cache_dir)
+    poe_B, poe_bp, fallback_prods = _build_baseline_table_poeorb(
+        prods, ids, id_time_dt, cache_dir=cache_dir
+    )
+    B.update(poe_B)
+    scene_bperp.update(poe_bp)
 
-    B: BaselineTable = {}
-    scene_bperp: dict = {}
+    if not fallback_prods:
+        logger.info("POEORB covered all %d scenes — no fallback needed.", len(prods))
+        return B, scene_bperp
+
+    logger.info(
+        "POEORB: %d scenes routed to fallback (local SV / API).",
+        len(fallback_prods),
+    )
+
+    # ── Tier 2: local state vectors ──────────────────────────────────────────
+    local_prods = [p for p in fallback_prods if _has_local_baseline(p)]
+    api_prods   = [p for p in fallback_prods if not _has_local_baseline(p)]
 
     if local_prods:
+        logger.info("Baseline tier-2: local SV for %d scenes.", len(local_prods))
         local_B, local_bp = _build_baseline_table_local(local_prods, ids, id_time_dt)
         B.update(local_B)
         scene_bperp.update(local_bp)
 
+    # ── Tier 3: ASF API ──────────────────────────────────────────────────────
     if api_prods:
+        logger.warning(
+            "Baseline tier-3: ASF API for %d scenes missing SV data.", len(api_prods)
+        )
         B.update(_build_baseline_table_api(api_prods, ids, id_time_dt, max_workers))
 
     return B, scene_bperp
