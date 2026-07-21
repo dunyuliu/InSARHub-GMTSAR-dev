@@ -63,9 +63,32 @@ configuration -- without it, every GMTSAR subprocess call fails near
 instantly with no useful error surfaced to the caller (just a nonzero
 GMTSAR-internal exit code buried in a per-pair log file).
 
-**Real end-to-end validation is IN PROGRESS as of this commit** -- a
+**Real end-to-end validation: CONFIRMED SUCCEEDED (2026-07-21).** A
 freshly-launched real run (Frame mode, with the environment fix, against
-the same real S1_Ridgecrest_EQ data) is running in the background. This
-file will be updated with the real result (success or the next real bug
-found) once it completes -- do not trust "should work now" without that
-confirmation landing first.
+real S1_Ridgecrest_EQ data: `S1A_IW_SLC__1SDV_20190704T135158_...SAFE` x
+`S1A_IW_SLC__1SDV_20190716T135159_...SAFE`) ran to completion via
+`proc.submit()` / `proc.watch()`: `p2p_S1_TOPS_Frame` exited rc=0 after
+processing all three subswaths (F1/F2/F3: SLC focusing, alignment, topo,
+interferogram, filtering all succeeded per-subswath), then merged,
+unwrapped, and geocoded, writing a `.succeeded` marker under `merge/` and
+real output products -- `phasefilt.grd`, `phasefilt_ll.grd`, `corr.grd`,
+`corr_ll.grd` plus PNG/KML previews, all non-empty, real byte sizes
+(`phasefilt_ll.grd` ~55MB, `corr_ll.grd` ~53MB). `proc.jobs[...]['status']`
+reported `SUCCEEDED`.
+
+This is genuine, not structural-only: the full real GMTSAR C/Python
+pipeline ran end-to-end inside InSARHub's process/env model, on real
+Sentinel-1 SAFE data, producing real geocoded interferometric products.
+
+## Known gap: single-subswath mode (`frame_mode=False`) not yet fixed
+
+The real recipe (`README_S1_Ridgecrest_EQ.txt`) runs `p2p_processing` from
+a special `H_res/` subdirectory that the reference test tarball
+pre-populates with correctly per-subswath-extracted `.xml`/`.tiff` files
+(stems like `s1a-iw2-slc-vv-<start>-<end>-<orbit>-<mission>-<swath>`).
+`GMTSAR_S1`'s `_stage_case()` currently just symlinks raw `.SAFE` content
+into the case dir, which does not reproduce that per-subswath extraction
+step -- so single-subswath mode fails on missing per-subswath files. Not
+yet fixed. Frame mode (`frame_mode=True`, verified above) is the only
+genuinely end-to-end-validated path right now; document it as such until
+single-subswath mode gets the same real fix + validation.
