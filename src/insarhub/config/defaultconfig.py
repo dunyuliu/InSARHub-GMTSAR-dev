@@ -1124,25 +1124,52 @@ class GMTSAR_S1_Config:
     prep_gmtsar.py expects, so no output-normalization step is needed
     before handing off to a Mintpy analyzer.
 
+    Two distinct GMTSAR entry points are supported, controlled by
+    frame_mode, because they have genuinely different real CLI contracts
+    (confirmed against gmtsar/python/utils/p2p_processing and
+    utils/p2p_S1_TOPS_Frame directly, and against real recipes in
+    gmtsar/python/tests/recipes/):
+
+    frame_mode=False (default) -- single-subswath, via p2p_processing:
+        pairs = [(ref_stem, sec_stem), ...] -- raw per-subswath product
+        basename stems (Sentinel-1's own naming:
+        s1a-iw<N>-slc-<pol>-<start>-<end>-<orbit>-<mission>-<swath>),
+        NOT plain YYYYMMDD dates. One shared case_dir for the whole
+        pairs list; output in intf/<ref>_<sec>/ (pair-namespaced).
+
+    frame_mode=True -- multi-subswath Frame, via p2p_S1_TOPS_Frame:
+        pairs = [(ref_safe, ref_eof, sec_safe, sec_eof), ...] -- .SAFE
+        directory names + matching .EOF orbit filenames. p2p_S1_TOPS_Frame
+        is NOT pair-namespaced (it always writes to F1/F2/F3/merge/ in
+        its current working directory), so each pair gets its OWN case
+        subdirectory (case_dir/<ref>_<sec>/) rather than sharing one --
+        otherwise a second pair would silently overwrite the first
+        pair's merge/ output.
+
     Attributes:
         workdir: Processing root. gmtsar_case/ (raw/, topo/, config.py,
-            intf/) lives here.
+            intf/ or per-pair subdirs) lives here.
         slc_dir: Directory containing Sentinel-1 SLC .SAFE dirs (or .zips).
         orbit_dir: Directory with .EOF orbit files.
         dem_path: GMTSAR-format DEM grid (topo/dem.grd). Unlike ISCE_S1,
             bbox-driven auto-download is NOT implemented yet -- must be
             supplied explicitly. See gmtsar_s1.py's module docstring for
             the concrete "known gaps" list.
-        sat: p2p_processing's SAT argument. Exposed (not hardcoded) for
-            forward-compat -- GMTSAR already supports 14 sensor families
-            beyond S1_TOPS (see gmtsar/python/tests/cases.py upstream),
-            this processor is just the first one wired in.
+        sat: p2p_processing's SAT argument (frame_mode=False only).
+            Exposed (not hardcoded) for forward-compat -- GMTSAR already
+            supports 14 sensor families beyond S1_TOPS (see
+            gmtsar/python/tests/cases.py upstream), this processor is
+            just the first one wired in.
+        frame_mode: False = p2p_processing (single-subswath). True =
+            p2p_S1_TOPS_Frame (multi-subswath, merged final product).
+        parallel: p2p_S1_TOPS_Frame's own internal subswath parallelism
+            flag (0=sequential, 1=parallel). Only used when frame_mode.
         config_template: Path to a GMTSAR config.py to reuse as-is. If
             None, one is auto-generated per case via `pop_config <sat>`
             (GMTSAR's own default-config tool), matching p2p_processing's
             own "no config.py given" behavior.
         max_workers: Independent pairs processed concurrently.
-        skip_existing: Don't redo a pair whose intf/<ref>_<sec>/ already
+        skip_existing: Don't redo a pair whose output dir already
             has a .succeeded status marker.
     """
 
@@ -1152,7 +1179,7 @@ class GMTSAR_S1_Config:
         {"label": "Area of interest",
          "fields": ["bbox"]},
         {"label": "GMTSAR",
-         "fields": ["sat", "polarization", "config_template"]},
+         "fields": ["sat", "frame_mode", "parallel", "polarization", "config_template"]},
         {"label": "Job",
          "fields": ["max_workers", "skip_existing", "dry_run"]},
     ]
@@ -1165,13 +1192,18 @@ class GMTSAR_S1_Config:
                              "options": ["S1_TOPS", "S1_STRIP", "ALOS", "ALOS_SLC", "ALOS2",
                                          "ALOS2_SCAN", "ENVI", "ENVI_SLC", "ERS", "CSK_RAW",
                                          "CSK_SLC", "TSX", "RS2", "GF3"],
-                             "hint": "p2p_processing SAT argument"},
+                             "hint": "p2p_processing SAT argument (frame_mode=False only)"},
+        "frame_mode":      {"type": "bool",
+                             "hint": "Use p2p_S1_TOPS_Frame (multi-subswath merge) instead of single-subswath p2p_processing"},
+        "parallel":        {"type": "bool", "hint": "p2p_S1_TOPS_Frame internal subswath parallelism (frame_mode only)"},
         "polarization":    {"type": "select", "options": ["vv", "vh"], "hint": "Polarization channel"},
         "config_template": {"type": "text", "hint": "Reuse an existing GMTSAR config.py (leave blank to auto-generate via pop_config)"},
         "max_workers":     {"type": "number", "min": 1, "max": 16, "step": 1, "default": 4,
                              "hint": "Independent pairs processed concurrently"},
         "skip_existing":   {"type": "bool", "hint": "Skip pairs that already succeeded"},
         "dry_run":         {"type": "bool", "hint": "Stage the case and report what would run, without executing p2p_processing"},
+        "gmtsar_root":     {"type": "text", "hint": "GMTSAR repo root ($GMTSAR) -- its bin/ is prepended to subprocess PATH"},
+        "gmtsar_env_bin":  {"type": "text", "hint": "bin/ dir of the conda env GMTSAR needs (provides the real `gmt` binary + numba/scipy) -- prepended to subprocess PATH. Required: found via a real end-to-end test (2026-07-21) that InSARHub's own env does not provide `gmt` at all, so GMTSAR subprocess calls fail near-instantly without this."},
     }
 
     name: str                     = "GMTSAR_S1_Config"
@@ -1181,8 +1213,15 @@ class GMTSAR_S1_Config:
     dem_path: Path | str | None   = None
     bbox: list[float] | None      = None   # [S, N, W, E] -- reserved, unused until DEM auto-fetch lands
     sat: str                      = "S1_TOPS"
+    frame_mode: bool              = False
+    parallel: bool                = True
     polarization: str             = "vv"
     config_template: Path | str | None = None
     max_workers: int              = 4
     skip_existing: bool           = True
     dry_run: bool                 = False
+    # GMTSAR's own runtime -- deliberately independent of whatever conda
+    # env the InSARHub process itself is running under. See gmtsar_s1.py's
+    # _subprocess_env() docstring for the real failure this fixes.
+    gmtsar_root: Path | str | None    = None
+    gmtsar_env_bin: Path | str | None = None

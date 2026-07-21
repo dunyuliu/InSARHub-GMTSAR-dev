@@ -12,33 +12,60 @@ any interferometry step runs. So `p2p_processing` DOES handle raw input
 (stage raw files into `raw/`, don't pre-focus them) is correct as
 written. No fix needed for this one.
 
-## OPEN, real bug: `pairs=[(ref, sec), ...]` signature is wrong for S1_TOPS
+## RESOLVED: `pairs=[(ref, sec), ...]` signature was wrong for S1_TOPS
 
-Traced a real recipe (`gmtsar/python/tests/recipes/README_S1_Ridgecrest_EQ.txt`):
+Fixed 2026-07-21. `GMTSAR_S1` now supports BOTH real GMTSAR entry points,
+selected via `config.frame_mode`:
 
-    p2p_processing S1_TOPS s1a-iw2-slc-vv-20190704t135158-20190704t135223-027968-032877-005 \
-                            s1a-iw2-slc-vv-20190716t135159-20190716t135224-028143-032dc3-005 config.py
+- `frame_mode=False` (default): single-subswath `p2p_processing`, pairs =
+  `[(ref_stem, sec_stem), ...]` -- raw per-subswath product basename
+  stems (Sentinel-1's own naming:
+  `s1a-iw<N>-slc-<pol>-<start>-<end>-<orbit>-<mission>-<swath>`), NOT
+  plain `YYYYMMDD` dates.
+- `frame_mode=True`: multi-subswath `p2p_S1_TOPS_Frame`, pairs =
+  `[(ref_safe, ref_eof, sec_safe, sec_eof), ...]` -- .SAFE directory
+  names + matching .EOF orbit filenames.
 
-For `S1_TOPS`, the `master`/`aligned` CLI arguments are **raw per-subswath
-product basename stems** (Sentinel-1's own TIFF/annotation naming:
-`s1a-iw<N>-slc-<pol>-<start>-<end>-<orbit>-<mission>-<swath>`), not plain
-`YYYYMMDD` dates. `GMTSAR_S1.__init__(pairs=[("20200101","20200113"), ...])`
-copied ISCE_S1's date-tuple convention without checking this -- it's
-wrong for GMTSAR. `p2p_stages.py::renameMasterAlignedForS1tops` parses
-date/time/frame out of *fixed character positions* in these stems
-internally, so a bare date string would not parse correctly.
+Verified: `proc._build_cmd(pair)` for both modes produces a command
+**identical** to the real recipe lines in
+`gmtsar/python/tests/recipes/README_S1_Ridgecrest_EQ.txt`, confirmed by
+direct comparison, not just code review.
 
-There's also a SECOND, different entry point for multi-subswath Frame
-cases (`p2p_S1_TOPS_Frame`, not `p2p_processing`), with a completely
-different signature: `Master.SAFE Master.EOF Aligned.SAFE Aligned.EOF
-config.py polarization parallel`. Real recipe example:
-`gmtsar/python/tests/recipes/README_S1A_SLC_TOPS_LA.txt`.
+Frame mode uses a per-pair case subdirectory (`case_dir/<ref>_<sec>/`),
+not one shared case_dir, because `p2p_S1_TOPS_Frame`'s output
+(`F1/F2/F3/merge/`) is not itself pair-namespaced -- confirmed by
+tracing the script (no per-pair subdirectory logic exists in it).
 
-**Design decision needed before fixing (not made unilaterally):** does
-`GMTSAR_S1` target single-subswath `p2p_processing` calls (pairs = raw
-product stems) or multi-subswath `p2p_S1_TOPS_Frame` calls (pairs =
-.SAFE + .EOF file paths), or both via a config flag? These have
-different input requirements and probably want different
-`GMTSAR_S1_Config` fields (e.g. Frame needs orbit .EOF paths per date,
-not just an orbit_dir). Whoever picks this up next should decide this
-before touching `submit()`/`_run_one_pair()`.
+## RESOLVED: real end-to-end run revealed a genuine environment bug (not a logic bug)
+
+Ran `GMTSAR_S1` for real (both modes) against real cached S1_Ridgecrest_EQ
+data on 2026-07-21. Both runs got well past staging into actual multi-stage
+GMTSAR processing (single-subswath mode ran preprocessing/alignment
+successfully before failing; Frame mode successfully processed all three
+subswaths' SLC/topo stages before failing) -- proving the pairs-signature
+fix and staging logic are structurally correct.
+
+The actual failure: GMTSAR's own Python stages (e.g. `dem2topo_ra`) shell
+out to the standalone `gmt` binary, which is NOT provided by GMTSAR's own
+`bin/` -- it comes from the specific conda environment GMTSAR was
+installed into. InSARHub runs in its own separate conda env (different
+numpy/GDAL stack, deliberately), which doesn't have `gmt` on PATH at all.
+Confirmed directly (`which gmt` inside the InSARHub env: not found), and
+confirmed the fix works (re-running `dem2topo_ra` manually with the
+correct env active: it actually computes, instead of failing in ~1s).
+
+**Fixed**: `GMTSAR_S1_Config` gained `gmtsar_root` and `gmtsar_env_bin`
+fields. `_subprocess_env()` builds an explicit environment for every
+GMTSAR subprocess call (both `pop_config` and the real `p2p_*` calls),
+prepending both paths to PATH regardless of what environment the calling
+InSARHub process itself is running under. This is NOT optional
+configuration -- without it, every GMTSAR subprocess call fails near
+instantly with no useful error surfaced to the caller (just a nonzero
+GMTSAR-internal exit code buried in a per-pair log file).
+
+**Real end-to-end validation is IN PROGRESS as of this commit** -- a
+freshly-launched real run (Frame mode, with the environment fix, against
+the same real S1_Ridgecrest_EQ data) is running in the background. This
+file will be updated with the real result (success or the next real bug
+found) once it completes -- do not trust "should work now" without that
+confirmation landing first.
