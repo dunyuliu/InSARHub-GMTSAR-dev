@@ -42,12 +42,12 @@ class TestReadInsarhubConfig:
 
     def test_new_config_takes_priority_over_legacy(self, tmp_path):
         from insarhub.utils.config_io import read_insarhub_config
-        new_cfg = {"downloader": {"type": "S1_Burst"}}
+        new_cfg = {"downloader": {"type": "NEW_DOWNLOADER"}}
         old_cfg = {"downloader": {"type": "S1_SLC"}}
         (tmp_path / "insarhub_config.json").write_text(json.dumps(new_cfg))
         (tmp_path / "insarhub_workflow.json").write_text(json.dumps(old_cfg))
         result = read_insarhub_config(tmp_path)
-        assert result["downloader"]["type"] == "S1_Burst"
+        assert result["downloader"]["type"] == "NEW_DOWNLOADER"
 
     def test_corrupt_json_returns_empty(self, tmp_path):
         from insarhub.utils.config_io import read_insarhub_config
@@ -114,9 +114,9 @@ class TestWriteInsarhubConfig:
     def test_overwrites_existing_key(self, tmp_path):
         from insarhub.utils.config_io import write_insarhub_config
         write_insarhub_config(tmp_path, {"downloader": {"type": "S1_SLC"}})
-        write_insarhub_config(tmp_path, {"downloader": {"type": "S1_Burst"}})
+        write_insarhub_config(tmp_path, {"downloader": {"type": "NEW_DOWNLOADER"}})
         data = json.loads((tmp_path / "insarhub_config.json").read_text())
-        assert data["downloader"]["type"] == "S1_Burst"
+        assert data["downloader"]["type"] == "NEW_DOWNLOADER"
 
     def test_has_updated_at_timestamp(self, tmp_path):
         from insarhub.utils.config_io import write_insarhub_config

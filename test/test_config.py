@@ -85,22 +85,6 @@ class TestS1SLCConfig:
 
 
 # ===========================================================================
-# S1_Burst_Config
-# ===========================================================================
-
-class TestS1BurstConfig:
-    def test_processing_level_is_burst(self):
-        from insarhub.config import S1_Burst_Config
-        cfg = S1_Burst_Config()
-        assert cfg.processingLevel == "BURST"
-
-    def test_dataset_is_sentinel1(self):
-        from insarhub.config import S1_Burst_Config
-        cfg = S1_Burst_Config()
-        assert cfg.dataset == "SENTINEL-1"
-
-
-# ===========================================================================
 # Hyp3_Base_Config
 # ===========================================================================
 

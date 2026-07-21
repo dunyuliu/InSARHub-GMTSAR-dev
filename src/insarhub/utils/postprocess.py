@@ -2,7 +2,6 @@
 from pathlib import Path
 
 import geopandas as gpd
-import h5py
 import numpy as np
 import rasterio
 import re
@@ -68,6 +67,8 @@ def h5_to_raster(
     - h5_file: Path to the input HDF5 file.
     - out_raster: Path to the output GeoTIFF file.
     """
+    import h5py
+
     h5_file = Path(h5_file).expanduser().resolve()
     if out_raster is None:
         out_raster = h5_file.parent.joinpath(f"{h5_file.stem}.tif")

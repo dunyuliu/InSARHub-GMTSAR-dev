@@ -25,7 +25,6 @@ import matplotlib
 matplotlib.use('Agg')   # non-interactive backend — required for background-thread plotting
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-import networkx as nx
 import numpy as np
 import rasterio
 from rasterio.mask import mask
@@ -1347,6 +1346,7 @@ def plot_pair_network(
         - Legends show node degree, temporal baseline, and path/frame grouping.
         - The top axis of the network plot shows real acquisition dates for reference.
     """
+    import networkx as nx
 
     # ── 0. Normalise input ────────────────────────────────────────────────
     

@@ -112,9 +112,9 @@ class TestWriteWorkflowMarker:
     def test_updates_existing_role(self, tmp_path):
         from insarhub.utils.tool import write_workflow_marker, _CONFIG_FILE
         write_workflow_marker(tmp_path, downloader="S1_SLC")
-        write_workflow_marker(tmp_path, downloader="S1_Burst")
+        write_workflow_marker(tmp_path, downloader="NEW_DOWNLOADER")
         data = json.loads((tmp_path / _CONFIG_FILE).read_text())
-        assert data["downloader"]["type"] == "S1_Burst"
+        assert data["downloader"]["type"] == "NEW_DOWNLOADER"
 
     def test_has_updated_at_timestamp(self, tmp_path):
         from insarhub.utils.tool import write_workflow_marker, _CONFIG_FILE
