@@ -3,25 +3,36 @@
 GMTSAR_S1 — Sentinel-1 InSAR processor backed by GMTSAR's Python
 p2p_processing / p2p_S1_TOPS_Frame pipelines.
 
-STATUS: v1, real S1_TOPS pairs signature (2026-07-21). Supersedes the v0
-draft that copied ISCE_S1's plain-date-tuple `pairs=[(ref,sec),...]`
-convention without checking whether it matched GMTSAR's actual CLI
-contract for S1_TOPS -- it didn't. See docs/gmtsar_s1_notes/OPEN_ISSUES.md
-for that finding's full writeup.
+STATUS: v2, unified pairs signature (2026-07-21). Both modes now take the
+same pairs = [(ref_safe, ref_eof, sec_safe, sec_eof), ...] shape -- raw
+.SAFE + .EOF names, nothing more. v1 required frame_mode=False callers to
+hand-derive raw per-subswath product stems themselves; that was correct
+per GMTSAR's own CLI contract but bad UX and untested against real data.
+Real end-to-end validation (frame_mode=True, see
+docs/gmtsar_s1_notes/OPEN_ISSUES.md) confirmed the pipeline genuinely
+works; this revision closes the remaining gap by having GMTSAR_S1 itself
+do the single-subswath extraction that frame_mode=False needs.
 
 Two distinct GMTSAR entry points, selected via config.frame_mode:
 
   frame_mode=False (default) -- single-subswath, via p2p_processing.
-    pairs = [(ref_stem, sec_stem), ...], raw per-subswath product
-    basename stems (confirmed against a real recipe,
-    gmtsar/python/tests/recipes/README_S1_Ridgecrest_EQ.txt):
+    p2p_processing does not read .SAFE directories itself -- it expects
+    one subswath's .tiff/.xml already extracted to matching-stem files
+    in raw/ (confirmed against p2p_processing's own usage string, AND
+    independently against GMTSAR's bundled single-subswath test fixture,
+    H_res/raw/: its per-stem .tiff/.xml/.EOF files are plain symlinks
+    into the equivalent Frame-mode F<N>/raw/ subswath files pulled from
+    the same .SAFE). GMTSAR_S1._extract_subswath_stem() reproduces that
+    extraction (glob measurement/annotation for config.subswath +
+    config.polarization, symlink the matching .EOF under the same stem)
+    so callers only ever pass raw .SAFE/.EOF names, same as Frame mode:
         p2p_processing S1_TOPS \
           s1a-iw2-slc-vv-20190704t135158-20190704t135223-027968-032877-005 \
           s1a-iw2-slc-vv-20190716t135159-20190716t135224-028143-032dc3-005 \
           config.py
     One shared case_dir for the whole pairs list -- p2p_processing's own
-    output (intf/<ref>_<sec>/) is pair-namespaced, so concurrent pairs
-    don't collide.
+    output (intf/<ref_stem>_<sec_stem>/) is pair-namespaced, so
+    concurrent pairs don't collide.
 
   frame_mode=True -- multi-subswath Frame, via p2p_S1_TOPS_Frame.
     pairs = [(ref_safe, ref_eof, sec_safe, sec_eof), ...] -- .SAFE
@@ -76,7 +87,6 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Union
 
 from insarhub.config import GMTSAR_S1_Config
 from insarhub.core import LocalProcessor
@@ -100,18 +110,12 @@ SUPPORTED_SATS = (
     "S1_STRIP", "S1_TOPS", "CSK_RAW", "CSK_SLC", "TSX", "RS2", "GF3",
 )
 
-# Two pair shapes, one for each GMTSAR entry point.
-SubswathPair = tuple           # (ref_stem, sec_stem) -- frame_mode=False
-FramePair = tuple              # (ref_safe, ref_eof, sec_safe, sec_eof) -- frame_mode=True
+# Both modes take the same pair shape now (see module docstring, STATUS v2).
+Pair = tuple  # (ref_safe, ref_eof, sec_safe, sec_eof)
 
 
 def _pair_key(pair: tuple) -> str:
-    if len(pair) == 2:
-        ref, sec = pair
-        return f"{ref}_{sec}"
     ref_safe, _ref_eof, sec_safe, _sec_eof = pair
-    # .SAFE names are long; use just the date-ish middle segment where
-    # possible, else fall back to the full stems joined.
     return f"{ref_safe}_{sec_safe}"
 
 
@@ -140,25 +144,31 @@ def _write_status(status_dir: Path, status: str) -> None:
 class GMTSAR_S1(LocalProcessor):
     """Sentinel-1 InSAR processor backed by GMTSAR.
 
-    Usage, single-subswath (mirrors ISCE_S1's own docstring example)::
+    Both modes take the same pairs shape -- .SAFE + .EOF names.
+
+    Usage, single-subswath (default, mirrors ISCE_S1's own docstring
+    example)::
 
         from insarhub.processor import GMTSAR_S1
         from insarhub.config import GMTSAR_S1_Config
 
         proc = GMTSAR_S1(
-            pairs  = [("s1a-iw2-slc-vv-20190704t135158-20190704t135223-027968-032877-005",
-                       "s1a-iw2-slc-vv-20190716t135159-20190716t135224-028143-032dc3-005")],
+            pairs  = [("S1A_IW_SLC__1SSV_20150526T014935_20150526T015002_006086_007E23_679A.SAFE",
+                       "S1A_OPER_AUX_POEORB_OPOD_20150627T155155_V20150606T225944_20150608T005944.EOF",
+                       "S1A_IW_SLC__1SDV_20150607T014936_20150607T015003_006261_00832E_3626.SAFE",
+                       "S1A_OPER_AUX_POEORB_OPOD_20150615T155109_V20150525T225944_20150527T005944.EOF")],
             config = GMTSAR_S1_Config(
                 workdir   = '/data/stack',
                 slc_dir   = '/data/slcs',
                 orbit_dir = '/data/orbits',
                 dem_path  = '/data/dem.grd',
+                subswath  = 2,  # IW2 (default)
             ),
         )
         proc.submit()
         proc.watch()
 
-    Usage, multi-subswath Frame::
+    Usage, multi-subswath Frame (set frame_mode=True; same pairs shape)::
 
         proc = GMTSAR_S1(
             pairs  = [("S1A_IW_SLC__1SSV_20150526T014935_20150526T015002_006086_007E23_679A.SAFE",
@@ -188,26 +198,53 @@ class GMTSAR_S1(LocalProcessor):
 
     def __init__(
         self,
-        pairs: list[Union[SubswathPair, FramePair]],
+        pairs: list[Pair],
         config: GMTSAR_S1_Config | None = None,
     ):
         super().__init__(config)
         self.config: GMTSAR_S1_Config = self.config or GMTSAR_S1_Config()
         if not pairs and not getattr(self, "jobs", None):
             raise ValueError(
-                "pairs must be non-empty: 2-tuples (ref_stem, sec_stem) if "
-                "frame_mode=False, or 4-tuples (ref_safe, ref_eof, sec_safe, "
-                "sec_eof) if frame_mode=True."
+                "pairs must be non-empty: 4-tuples (ref_safe, ref_eof, "
+                "sec_safe, sec_eof) -- same shape for both frame_mode "
+                "settings."
             )
-        expected_len = 4 if self.config.frame_mode else 2
         for p in pairs:
-            if len(p) != expected_len:
+            if len(p) != 4:
                 raise ValueError(
-                    f"config.frame_mode={self.config.frame_mode} expects "
-                    f"{expected_len}-tuples, got a {len(p)}-tuple: {p!r}"
+                    "pairs must be 4-tuples (ref_safe, ref_eof, sec_safe, "
+                    f"sec_eof), got a {len(p)}-tuple: {p!r}"
                 )
+        # Fail fast at construction, not deep inside a background staging
+        # thread -- found via audit: dem_path was previously only checked
+        # inside _stage_one_case_dir(), so a misconfigured processor would
+        # construct fine and only fail after submit() had already started.
+        # gmtsar_root/gmtsar_env_bin are required for the same reason
+        # _subprocess_env() exists at all (see its docstring): InSARHub's
+        # own env does not provide `gmt`, so silently falling back to the
+        # inherited PATH fails almost instantly with no useful error.
+        if not self.config.dem_path:
+            raise NotImplementedError(
+                "GMTSAR_S1_Config.dem_path is required in this version -- "
+                "bbox-driven DEM auto-fetch (matching ISCE_S1's GLO-30 "
+                "download) is not implemented yet."
+            )
+        if not self.config.gmtsar_root or not self.config.gmtsar_env_bin:
+            raise ValueError(
+                "GMTSAR_S1_Config.gmtsar_root and gmtsar_env_bin are both "
+                "required -- GMTSAR's own Python stages shell out to the "
+                "standalone `gmt` binary from GMTSAR's own conda "
+                "environment, which InSARHub's environment does not "
+                "provide. See _subprocess_env()'s docstring for the real "
+                "bug this prevents."
+            )
         self.pairs = pairs
         self.jobs: dict[str, dict] = {}
+        # frame_mode=False only: pair_key -> (ref_stem, sec_stem), the
+        # per-subswath product stems _extract_subswath_stem() derives
+        # during staging. Populated by submit()/retry() before any
+        # _status_dir()/_build_cmd() call needs it.
+        self._stems: dict[str, tuple[str, str]] = {}
         self._lock = threading.Lock()
 
     # ------------------------------------------------------------------ #
@@ -241,8 +278,16 @@ class GMTSAR_S1(LocalProcessor):
             # p2p_S1_TOPS_Frame's real product lives in merge/; use that
             # directory's existence/markers as the status signal.
             return self.pair_case_dir(pair) / "merge"
-        ref, sec = pair
-        return self.case_dir / "intf" / f"{ref}_{sec}"
+        key = _pair_key(pair)
+        if key not in self._stems:
+            # Not staged yet (or staging failed partway through a
+            # multi-pair _stage_case() and never reached this pair) --
+            # a path that can never exist reads as PENDING via
+            # _read_status(), instead of a masking KeyError that hides
+            # the real staging failure (found via audit).
+            return self.case_dir / "intf" / f"_unstaged_{key}"
+        ref_stem, sec_stem = self._stems[key]
+        return self.case_dir / "intf" / f"{ref_stem}_{sec_stem}"
 
     # ------------------------------------------------------------------ #
     #  Case staging (the InSARHub <-> GMTSAR directory-convention bridge) #
@@ -269,20 +314,73 @@ class GMTSAR_S1(LocalProcessor):
                 continue
             dest.symlink_to(target)
 
+    def _find_input(self, name: str, cfg_dir) -> Path:
+        """Resolve a .SAFE/.EOF name the caller passed in `pairs` against
+        config.slc_dir/orbit_dir (or workdir, if that config field is
+        left as 'auto')."""
+        base = Path(cfg_dir) if cfg_dir and str(cfg_dir) not in ("auto", "") else self.workdir
+        path = base / name
+        if not path.exists():
+            raise FileNotFoundError(f"{name} not found under {base}")
+        return path
+
+    def _extract_subswath_stem(self, ref_safe: str, ref_eof: str, raw_dir: Path) -> str:
+        """Extract one IW subswath's .tiff/.xml from a raw .SAFE dir and
+        stage them plus the matching .EOF into raw_dir under GMTSAR's
+        required same-stem naming (<stem>.tiff/.xml/.EOF).
+
+        p2p_processing does not read .SAFE directories itself -- see
+        module docstring for how this was confirmed (both from
+        p2p_processing's own usage string and from GMTSAR's bundled
+        H_res/raw/ single-subswath test fixture).
+        """
+        cfg = self.config
+        safe_dir = self._find_input(ref_safe, cfg.slc_dir)
+        eof_path = self._find_input(ref_eof, cfg.orbit_dir)
+        tiffs = sorted(
+            (safe_dir / "measurement").glob(
+                f"s1?-iw{cfg.subswath}-slc-{cfg.polarization}-*.tiff"
+            )
+        )
+        if not tiffs:
+            raise FileNotFoundError(
+                f"no IW{cfg.subswath}/{cfg.polarization} subswath product "
+                f"found under {safe_dir / 'measurement'} -- check "
+                f"config.subswath/polarization against this scene's "
+                f"actual coverage"
+            )
+        tiff = tiffs[0]
+        stem = tiff.stem
+        xml = safe_dir / "annotation" / f"{stem}.xml"
+        if not xml.exists():
+            raise FileNotFoundError(f"expected annotation file missing: {xml}")
+
+        for src, ext in ((tiff, ".tiff"), (xml, ".xml"), (eof_path, ".EOF")):
+            dest = raw_dir / f"{stem}{ext}"
+            if not dest.exists():
+                dest.symlink_to(src.resolve())
+        return stem
+
     def _stage_one_case_dir(self, target: Path) -> None:
         """Populate target/{raw,topo}/ and target/config.py, matching what
         GMTSAR's own case.setup / p2p_config would produce for a
         manually-run case.
 
-        KNOWN GAP: this assumes slc_dir already contains files
-        p2p_processing / p2p_S1_TOPS_Frame can consume directly (raw
-        .SAFE dirs plus .EOF orbits placed in raw/ -- confirmed this
-        matches p2p_processing's own P2P1Preprocess, which calls
-        `pre_proc SAT master aligned` internally on raw/ input, so raw
-        .SAFE-derived files are the right thing to stage, NOT
-        pre-focused SLCs). DEM auto-download from a bbox (dem_path=None)
-        is NOT implemented -- config.dem_path must point at an existing
-        GMTSAR-format DEM (topo/dem.grd) for now.
+        frame_mode=True: symlinks slc_dir/orbit_dir contents wholesale
+        into raw/ -- p2p_S1_TOPS_Frame reads raw .SAFE dirs + .EOF orbits
+        directly (confirmed this matches p2p_processing's own
+        P2P1Preprocess, which calls `pre_proc SAT master aligned`
+        internally on raw/ input, so raw .SAFE-derived files are the
+        right thing to stage, NOT pre-focused SLCs).
+
+        frame_mode=False: raw/ is instead populated per-pair by
+        _extract_subswath_stem() (called from _stage_case()), since
+        p2p_processing needs specific per-subswath files, not the whole
+        .SAFE tree.
+
+        DEM auto-download from a bbox (dem_path=None) is NOT implemented
+        -- config.dem_path must point at an existing GMTSAR-format DEM
+        (topo/dem.grd) for now.
         """
         cfg = self.config
         target.mkdir(parents=True, exist_ok=True)
@@ -291,22 +389,15 @@ class GMTSAR_S1(LocalProcessor):
         raw_dir.mkdir(exist_ok=True)
         topo_dir.mkdir(exist_ok=True)
 
-        if cfg.slc_dir and str(cfg.slc_dir) not in ("auto", ""):
-            self._symlink_dir_contents(Path(cfg.slc_dir), raw_dir)
+        if cfg.frame_mode:
+            if cfg.slc_dir and str(cfg.slc_dir) not in ("auto", ""):
+                self._symlink_dir_contents(Path(cfg.slc_dir), raw_dir)
+            if cfg.orbit_dir and str(cfg.orbit_dir) not in ("auto", ""):
+                self._symlink_dir_contents(Path(cfg.orbit_dir), raw_dir)
 
-        if cfg.orbit_dir and str(cfg.orbit_dir) not in ("auto", ""):
-            self._symlink_dir_contents(Path(cfg.orbit_dir), raw_dir)
-
-        if cfg.dem_path:
-            dest = topo_dir / "dem.grd"
-            if not dest.exists():
-                dest.symlink_to(Path(cfg.dem_path).resolve())
-        else:
-            raise NotImplementedError(
-                "GMTSAR_S1_Config.dem_path is required in this version -- "
-                "bbox-driven DEM auto-fetch (matching ISCE_S1's GLO-30 "
-                "download) is not implemented yet."
-            )
+        dest = topo_dir / "dem.grd"
+        if not dest.exists():
+            dest.symlink_to(Path(cfg.dem_path).resolve())
 
         config_py = target / "config.py"
         if not config_py.exists():
@@ -324,6 +415,12 @@ class GMTSAR_S1(LocalProcessor):
     def _stage_case(self) -> None:
         if not self.config.frame_mode:
             self._stage_one_case_dir(self.case_dir)
+            raw_dir = self.case_dir / "raw"
+            for pair in self.pairs:
+                ref_safe, ref_eof, sec_safe, sec_eof = pair
+                ref_stem = self._extract_subswath_stem(ref_safe, ref_eof, raw_dir)
+                sec_stem = self._extract_subswath_stem(sec_safe, sec_eof, raw_dir)
+                self._stems[_pair_key(pair)] = (ref_stem, sec_stem)
             return
         # Frame mode: one case dir PER PAIR, each independently staged
         # (raw/topo/config.py symlinked/copied per pair). Slightly more
@@ -430,8 +527,8 @@ class GMTSAR_S1(LocalProcessor):
     def _build_cmd(self, pair: tuple) -> list[str]:
         cfg = self.config
         if not cfg.frame_mode:
-            ref, sec = pair
-            return ["p2p_processing", cfg.sat, ref, sec, "config.py"]
+            ref_stem, sec_stem = self._stems[_pair_key(pair)]
+            return ["p2p_processing", cfg.sat, ref_stem, sec_stem, "config.py"]
         ref_safe, ref_eof, sec_safe, sec_eof = pair
         return [
             "p2p_S1_TOPS_Frame", ref_safe, ref_eof, sec_safe, sec_eof,

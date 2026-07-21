@@ -80,15 +80,56 @@ This is genuine, not structural-only: the full real GMTSAR C/Python
 pipeline ran end-to-end inside InSARHub's process/env model, on real
 Sentinel-1 SAFE data, producing real geocoded interferometric products.
 
-## Known gap: single-subswath mode (`frame_mode=False`) not yet fixed
+## RESOLVED: single-subswath mode (`frame_mode=False`) fixed and validated
 
 The real recipe (`README_S1_Ridgecrest_EQ.txt`) runs `p2p_processing` from
 a special `H_res/` subdirectory that the reference test tarball
 pre-populates with correctly per-subswath-extracted `.xml`/`.tiff` files
 (stems like `s1a-iw2-slc-vv-<start>-<end>-<orbit>-<mission>-<swath>`).
-`GMTSAR_S1`'s `_stage_case()` currently just symlinks raw `.SAFE` content
-into the case dir, which does not reproduce that per-subswath extraction
-step -- so single-subswath mode fails on missing per-subswath files. Not
-yet fixed. Frame mode (`frame_mode=True`, verified above) is the only
-genuinely end-to-end-validated path right now; document it as such until
-single-subswath mode gets the same real fix + validation.
+Inspecting `H_res/raw/` directly showed these per-stem files are plain
+symlinks into the equivalent Frame-mode `F<N>/raw/` subswath files pulled
+from the same `.SAFE`, and the `.EOF` is the same scene-level orbit file,
+just symlinked under the per-subswath stem name -- i.e. the "extraction"
+GMTSAR itself needs is mechanical, not a real preprocessing step.
+
+**Fixed**: `GMTSAR_S1._extract_subswath_stem()` reproduces this directly --
+given a `.SAFE` name, `config.subswath` (IW1/2/3), and `config.polarization`,
+it globs `measurement/`+`annotation/` for the matching `.tiff`/`.xml`,
+symlinks them plus the `.EOF` into `raw/` under GMTSAR's required
+same-stem naming. Both `frame_mode` settings now take the SAME pairs
+shape -- `[(ref_safe, ref_eof, sec_safe, sec_eof), ...]` -- callers never
+hand-derive per-subswath stems themselves.
+
+**Real end-to-end validation: CONFIRMED SUCCEEDED (2026-07-21).** A real
+run (`frame_mode=False`, IW2/vv, same S1_Ridgecrest_EQ pair as the Frame
+run above) ran to completion via `proc.submit()`/`proc.watch()`:
+`align_tops.csh` preprocessing succeeded (172s), `p2p_processing` exited
+rc=0, wrote a `.succeeded` marker under
+`intf/<ref_stem>_<sec_stem>/`, and produced real output products
+(`phasefilt.grd`, `phasefilt_ll.grd`, `corr.grd`, `corr_ll.grd` plus
+PNG/KML previews). `proc.jobs[...]['status']` reported `SUCCEEDED`.
+
+Both `frame_mode` settings are now genuinely end-to-end validated against
+real Sentinel-1 data.
+
+## Known gap: not yet tested
+
+- **Full pipeline chain**: InSARHub's `S1_SLC` downloader -> `GMTSAR_S1`
+  -> a MintPy analyzer run, chained continuously. Both real runs above fed
+  pre-staged `.SAFE`/`.EOF`/DEM files directly; the downloader itself was
+  never exercised, and MintPy's own consumption of GMTSAR_S1's output is
+  only confirmed by reading `prep_gmtsar.py`'s source, not by an actual
+  MintPy run. Next up.
+- **CLI / GUI**: `GMTSAR_S1` is wired at the Python API / registry level
+  only. Not exercised via `insarhub processor submit --type GMTSAR_S1`,
+  and no frontend dialog integration exists yet.
+- **DEM auto-download** from `bbox` (matching `ISCE_S1`'s GLO-30
+  auto-fetch): not implemented -- `dem_path` must be supplied explicitly
+  (now validated at construction time, fails fast if missing).
+- **Processor-level edge cases**: `retry()` on a real failure, reloading
+  a saved `gmtsar_jobs.json` into a fresh process, concurrent multi-pair
+  submission against real GMTSAR subprocesses (`max_workers`>1),
+  `skip_existing` re-submit against a real completed case, and sensors
+  other than `S1_TOPS` (13 other GMTSAR-supported families listed in
+  `SUPPORTED_SATS`, none exercised) -- all only covered by mocked unit
+  tests, not real runs.

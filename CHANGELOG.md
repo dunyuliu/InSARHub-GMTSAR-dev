@@ -30,6 +30,7 @@
 
 ### New Features
 
+- **`GMTSAR_S1` processor** (`processor/gmtsar_s1.py`, `config/defaultconfig.py`) — new local processor backend wrapping [GMTSAR](https://github.com/gmtsar/gmtsar)'s Python `p2p_processing`/`p2p_S1_TOPS_Frame` pipelines to generate Sentinel-1 interferograms, selected via `config.frame_mode`: single-subswath (`p2p_processing`, default) or multi-subswath merged (`p2p_S1_TOPS_Frame`). Both modes take the same `pairs = [(ref_safe, ref_eof, sec_safe, sec_eof), ...]` shape — single-subswath mode extracts the configured IW subswath + polarization from each `.SAFE` scene itself (mirroring GMTSAR's own per-subswath test fixture layout), so callers only ever hand it raw `.SAFE`/`.EOF` names. Requires GMTSAR installed in its own environment; `gmtsar_root`/`gmtsar_env_bin` config fields bridge InSARHub's and GMTSAR's separate conda environments for subprocess calls. Real end-to-end validated (both modes) against real Sentinel-1 data — see `docs/gmtsar_s1_notes/OPEN_ISSUES.md`.
 - **ERA5-Land supplementary weather features** (`utils/pair_quality/_weather_era5.py`) — new CDS API-based extractor providing variables not available via Open-Meteo: dewpoint, 7-28 cm and 28-100 cm soil moisture, skin temperature, wind speed, net radiation, high/low-vegetation LAI, and snowmelt, spatially averaged over ERA5-Land 0.1° grid cells intersecting the AOI. Requires `~/.cdsapirc` with valid Copernicus CDS credentials.
 
 ### Refactor
