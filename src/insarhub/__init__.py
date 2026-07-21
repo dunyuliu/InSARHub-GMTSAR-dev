@@ -15,20 +15,25 @@ logging.disable(logging.CRITICAL)
 from insarhub._version import __version__
 _system_info = platform.system()
 
-# ---------------------MintPy Configuration---------------------------
-# Configuration followed the MintPy post-installation setip 
+# ---------------------MintPy Configuration (optional)-----------------------
+# MintPy is an optional dependency (`pip install insarhub[mintpy]`). Analyzers
+# that need it (Hyp3_SBAS, ISCE_SBAS, Mintpy_SBAS_Base_Analyzer) still register
+# and list normally without it — only actually calling .run()/.prep_data() on
+# one of them raises ImportError at that point.
+# Configuration followed the MintPy post-installation setup
 # https://github.com/insarlab/MintPy/blob/main/docs/installation.md#3-post-installation-setup
-try: 
+try:
     import mintpy
+    _has_mintpy = True
 except ImportError:
-    print(f"{Fore.RED}MintPy is not installed.")
-    sys.exit(1)
+    _has_mintpy = False
 
-# b. Dask for parallel processing
-from dask import config as dask_config
-tmp_dir = Path.home().joinpath('.dask','tmp') 
-tmp_dir.mkdir(parents=True, exist_ok=True)
-dask_config.set({'temporary_directory':str(tmp_dir)})
+if _has_mintpy:
+    # b. Dask for parallel processing (MintPy's compute_cluster option)
+    from dask import config as dask_config
+    tmp_dir = Path.home().joinpath('.dask','tmp')
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    dask_config.set({'temporary_directory':str(tmp_dir)})
 
 # c. Extra environment variables setup
 os.environ["VRT_SHARED_SOURCE"] = "0"
@@ -95,7 +100,6 @@ from .config.defaultconfig import (
 from .downloader import (
     ASF_Base_Downloader,
     S1_SLC,
-    S1_Burst
 )
 
 from .processor import (

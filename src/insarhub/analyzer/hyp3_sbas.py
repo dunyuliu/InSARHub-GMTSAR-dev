@@ -7,7 +7,6 @@ from pathlib import Path
 
 
 from colorama import Fore, Style
-from osgeo import gdal
 from tqdm import tqdm
 
 from .mintpy_base import Mintpy_SBAS_Base_Analyzer
@@ -47,6 +46,9 @@ class Hyp3_SBAS(Mintpy_SBAS_Base_Analyzer):
             - Designed for workflows using Hyp3-derived Sentinel-1 products.
             - Ensures consistent spatial coverage across all input datasets.
         """
+        if self.config.container:
+            return self._run_via_container(["prep_data"])
+
         self._unzip_hyp3()
         files = self._collect_files()
         overlap_extent = self._get_common_overlap(files['dem'])
@@ -111,23 +113,26 @@ class Hyp3_SBAS(Mintpy_SBAS_Base_Analyzer):
         return files
 
     def _get_common_overlap(self, dem_files):
-        ulx_l, uly_l, lrx_l, lry_l = [], [], [], []
+        import rasterio
+        lefts, bottoms, rights, tops = [], [], [], []
         for f in dem_files:
-            ds = gdal.Open(f.as_posix())
-            gt = ds.GetGeoTransform() # (ulx, xres, xrot, uly, yrot, yres)
-            ulx, uly = gt[0], gt[3]
-            lrx, lry = gt[0] + gt[1] * ds.RasterXSize, gt[3] + gt[5] * ds.RasterYSize
-            ulx_l.append(ulx)
-            uly_l.append(uly)
-            lrx_l.append(lrx)
-            lry_l.append(lry)
-            ds = None
-        return  (max(ulx_l), min(uly_l), min(lrx_l), max(lry_l))
+            with rasterio.open(f.as_posix()) as ds:
+                b = ds.bounds
+            lefts.append(b.left)
+            bottoms.append(b.bottom)
+            rights.append(b.right)
+            tops.append(b.top)
+        # (left, top, right, bottom) of the intersection across all rasters
+        return (max(lefts), min(tops), min(rights), max(bottoms))
     
     def _clip_rasters(self, files, overlap_extent):
+        import rasterio
+        from rasterio.windows import from_bounds
+
         print(f'{Fore.CYAN}Clipping rasters to common overlap...{Fore.RESET}')
         self.clip_dir.mkdir(parents=True, exist_ok=True)
         categories = [k for k in files.keys() if k != 'meta']
+        left, top, right, bottom = overlap_extent
 
         with tqdm(categories, desc="Progress", position=0, dynamic_ncols=True) as pbar_out:
             for key in pbar_out:
@@ -148,11 +153,15 @@ class Hyp3_SBAS(Mintpy_SBAS_Base_Analyzer):
                         pbar_in.set_postfix_str(f"File: {f.name[:15]}...")
 
                         try:
-                            gdal.Translate(
-                                destName=out.as_posix(),
-                                srcDS=f.as_posix(),
-                                projWin=overlap_extent
-                            )
+                            with rasterio.open(f.as_posix()) as src:
+                                window = from_bounds(left, bottom, right, top, transform=src.transform)
+                                window = window.round_offsets().round_lengths()
+                                transform = src.window_transform(window)
+                                data = src.read(window=window)
+                                profile = src.profile.copy()
+                                profile.update(height=window.height, width=window.width, transform=transform)
+                                with rasterio.open(out.as_posix(), "w", **profile) as dst:
+                                    dst.write(data)
                         except Exception as e:
                             tqdm.write(f"{Fore.RED}Error clipping {f.name}: {e}{Fore.RESET}")
 

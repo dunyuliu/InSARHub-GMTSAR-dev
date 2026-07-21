@@ -32,11 +32,10 @@ import shutil
 from pathlib import Path
 
 from colorama import Fore
-from mintpy.smallbaselineApp import TimeSeriesAnalysis
 
 from insarhub.config.defaultconfig import ISCE_SBAS_Config
 from insarhub.config.paths import ISCEPaths
-from insarhub.analyzer.mintpy_base import Mintpy_SBAS_Base_Analyzer
+from insarhub.analyzer.mintpy_base import Mintpy_SBAS_Base_Analyzer, _require_mintpy
 
 
 class ISCE_SBAS(Mintpy_SBAS_Base_Analyzer):
@@ -67,6 +66,9 @@ class ISCE_SBAS(Mintpy_SBAS_Base_Analyzer):
 
     def prep_data(self) -> None:
         """Auto-discover stackSentinel outputs and write the MintPy config."""
+        if self.config.container:
+            return self._run_via_container(["prep_data"])
+
         if not self.isce_dir.exists():
             raise FileNotFoundError(
                 f"ISCE processing directory not found: {self.isce_dir}. "
@@ -87,6 +89,9 @@ class ISCE_SBAS(Mintpy_SBAS_Base_Analyzer):
 
     def run(self, steps=None):
         """Run MintPy, writing all output to workdir/mintpy/."""
+        if self.config.container:
+            return self._run_via_container(steps)
+
         self.mintpy_dir.mkdir(parents=True, exist_ok=True)
         if self.config.troposphericDelay_method == "pyaps" and (steps is None or "correct_troposphere" in steps):
             self._cds_authorize()
@@ -98,6 +103,8 @@ class ISCE_SBAS(Mintpy_SBAS_Base_Analyzer):
         ]
         from colorama import Style
         print(f"{Style.BRIGHT}{Fore.MAGENTA}Running MintPy Analysis…{Fore.RESET}")
+        _require_mintpy()
+        from mintpy.smallbaselineApp import TimeSeriesAnalysis
         app = TimeSeriesAnalysis(self.cfg_path.as_posix(), str(self.mintpy_dir))
         app.open()
         app.run(steps=run_steps)

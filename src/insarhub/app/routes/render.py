@@ -109,33 +109,10 @@ def _tif_file_type(stem: str) -> str:
 
 def _tif_bounds_wgs84(zip_path: str, tif_name: str) -> list | None:
     try:
-        try:
-            import rasterio
-            from rasterio.warp import transform_bounds
-            with rasterio.open(f"/vsizip/{zip_path}/{tif_name}") as src:
-                return list(transform_bounds(src.crs, "EPSG:4326", *src.bounds))
-        except ImportError:
-            from osgeo import gdal, osr
-            ds = gdal.Open(f"/vsizip/{zip_path}/{tif_name}")
-            if ds is None:
-                return None
-            gt = ds.GetGeoTransform()
-            cols, rows = ds.RasterXSize, ds.RasterYSize
-            src_srs = osr.SpatialReference()
-            src_srs.ImportFromWkt(ds.GetProjection())
-            tgt_srs = osr.SpatialReference()
-            tgt_srs.ImportFromEPSG(4326)
-            tgt_srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
-            ct = osr.CoordinateTransformation(src_srs, tgt_srs)
-            corners = [(gt[0], gt[3]), (gt[0] + cols * gt[1], gt[3]),
-                       (gt[0] + cols * gt[1], gt[3] + rows * gt[5]),
-                       (gt[0], gt[3] + rows * gt[5])]
-            lons, lats = [], []
-            for x, y in corners:
-                pt = ct.TransformPoint(x, y)
-                lons.append(pt[0]); lats.append(pt[1])
-            ds = None
-            return [min(lons), min(lats), max(lons), max(lats)]
+        import rasterio
+        from rasterio.warp import transform_bounds
+        with rasterio.open(f"/vsizip/{zip_path}/{tif_name}") as src:
+            return list(transform_bounds(src.crs, "EPSG:4326", *src.bounds))
     except Exception:
         return None
 

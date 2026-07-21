@@ -62,7 +62,7 @@ async def _run_folder_process(job_id: str, req: ProcessRequest):
                 cfg.__post_init__()  # re-resolve any "auto"/"" values reintroduced by user dict
             cfg.pairs = pairs
 
-            proc_cfg = {k: v for k, v in dataclasses.asdict(cfg).items() if k not in ("workdir", "pairs")}
+            proc_cfg = {k: v for k, v in dataclasses.asdict(cfg).items() if k not in ("workdir", "pairs", "container")}
 
             import inspect as _inspect
             _sig = _inspect.signature(proc_cls.__init__).parameters

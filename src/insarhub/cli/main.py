@@ -286,6 +286,11 @@ def create_parser() -> argparse.ArgumentParser:
     _add_job_file(p_proc_retry)
     p_proc_retry.add_argument("-r", "--recursive", action="store_true",
                               help="Recursively search workdir for hyp3*.json job files")
+    p_proc_retry.add_argument(
+        "--container", metavar="PATH", default=None,
+        help="Local/ISCE processors only: path to a .sif/Apptainer image or a "
+             "Docker image reference with insarhub installed — retries inside "
+             "the container instead of on the host.")
 
     # --- watch  (HyP3) ------------------------------------------------- #
     p_proc_watch = proc_sub.add_parser(
@@ -715,9 +720,13 @@ _SUBMIT_SKIP_FIELDS = {
     "name_prefix",
     "sbatch_options_per_step",
 }
+# Runtime-only fields: still valid as CLI flags (unlike _SUBMIT_SKIP_FIELDS,
+# which also controls flag generation), but never persisted to or reloaded
+# from insarhub_config.json — pass again each invocation, like --dry-run.
+_RUNTIME_ONLY_FIELDS = {"container"}
 # Extra fields stripped when loading from a saved config file (runtime-only flags
 # that must not carry over from a previous run's saved state).
-_SAVED_CFG_SKIP = _SUBMIT_SKIP_FIELDS | {"hpc_mode", "dry_run"}
+_SAVED_CFG_SKIP = _SUBMIT_SKIP_FIELDS | {"hpc_mode", "dry_run"} | _RUNTIME_ONLY_FIELDS
 
 # Fields handled by static flags or internal state in cmd_analyzer
 _ANALYZER_SKIP_FIELDS = {"name", "workdir", "debug"}
@@ -1871,7 +1880,8 @@ def _proc_local_submit(args, extra_args: list[str]):
 
     # ── Persist resolved config to insarhub_config.json (mirrors Hyp3) ────
     # sbatch_options_per_step is excluded: sbatch_options.json is the source of truth
-    _skip_write = _SUBMIT_SKIP_FIELDS | {"workdir", "sbatch_options_per_step"}
+    # container is excluded: runtime-only flag, see _RUNTIME_ONLY_FIELDS
+    _skip_write = _SUBMIT_SKIP_FIELDS | {"workdir", "sbatch_options_per_step"} | _RUNTIME_ONLY_FIELDS
     _wic(workdir, {"processor": {"type": processor_name,
                                  "config": {f.name: getattr(cfg, f.name)
                                             for f in dataclasses.fields(cfg)
@@ -1884,7 +1894,8 @@ def _proc_local_submit(args, extra_args: list[str]):
 
 
 def _load_local_processor(processor_name: str, workdir: Path, jobs_path: Path,
-                           hpc_mode: bool = False, dry_run: bool = False):
+                           hpc_mode: bool = False, dry_run: bool = False,
+                           container: str | None = None):
     """Instantiate a local processor from a saved jobs file without needing pairs."""
     import dataclasses
     from insarhub import Processor
@@ -1897,6 +1908,7 @@ def _load_local_processor(processor_name: str, workdir: Path, jobs_path: Path,
         overrides["saved_job_path"] = str(jobs_path)
         overrides["hpc_mode"] = hpc_mode or bool(saved_cfg.get("hpc_mode", False))
         overrides["dry_run"] = dry_run
+        overrides["container"] = container
         valid = {f.name for f in dataclasses.fields(cfg_cls)}
         cfg = cfg_cls(**{k: v for k, v in overrides.items() if k in valid})
     else:
@@ -1927,8 +1939,10 @@ def _proc_local_retry(args):
         sys.exit(1)
     hpc_mode = getattr(args, "hpc_mode", False)
     dry_run  = getattr(args, "dry_run", False)
+    container = getattr(args, "container", None)
     _load_local_processor(processor_name, workdir, jobs_path,
-                          hpc_mode=hpc_mode, dry_run=dry_run).retry()
+                          hpc_mode=hpc_mode, dry_run=dry_run,
+                          container=container).retry()
 
 
 def _proc_local_cancel(args):

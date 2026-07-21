@@ -154,6 +154,14 @@ def load_or_init_sbatch_options(
 
 # ── ISCE2 discovery ───────────────────────────────────────────────────────────
 
+_CONTAINER_HINT = (
+    "\nAlternatively, skip installing ISCE2 locally and run this processor "
+    "inside a container instead: pass --container <path-or-image> (the "
+    "container needs `insarhub` installed alongside ISCE2 — see the "
+    "insarhub[mintpy]/--container docs)."
+)
+
+
 def _check_isce2(isce_home: Path | None) -> Path:
     """Return the resolved path to topsApp.py, raising if ISCE2 is missing."""
     if isce_home:
@@ -163,7 +171,7 @@ def _check_isce2(isce_home: Path | None) -> Path:
                 return c
         raise EnvironmentError(
             f"ISCE2 not found under isce_home='{isce_home}'. "
-            "Check the path or set $ISCE_HOME."
+            "Check the path or set $ISCE_HOME." + _CONTAINER_HINT
         )
     env_home = os.environ.get("ISCE_HOME")
     if env_home:
@@ -175,7 +183,7 @@ def _check_isce2(isce_home: Path | None) -> Path:
     raise EnvironmentError(
         "ISCE2 is not installed or not findable. "
         "Install ISCE2 and either set $ISCE_HOME or add its applications/ "
-        "directory to $PATH, or pass isce_home= to the config."
+        "directory to $PATH, or pass isce_home= to the config." + _CONTAINER_HINT
     )
 
 
@@ -221,7 +229,7 @@ def _find_topsstack(isce_home: Path | None) -> tuple[Path, Path]:
     if not candidates:
         raise EnvironmentError(
             "ISCE2 not found and no base path available to download topsStack into. "
-            "Set $ISCE_HOME or pass isce_home= to the config."
+            "Set $ISCE_HOME or pass isce_home= to the config." + _CONTAINER_HINT
         )
     from insarhub.utils.tool import _download_isce_stacktool
     s = _download_isce_stacktool(candidates[0])
@@ -343,9 +351,15 @@ class ISCE_Base(LocalProcessor):
 
     def __init__(self, config):
         super().__init__(config)
-        _isce_home = Path(self.config.isce_home) if self.config.isce_home else None
-        self._stack_bin, self._pythonpath_add = _find_topsstack(_isce_home)
-        self._isce_app_bin = _check_isce2(_isce_home)
+        if self.config.container:
+            # Container mode re-invokes the whole pipeline inside the
+            # container, which brings its own ISCE2/topsStack install — no
+            # need (and no way, if the host has none) to discover one here.
+            self._stack_bin = self._pythonpath_add = self._isce_app_bin = None
+        else:
+            _isce_home = Path(self.config.isce_home) if self.config.isce_home else None
+            self._stack_bin, self._pythonpath_add = _find_topsstack(_isce_home)
+            self._isce_app_bin = _check_isce2(_isce_home)
 
         self.workdir: Path = Path(self.config.workdir).expanduser().resolve()
         self.workdir.mkdir(parents=True, exist_ok=True)
@@ -1636,6 +1650,10 @@ class ISCE_Base(LocalProcessor):
 
     def retry(self) -> dict:
         """Re-run the first failed step and all subsequent steps."""
+        if getattr(self.config, "container", None):
+            self._reinvoke_via_container("retry")
+            return self.jobs
+
         failed = [n for n, m in sorted(self.jobs.items()) if m["status"] == _FAILED]
         if not failed:
             self.refresh()
@@ -1665,6 +1683,59 @@ class ISCE_Base(LocalProcessor):
         else:
             self._start_local_background(to_retry)
         return self.jobs
+
+    # ── Container re-invocation ───────────────────────────────────────────────
+
+    def _reinvoke_via_container(self, action: str, steps: list[str] | None = None) -> None:
+        """Re-run this same `insarhub processor ... {action}` CLI call inside
+        self.config.container instead of on the host.
+
+        The container image is expected to have `insarhub` (plus ISCE2/topsStack)
+        installed — the container-side process runs the identical InSARHub code,
+        so refresh()/retry()/cancel() need no container-awareness of their own:
+        they just read the same status files this container-side process writes
+        to the shared (bind-mounted) workdir.
+        """
+        import dataclasses
+
+        from insarhub.utils.config_io import write_insarhub_config
+        from insarhub.utils.container import wrap_container_cmd
+
+        cfg_dict = {
+            f.name: getattr(self.config, f.name)
+            for f in dataclasses.fields(self.config)
+            if f.name not in ("container", "workdir", "saved_job_path")
+        }
+        write_insarhub_config(self.workdir, {
+            "processor": {"type": type(self).name, "config": cfg_dict}
+        })
+
+        step_args = f" --step {' '.join(steps)}" if steps else ""
+        cli_cmd = f"insarhub processor -N {type(self).name} -w {self.workdir} {action}{step_args}"
+        wrapped = wrap_container_cmd(self.config.container, cli_cmd, self.workdir)
+
+        self._run_files_dir.mkdir(parents=True, exist_ok=True)
+        log_file = self._run_files_dir / "executor.log"
+        pid_file = self._run_files_dir / "executor.pid"
+        if os.name == "posix":
+            pid = os.fork()
+            if pid == 0:  # child — detach and run
+                try:
+                    os.setsid()
+                    with open(log_file, "w") as _lf:
+                        os.dup2(_lf.fileno(), sys.stdout.fileno())
+                        os.dup2(_lf.fileno(), sys.stderr.fileno())
+                    subprocess.run(wrapped, shell=True)
+                finally:
+                    os._exit(0)
+            # parent
+            pid_file.write_text(str(pid))
+            print(f"{Fore.GREEN}Container executor running in background (PID {pid}).{Style.RESET_ALL}")
+            print(f"  log : {log_file}")
+            print(f"  Use 'refresh' to check status, 'cancel' to stop.")
+        else:
+            # Windows: no fork — run blocking
+            subprocess.run(wrapped, shell=True)
 
     # ── Background local execution ────────────────────────────────────────────
 

@@ -312,6 +312,10 @@ class ISCE_S1(ISCE_Base):
             retry() does. Default (None): normal behavior, run every step
             not already SUCCEEDED.
         """
+        if self.config.container:
+            self._reinvoke_via_container("submit", steps)
+            return self.jobs
+
         dem_path = _prepare_dem(self.config, self.workdir)
         aux_dir  = self._resolve_aux_dir()
         self._generate_run_files(dem_path, aux_dir, pairs=self.pairs)

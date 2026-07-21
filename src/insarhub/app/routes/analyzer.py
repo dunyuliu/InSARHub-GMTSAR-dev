@@ -180,7 +180,7 @@ async def _run_analyzer(job_id: str, req: RunAnalyzerRequest):
             analyzer = cls(cfg)
 
             # Save updated analyzer config back to insarhub_config.json
-            cfg_dict = {k: v for k, v in dataclasses.asdict(cfg).items() if k != 'workdir'}
+            cfg_dict = {k: v for k, v in dataclasses.asdict(cfg).items() if k not in ('workdir', 'container')}
             write_insarhub_config(folder, {"analyzer": {"type": req.analyzer_type, "config": cfg_dict}})
 
             # Use the analyzer's own cfg_path (e.g. ISCE_SBAS writes to mintpy/.mintpy.cfg)
@@ -218,7 +218,7 @@ async def _run_analyzer(job_id: str, req: RunAnalyzerRequest):
                         analyzer.prep_data()
                         # Persist load paths set by _set_load_parameters() so the
                         # next run (e.g. load_data only) can read them from disk.
-                        _post_cfg = {k: v for k, v in dataclasses.asdict(analyzer.config).items() if k != 'workdir'}
+                        _post_cfg = {k: v for k, v in dataclasses.asdict(analyzer.config).items() if k not in ('workdir', 'container')}
                         write_insarhub_config(folder, {"analyzer": {"type": req.analyzer_type, "config": _post_cfg}})
                         _acfg_path = getattr(analyzer, "cfg_path", None) or (folder / ".mintpy.cfg")
                         if hasattr(analyzer.config, "write_mintpy_config"):
