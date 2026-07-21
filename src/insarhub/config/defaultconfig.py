@@ -1107,3 +1107,82 @@ class ISCE_SBAS_Config(Mintpy_SBAS_Base_Config):
     plot: str                         = "yes"
     save_kmz: str                     = "no"
 
+
+
+@dataclass
+class GMTSAR_S1_Config:
+    """Configuration for the GMTSAR p2p_processing Sentinel-1 processor.
+
+    p2p_processing generates one interferogram per (reference, secondary)
+    pair invocation, run from a shared GMTSAR case directory (raw/, topo/,
+    config.py). InSARHub parallelises independent pairs up to max_workers,
+    mirroring how ISCE_S1 parallelises independent commands within a step.
+
+    Output lands in <workdir>/gmtsar_case/intf/<ref>_<sec>/ using GMTSAR's
+    native file names (corr_ll.grd, phasefilt_ll.grd, unwrap_ll.grd, two
+    numeric-named *.PRM files) -- this is already exactly what MintPy's own
+    prep_gmtsar.py expects, so no output-normalization step is needed
+    before handing off to a Mintpy analyzer.
+
+    Attributes:
+        workdir: Processing root. gmtsar_case/ (raw/, topo/, config.py,
+            intf/) lives here.
+        slc_dir: Directory containing Sentinel-1 SLC .SAFE dirs (or .zips).
+        orbit_dir: Directory with .EOF orbit files.
+        dem_path: GMTSAR-format DEM grid (topo/dem.grd). Unlike ISCE_S1,
+            bbox-driven auto-download is NOT implemented yet -- must be
+            supplied explicitly. See gmtsar_s1.py's module docstring for
+            the concrete "known gaps" list.
+        sat: p2p_processing's SAT argument. Exposed (not hardcoded) for
+            forward-compat -- GMTSAR already supports 14 sensor families
+            beyond S1_TOPS (see gmtsar/python/tests/cases.py upstream),
+            this processor is just the first one wired in.
+        config_template: Path to a GMTSAR config.py to reuse as-is. If
+            None, one is auto-generated per case via `pop_config <sat>`
+            (GMTSAR's own default-config tool), matching p2p_processing's
+            own "no config.py given" behavior.
+        max_workers: Independent pairs processed concurrently.
+        skip_existing: Don't redo a pair whose intf/<ref>_<sec>/ already
+            has a .succeeded status marker.
+    """
+
+    _ui_groups: ClassVar[list] = [
+        {"label": "Paths",
+         "fields": ["slc_dir", "orbit_dir", "dem_path"]},
+        {"label": "Area of interest",
+         "fields": ["bbox"]},
+        {"label": "GMTSAR",
+         "fields": ["sat", "polarization", "config_template"]},
+        {"label": "Job",
+         "fields": ["max_workers", "skip_existing", "dry_run"]},
+    ]
+    _ui_fields: ClassVar[dict] = {
+        "slc_dir":         {"type": "text", "hint": "Directory with Sentinel-1 SLC .SAFE files"},
+        "orbit_dir":       {"type": "text", "hint": "Directory with .EOF orbit files"},
+        "dem_path":        {"type": "text", "hint": "GMTSAR-format DEM (topo/dem.grd). No auto-download yet -- required."},
+        "bbox":            {"type": "text", "hint": "Bounding box S N W E (reserved for future DEM auto-fetch; unused today)"},
+        "sat":             {"type": "select",
+                             "options": ["S1_TOPS", "S1_STRIP", "ALOS", "ALOS_SLC", "ALOS2",
+                                         "ALOS2_SCAN", "ENVI", "ENVI_SLC", "ERS", "CSK_RAW",
+                                         "CSK_SLC", "TSX", "RS2", "GF3"],
+                             "hint": "p2p_processing SAT argument"},
+        "polarization":    {"type": "select", "options": ["vv", "vh"], "hint": "Polarization channel"},
+        "config_template": {"type": "text", "hint": "Reuse an existing GMTSAR config.py (leave blank to auto-generate via pop_config)"},
+        "max_workers":     {"type": "number", "min": 1, "max": 16, "step": 1, "default": 4,
+                             "hint": "Independent pairs processed concurrently"},
+        "skip_existing":   {"type": "bool", "hint": "Skip pairs that already succeeded"},
+        "dry_run":         {"type": "bool", "hint": "Stage the case and report what would run, without executing p2p_processing"},
+    }
+
+    name: str                     = "GMTSAR_S1_Config"
+    workdir: Path | str           = field(default_factory=lambda: Path.cwd())
+    slc_dir: Path | str | None    = "auto"
+    orbit_dir: Path | str | None  = "auto"
+    dem_path: Path | str | None   = None
+    bbox: list[float] | None      = None   # [S, N, W, E] -- reserved, unused until DEM auto-fetch lands
+    sat: str                      = "S1_TOPS"
+    polarization: str             = "vv"
+    config_template: Path | str | None = None
+    max_workers: int              = 4
+    skip_existing: bool           = True
+    dry_run: bool                 = False
