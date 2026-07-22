@@ -3,6 +3,8 @@ Real end-to-end pipeline: HyP3 -> MintPy, via direct Python API calls (no CLI
 subprocess involved) -- the library-import equivalent of cli_e2e_hyp3_mintpy.sh.
 
 Runs the actual insarhub library against real infrastructure, no mocking:
+  - searches ASF and selects real interferogram pairs for path 100 / frame
+    466 over the real p100_f466 AOI/date range
   - submits real InSAR_GAMMA jobs to HyP3 (consumes real processing credits
     on your Earthdata account)
   - watches HyP3 for real job status and downloads the real result ZIPs
@@ -10,12 +12,11 @@ Runs the actual insarhub library against real infrastructure, no mocking:
   - runs the real MintPy time-series workflow
 
 Operates on p100_f466/ (repo root) by default -- a real S1 SLC stack
-(path 100 / frame 466) with 27 already-selected real pairs
-(p100_f466/stack_p100_f466.json), so no search/select_pairs step is needed.
+(path 100 / frame 466).
 
 Prerequisites -- see cli_e2e_hyp3_mintpy.sh for full details:
   - ~/.netrc (or ~/.credit_pool) with Earthdata credentials
-  - insarhub installed with MintPy (pip install insarhub[mintpy])
+  - insarhub installed (pip install insarhub — MintPy is a base dependency)
   - (optional) ~/.cdsapirc for the correct_troposphere MintPy step
 
 Usage (run from the repo root):
@@ -23,32 +24,34 @@ Usage (run from the repo root):
 
 This file is NOT auto-run by pytest (no test_ prefix, and everything lives
 behind `if __name__ == "__main__":`) -- invoke it directly when you actually
-want to submit real jobs. Safe to re-run: submission is skipped (resumes
-from the saved job file instead) if hyp3_jobs.json already exists.
+want to submit real jobs. Safe to re-run: search is cheap/idempotent to
+redo; job submission is skipped (resumes from the saved job file instead)
+if hyp3_jobs.json already exists.
 """
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _p100_f466_stack import real_pairs  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
+# Real search AOI / date range / track for p100_f466 (path 100, frame 466) --
+# matches cli_e2e_hyp3_mintpy.sh's --AOI/--start/--end/--stacks.
+AOI = ("POLYGON ((-113.21199 37.66462, -112.47240 37.66462, "
+       "-112.47240 38.15669, -113.21199 38.15669, -113.21199 37.66462))")
+START = "2021-01-08"
+END = "2021-06-01"
+RELATIVE_ORBIT = 100
+FRAME = 466
+
 
 def run_pipeline(workdir: Path) -> None:
-    from insarhub.config import Hyp3_S1_Config, Hyp3_SBAS_Config
+    from insarhub.config import S1_SLC_Config, Hyp3_S1_Config, Hyp3_SBAS_Config
+    from insarhub.downloader.s1_slc import S1_SLC
     from insarhub.processor.hyp3_s1 import Hyp3_S1
     from insarhub.analyzer.hyp3_sbas import Hyp3_SBAS
 
-    cfg_path = workdir / "insarhub_config.json"
-    if not cfg_path.exists():
-        raise SystemExit(
-            f"[ERROR] {cfg_path} not found. Run search + select_pairs first."
-        )
-
+    workdir.mkdir(parents=True, exist_ok=True)
     jobs_path = workdir / "hyp3_jobs.json"
 
     print("== Stage 1/3: Submit real HyP3 jobs " + "=" * 46)
@@ -57,7 +60,14 @@ def run_pipeline(workdir: Path) -> None:
               f"re-submitting (would duplicate real jobs/credits).")
         proc = Hyp3_S1(Hyp3_S1_Config(workdir=str(workdir), saved_job_path=str(jobs_path)))
     else:
-        pairs = real_pairs()  # all 27 real selected pairs for p100_f466
+        dl_cfg = S1_SLC_Config(
+            workdir=str(workdir), intersectsWith=AOI, start=START, end=END,
+            relativeOrbit=RELATIVE_ORBIT, frame=FRAME,
+        )
+        downloader = S1_SLC(dl_cfg)
+        downloader.search()
+        pairs, *_ = downloader.select_pairs()  # real ASF search is cheap/idempotent to redo
+
         proc = Hyp3_S1(Hyp3_S1_Config(workdir=str(workdir), pairs=pairs))
         proc.submit()
         proc.save()
@@ -79,5 +89,6 @@ def run_pipeline(workdir: Path) -> None:
 
 
 if __name__ == "__main__":
+    import sys
     target = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else REPO_ROOT / "p100_f466"
     run_pipeline(target)

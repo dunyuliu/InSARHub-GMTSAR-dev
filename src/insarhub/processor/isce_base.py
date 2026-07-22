@@ -158,7 +158,7 @@ _CONTAINER_HINT = (
     "\nAlternatively, skip installing ISCE2 locally and run this processor "
     "inside a container instead: pass --container <path-or-image> (the "
     "container needs `insarhub` installed alongside ISCE2 — see the "
-    "insarhub[mintpy]/--container docs)."
+    "--container docs)."
 )
 
 
@@ -931,7 +931,19 @@ class ISCE_Base(LocalProcessor):
             ]
 
             print(f"\n{Fore.CYAN}  ▶ {step}{Style.RESET_ALL}  ({len(commands)} command(s))")
-            _write_status(self._run_files_dir, step, _RUNNING, str(os.getpid()))
+            # Inside a container, os.getpid() is a PID in the *container's*
+            # own PID namespace -- meaningless to a host-side os.kill(pid, 0)
+            # liveness check (refresh() runs on the host). This is true even
+            # with `docker run --pid=host` on Docker Desktop (Windows/Mac/
+            # WSL2): its containers run inside Docker Desktop's own VM, which
+            # shares a PID namespace with *that* VM, not with the user's
+            # actual host shell. INSARHUB_HOST_PID (set by
+            # _reinvoke_via_container, only present when running as a
+            # container re-invocation) is the PID of the *host-side* process
+            # blocking on `docker run` -- a real, host-checkable stand-in for
+            # "is this container job still alive".
+            running_pid = os.environ.get("INSARHUB_HOST_PID") or str(os.getpid())
+            _write_status(self._run_files_dir, step, _RUNNING, running_pid)
             self.jobs[step]["status"] = _RUNNING
 
             success = self._run_step(script, log_dir)
@@ -1711,8 +1723,22 @@ class ISCE_Base(LocalProcessor):
         })
 
         step_args = f" --step {' '.join(steps)}" if steps else ""
-        cli_cmd = f"insarhub processor -N {type(self).name} -w {self.workdir} {action}{step_args}"
-        wrapped = wrap_container_cmd(self.config.container, cli_cmd, self.workdir)
+
+        def _build_cli_cmd(host_pid: int | None = None) -> str:
+            # INSARHUB_CONTAINER_CHILD tells _start_local_background() (running
+            # inside the container) not to fork+detach again: this call already
+            # forks and blocks on `docker run` below, so backgrounding is
+            # already handled at the host level -- see that method's docstring.
+            # INSARHUB_HOST_PID (only known once we're the forked child, after
+            # os.fork()) is this host-side process's own PID -- a real,
+            # host-checkable liveness marker for _step_executor to record
+            # instead of a container-namespace PID that's meaningless from the
+            # host's side (see _step_executor's comment for why).
+            env_prefix = "INSARHUB_CONTAINER_CHILD=1"
+            if host_pid is not None:
+                env_prefix += f" INSARHUB_HOST_PID={host_pid}"
+            return (f"{env_prefix} insarhub processor "
+                    f"-N {type(self).name} -w {self.workdir} {action}{step_args}")
 
         self._run_files_dir.mkdir(parents=True, exist_ok=True)
         log_file = self._run_files_dir / "executor.log"
@@ -1722,6 +1748,9 @@ class ISCE_Base(LocalProcessor):
             if pid == 0:  # child — detach and run
                 try:
                     os.setsid()
+                    own_pid = os.getpid()
+                    cli_cmd = _build_cli_cmd(host_pid=own_pid)
+                    wrapped = wrap_container_cmd(self.config.container, cli_cmd, self.workdir)
                     with open(log_file, "w") as _lf:
                         os.dup2(_lf.fileno(), sys.stdout.fileno())
                         os.dup2(_lf.fileno(), sys.stderr.fileno())
@@ -1734,15 +1763,33 @@ class ISCE_Base(LocalProcessor):
             print(f"  log : {log_file}")
             print(f"  Use 'refresh' to check status, 'cancel' to stop.")
         else:
-            # Windows: no fork — run blocking
+            # Windows: no fork — run blocking. No separate host PID to hand
+            # off either: this call itself is already the thing the user is
+            # waiting on, so a container-namespace PID recorded inside never
+            # gets checked against a *different*, already-returned host process.
+            cli_cmd = _build_cli_cmd()
+            wrapped = wrap_container_cmd(self.config.container, cli_cmd, self.workdir)
             subprocess.run(wrapped, shell=True)
 
     # ── Background local execution ────────────────────────────────────────────
 
     def _start_local_background(self, pending_steps: list[str]) -> None:
-        """Fork a detached process to run steps; parent returns immediately."""
+        """Fork a detached process to run steps; parent returns immediately.
+
+        Skipped when re-invoked inside a container by _reinvoke_via_container:
+        that host-side call already forks and blocks on `docker run`, which is
+        what provides the "return control to the user, keep running" behavior.
+        Forking *again* here would let the container's own foreground process
+        (this one) exit right after the fork, and `docker run --rm` tears the
+        whole container down -- including this freshly-forked, barely-started
+        child -- as soon as its main process exits. Running _step_executor
+        directly instead keeps the container alive until the steps finish.
+        """
         pid_file = self._run_files_dir / "executor.pid"
         log_file = self._run_files_dir / "executor.log"
+        if os.environ.get("INSARHUB_CONTAINER_CHILD"):
+            self._step_executor(pending_steps)
+            return
         if os.name == "posix":
             pid = os.fork()
             if pid == 0:  # child — detach and run

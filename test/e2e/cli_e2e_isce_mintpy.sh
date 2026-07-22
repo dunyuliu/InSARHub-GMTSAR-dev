@@ -7,18 +7,23 @@
 #   - runs ISCE_SBAS.prep_data() for real (real path discovery)
 #   - runs the real MintPy time-series workflow
 #
-# By default this operates on p100_f466/ (repo root) — a real S1 SLC stack
-# (path 100 / frame 466) with 27 already-selected real pairs and 13 real
-# scenes (p100_f466/stack_p100_f466.json), so no search/select_pairs step
-# is needed.
+# By default this operates on p100_f466_isce/ (repo root) — a real S1 SLC
+# stack (path 100 / frame 466), kept separate from cli_e2e_hyp3_mintpy.sh's
+# default p100_f466/ workdir: Hyp3_SBAS and ISCE_SBAS derive their MintPy
+# output directory purely from workdir (workdir/mintpy/, with no
+# analyzer-type awareness — see MintPyPaths in config/paths.py), so running
+# both e2e tests against the same workdir would silently overwrite one
+# pipeline's mintpy/ outputs (ifgramStack.h5, smallbaselineApp.cfg,
+# velocity.h5, etc.) with the other's.
 #
 # Prerequisites
 # -------------
 #   - ~/.netrc (or ~/.credit_pool) with Earthdata credentials.
-#   - A real ISCE2 + topsStack install. This repo's environment-isce2.yml
-#     builds exactly that, plus MintPy:
-#       mamba env create -f environment-isce2.yml -n insarhub_isce
+#   - A real ISCE2 + topsStack install. Build the base env from this repo's
+#     environment.yml, then add ISCE2 into the same env:
+#       mamba env create -f environment.yml -n insarhub_isce
 #       conda activate insarhub_isce
+#       mamba install -c conda-forge "numpy<2.0" isce2
 #       pip install -e .
 #   - Disk space: ~50GB+ for the 13 real SLCs, plus processing intermediates
 #     (unpacked bursts, coregistered stacks, interferograms) — check with
@@ -43,7 +48,7 @@
 
 set -euo pipefail
 
-# Anchor the default workdir to the real repo-root p100_f466/ regardless of
+# Anchor the default workdir to the real repo-root p100_f466_isce/ regardless of
 # CWD or how this script was invoked (an explicit $1 still overrides it and
 # is resolved relative to the caller's CWD, as usual). git rev-parse is used
 # rather than ${BASH_SOURCE[0]}, which is empty (and silently resolves
@@ -54,7 +59,7 @@ if [[ -z "$REPO_ROOT" ]]; then
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
   REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 fi
-WORKDIR="${1:-$REPO_ROOT/p100_f466}"
+WORKDIR="${1:-$REPO_ROOT/p100_f466_isce}"
 
 if [[ ! -f "$WORKDIR/insarhub_config.json" ]]; then
   echo "[ERROR] $WORKDIR/insarhub_config.json not found." >&2
@@ -65,12 +70,12 @@ fi
 if ! python -c "import isce" >/dev/null 2>&1; then
   echo "[ERROR] Real ISCE2 is not importable in the active Python environment." >&2
   echo "        conda activate insarhub_isce" >&2
-  echo "        (build it first: mamba env create -f environment-isce2.yml -n insarhub_isce)" >&2
+  echo "        (build it first: mamba env create -f environment.yml -n insarhub_isce && mamba install -n insarhub_isce -c conda-forge \"numpy<2.0\" isce2)" >&2
   exit 1
 fi
 
 echo "== Stage 1/4: Download real Sentinel-1 SLC scenes ============================"
-insarhub downloader -N S1_SLC -w "$WORKDIR" --config -d --worker 4
+insarhub downloader -N S1_SLC -w "$WORKDIR" --config -d -O --worker 8
 
 echo "== Stage 2/4: Submit real ISCE_S1 processing (runs detached in background) ===="
 insarhub processor -N ISCE_S1 -w "$WORKDIR" submit

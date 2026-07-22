@@ -19,9 +19,9 @@
 #   - ~/.netrc with a 'machine urs.earthdata.nasa.gov' entry (or
 #     ~/.credit_pool for multi-account credit rotation) —
 #     see docs/quickstart/install.md
-#   - insarhub installed in the active environment, with MintPy:
-#       pip install insarhub[mintpy]   (or: conda activate dev, already set
-#       up in this repo's dev environment)
+#   - insarhub installed in the active environment (MintPy is a base
+#     dependency): pip install insarhub   (or: conda activate dev, already
+#     set up in this repo's dev environment)
 #   - (optional) ~/.cdsapirc with a CDS API token — the default MintPy config
 #     uses troposphericDelay_method=pyaps, which authorizes against CDS during
 #     the correct_troposphere step; without ~/.cdsapirc you'll be prompted

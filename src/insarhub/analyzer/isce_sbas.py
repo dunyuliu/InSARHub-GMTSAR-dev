@@ -35,7 +35,7 @@ from colorama import Fore
 
 from insarhub.config.defaultconfig import ISCE_SBAS_Config
 from insarhub.config.paths import ISCEPaths
-from insarhub.analyzer.mintpy_base import Mintpy_SBAS_Base_Analyzer, _require_mintpy
+from insarhub.analyzer.mintpy_base import Mintpy_SBAS_Base_Analyzer
 
 
 class ISCE_SBAS(Mintpy_SBAS_Base_Analyzer):
@@ -97,19 +97,30 @@ class ISCE_SBAS(Mintpy_SBAS_Base_Analyzer):
             self._cds_authorize()
         run_steps = steps or [
             "load_data", "modify_network", "reference_point", "quick_overview",
-            "invert_network", "correct_LOD", "correct_SET", "correct_ionosphere",
-            "correct_troposphere", "deramp", "correct_topography", "residual_RMS",
-            "reference_date", "velocity", "geocode", "google_earth", "hdfeos5",
+            "correct_unwrap_error", "invert_network", "correct_LOD", "correct_SET",
+            "correct_ionosphere", "correct_troposphere", "deramp", "correct_topography",
+            "residual_RMS", "reference_date", "velocity", "geocode", "google_earth", "hdfeos5",
         ]
         from colorama import Style
         print(f"{Style.BRIGHT}{Fore.MAGENTA}Running MintPy Analysis…{Fore.RESET}")
-        _require_mintpy()
         from mintpy.smallbaselineApp import TimeSeriesAnalysis
         app = TimeSeriesAnalysis(self.cfg_path.as_posix(), str(self.mintpy_dir))
-        app.open()
-        app.run(steps=run_steps)
-        if 'geocode' in run_steps:
-            self._geocode_diagnostic_files(self.mintpy_dir)
+        try:
+            app.open()
+            app.run(steps=run_steps)
+            if 'geocode' in run_steps:
+                self._geocode_diagnostic_files(self.mintpy_dir)
+            # Mirrors mintpy.smallbaselineApp's own CLI wrapper
+            # (run_smallbaselineApp()), which calls these two after run() --
+            # plot_result() is what actually populates mintpy_dir/pic/, and
+            # close() is what restores the process's working directory after
+            # open() changed into mintpy_dir (skipping it would leave a
+            # long-running server process permanently cd'd into the last
+            # analyzed folder).
+            if app.template.get('mintpy.plot') and len(run_steps) > 1:
+                app.plot_result()
+        finally:
+            app.close()
 
     def cleanup(self) -> None:
         """Remove large ISCE2 intermediate directories and input data no longer needed

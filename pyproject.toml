@@ -24,15 +24,16 @@ dependencies = [
 "numpy<2.0",
 "psutil",
 "networkx",
+"mintpy",
+"pyaps3",
+"dask",
+"h5py",
 ]
 requires-python = ">=3.11,<3.13"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
-
-[project.optional-dependencies]
-mintpy = ["mintpy", "pyaps3", "dask", "h5py"]
 
 [project.scripts]
 insarhub = "insarhub.cli.main:main"

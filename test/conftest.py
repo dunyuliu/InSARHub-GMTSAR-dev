@@ -35,10 +35,10 @@ _STUBS = [
     "mintpy.cli",
     "mintpy.cli.geocode",
     "cdsapi",
-    # Stubbing "mintpy" above makes `import mintpy` succeed, which makes
-    # insarhub/__init__.py's `_has_mintpy` check True and try a real `from
-    # dask import config` next — stub dask too so that doesn't fail when
-    # dask genuinely isn't installed (it's now an insarhub[mintpy] extra).
+    # insarhub/__init__.py does `import mintpy` then `from dask import
+    # config` unconditionally at package-import time; stubbing both here
+    # keeps unit tests fast/isolated without needing the real (heavy)
+    # packages, even though both are genuine, always-installed dependencies.
     # h5py is NOT stubbed here: it's lazily imported inside h5_to_raster()
     # only, and test_utils_postprocess.py needs the real package to build
     # HDF5 test fixtures.

@@ -77,7 +77,8 @@ def _resolve_aoi_yx(config, folder: Path) -> None:
 
 
 _MINTPY_STEPS = [
-    'load_data', 'modify_network', 'reference_point', 'quick_overview', 'invert_network',
+    'load_data', 'modify_network', 'reference_point', 'quick_overview',
+    'correct_unwrap_error', 'invert_network',
     'correct_LOD', 'correct_SET', 'correct_ionosphere', 'correct_troposphere',
     'deramp', 'correct_topography', 'residual_RMS', 'reference_date',
     'velocity', 'geocode', 'google_earth', 'hdfeos5', 'plot',
@@ -199,9 +200,22 @@ async def _run_analyzer(job_id: str, req: RunAnalyzerRequest):
                                   message=f"HPC job submitted: {slurm_job_id}")
                 return
 
-            total = len(req.steps)
+            # 'plot' isn't a real MintPy step (TimeSeriesAnalysis.run() would
+            # silently ignore it) -- it's handled as a standalone call to
+            # analyzer.plot() below. Auto-add it when more than one real
+            # MintPy step was requested and the user didn't already pick it
+            # explicitly, mirroring MintPy's own "a bulk run auto-plots"
+            # semantics (run()'s own internal version of this check never
+            # fires here since steps execute one at a time for per-step
+            # progress reporting).
+            steps_to_run = list(req.steps)
+            real_mintpy_steps = [s for s in req.steps if s not in ('prep_data', 'plot')]
+            if 'plot' not in steps_to_run and len(real_mintpy_steps) > 1:
+                steps_to_run.append('plot')
+
+            total = len(steps_to_run)
             completed = 0
-            for i, step in enumerate(req.steps):
+            for i, step in enumerate(steps_to_run):
                 if stop_ev.is_set():
                     update(f"[stopped] Cancelled before {step}", int(i / total * 100))
                     break
@@ -227,6 +241,8 @@ async def _run_analyzer(job_id: str, req: RunAnalyzerRequest):
                             _acfg_path.parent.mkdir(parents=True, exist_ok=True)
                             analyzer.config.write_mintpy_config(_acfg_path)
                         analyzer.run(steps=[step])
+                    elif step == 'plot':
+                        analyzer.plot()
                     else:
                         analyzer.run(steps=[step])
                     update(f"[{i+1}/{total}] {step} — done", int((i+1) / total * 100))

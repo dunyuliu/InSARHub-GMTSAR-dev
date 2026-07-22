@@ -14,7 +14,7 @@ from .processor import (
     SaveJobsCommand,
     CheckCreditsCommand,
 )
-from .analyzer import PrepDataCommand, AnalyzeCommand
+from .analyzer import PrepDataCommand, AnalyzeCommand, PlotCommand
 
 __all__ = [
     # base
@@ -36,4 +36,5 @@ __all__ = [
     # analyzer
     "PrepDataCommand",
     "AnalyzeCommand",
+    "PlotCommand",
 ]

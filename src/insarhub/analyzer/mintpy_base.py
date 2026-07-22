@@ -16,20 +16,6 @@ from insarhub.core.base import BaseAnalyzer
 from insarhub.utils.tool import write_workflow_marker
 
 
-def _require_mintpy() -> None:
-    """Import MintPy, raising a clear, actionable error if it's missing."""
-    try:
-        import mintpy  # noqa: F401
-    except ImportError as e:
-        raise ImportError(
-            "MintPy is required to run this analyzer, but isn't installed.\n"
-            "  Install it locally:  pip install insarhub[mintpy]\n"
-            "  Or run this analyzer inside a container instead: pass "
-            "container=<path-or-image> (the container needs `insarhub` "
-            "installed alongside MintPy)."
-        ) from e
-
-
 class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
 
     description = "Generic MintPy SBAS analyzer, fully customizable configs."
@@ -262,7 +248,7 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
                 default full workflow is executed:
                     [
                         'load_data', 'modify_network', 'reference_point', 'quick_overview',
-                        'invert_network', 'correct_LOD', 'correct_SET',
+                        'correct_unwrap_error', 'invert_network', 'correct_LOD', 'correct_SET',
                         'correct_ionosphere', 'correct_troposphere',
                         'deramp', 'correct_topography', 'residual_RMS',
                         'reference_date', 'velocity', 'geocode',
@@ -285,7 +271,8 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
             return self._run_via_container(steps)
 
         run_steps = steps or [
-            'load_data', 'modify_network', 'reference_point', 'quick_overview', 'invert_network',
+            'load_data', 'modify_network', 'reference_point', 'quick_overview',
+            'correct_unwrap_error', 'invert_network',
             'correct_LOD', 'correct_SET', 'correct_ionosphere', 'correct_troposphere',
             'deramp', 'correct_topography', 'residual_RMS', 'reference_date',
             'velocity', 'geocode', 'google_earth', 'hdfeos5'
@@ -301,13 +288,51 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
             self._cds_authorize()
         print(f'{Style.BRIGHT}{Fore.MAGENTA}Running MintPy Analysis...{Fore.RESET}')
         self.mintpy_dir.mkdir(parents=True, exist_ok=True)
-        _require_mintpy()
         from mintpy.smallbaselineApp import TimeSeriesAnalysis
         app = TimeSeriesAnalysis(self.cfg_path.as_posix(), self.mintpy_dir.as_posix())
-        app.open()
-        app.run(steps=run_steps)
-        if 'geocode' in run_steps:
-            self._geocode_diagnostic_files(self.mintpy_dir)
+        try:
+            app.open()
+            app.run(steps=run_steps)
+            if 'geocode' in run_steps:
+                self._geocode_diagnostic_files(self.mintpy_dir)
+            # Mirrors mintpy.smallbaselineApp's own CLI wrapper
+            # (run_smallbaselineApp()), which calls these two after run() --
+            # plot_result() is what actually populates mintpy_dir/pic/, and
+            # close() is what restores the process's working directory after
+            # open() changed into mintpy_dir (skipping it would leave a
+            # long-running server process permanently cd'd into the last
+            # analyzed folder).
+            if app.template.get('mintpy.plot') and len(run_steps) > 1:
+                app.plot_result()
+        finally:
+            app.close()
+
+    def plot(self) -> None:
+        """(Re)generate the figures under mintpy_dir/pic/ from already-computed results.
+
+        run()'s own post-run plotting only fires for a single bulk multi-step
+        call (mirroring MintPy's own CLI semantics: len(run_steps) > 1). Both
+        the CLI (`analyzer run`) and the GUI execute steps one at a time
+        internally for per-step progress reporting, so that condition never
+        actually triggers there — this method is the explicit, standalone
+        alternative both call once after their step sequence completes
+        (or on-demand, e.g. the GUI's "plot" checkbox / CLI's `--step plot`).
+        """
+        if self.config.container:
+            return self._run_via_container(['plot'])
+        if not self.cfg_path.exists():
+            raise FileNotFoundError(
+                f"{self.cfg_path} not found — run prep_data and at least "
+                f"load_data/invert_network/velocity before plotting."
+            )
+        self.mintpy_dir.mkdir(parents=True, exist_ok=True)
+        from mintpy.smallbaselineApp import TimeSeriesAnalysis
+        app = TimeSeriesAnalysis(self.cfg_path.as_posix(), self.mintpy_dir.as_posix())
+        try:
+            app.open()
+            app.plot_result()
+        finally:
+            app.close()
 
     def _geocode_diagnostic_files(self, mintpy_work: Path) -> None:
         """Geocode diagnostic files omitted from MintPy's default geocode step.

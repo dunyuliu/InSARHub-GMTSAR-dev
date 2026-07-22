@@ -134,6 +134,15 @@ class Hyp3_SBAS(Mintpy_SBAS_Base_Analyzer):
         categories = [k for k in files.keys() if k != 'meta']
         left, top, right, bottom = overlap_extent
 
+        def _is_valid_raster(path: Path) -> bool:
+            """Check that path is a real, fully-written raster (not left behind
+            by an interrupted prior clip -- crash, Ctrl+C, disk full, etc.)."""
+            try:
+                with rasterio.open(path.as_posix()) as ds:
+                    return ds.count > 0
+            except Exception:
+                return False
+
         with tqdm(categories, desc="Progress", position=0, dynamic_ncols=True) as pbar_out:
             for key in pbar_out:
                 file_list = files[key]
@@ -146,12 +155,22 @@ class Hyp3_SBAS(Mintpy_SBAS_Base_Analyzer):
                         out = self.clip_dir / f"{f.stem}_clip.tif"
 
                         if out.exists():
-                            pbar_in.set_postfix_str(f"Skip: {f.name[:15]}...")
-                            # Update postfix instead of printing to avoid creating new lines
-                            continue
+                            if _is_valid_raster(out):
+                                pbar_in.set_postfix_str(f"Skip: {f.name[:15]}...")
+                                # Update postfix instead of printing to avoid creating new lines
+                                continue
+                            # Left behind by an interrupted prior run -- existing but
+                            # broken, so a plain exists()-check would skip it forever.
+                            tqdm.write(f"{Fore.YELLOW}  {out.name} exists but isn't a valid "
+                                       f"raster (interrupted prior run?) — re-clipping.{Fore.RESET}")
+                            out.unlink(missing_ok=True)
 
                         pbar_in.set_postfix_str(f"File: {f.name[:15]}...")
 
+                        # Write to a temp path and rename on success only, so a
+                        # crash/interrupt mid-write never leaves a broken file
+                        # sitting at the final path for a future run to skip over.
+                        tmp_out = out.parent / (out.name + ".part")
                         try:
                             with rasterio.open(f.as_posix()) as src:
                                 window = from_bounds(left, bottom, right, top, transform=src.transform)
@@ -160,9 +179,11 @@ class Hyp3_SBAS(Mintpy_SBAS_Base_Analyzer):
                                 data = src.read(window=window)
                                 profile = src.profile.copy()
                                 profile.update(height=window.height, width=window.width, transform=transform)
-                                with rasterio.open(out.as_posix(), "w", **profile) as dst:
+                                with rasterio.open(tmp_out.as_posix(), "w", **profile) as dst:
                                     dst.write(data)
+                            tmp_out.rename(out)
                         except Exception as e:
+                            tmp_out.unlink(missing_ok=True)
                             tqdm.write(f"{Fore.RED}Error clipping {f.name}: {e}{Fore.RESET}")
 
             # Handle metadata separately as it's just a file copy (no progress bar needed)

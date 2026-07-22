@@ -300,4 +300,20 @@ Processor.available()
         processor.refresh()   # 或 .retry()、.cancel()、.watch()
         ```
 
+    - **无需本地安装 ISCE2**
+
+        将 `container` 字段设置为 Apptainer/Singularity `.sif` 镜像的路径，或 Docker 镜像引用（name[:tag]），`submit()`/`retry()`/`refresh()`/`watch()`/`cancel()` 都会在容器内而非宿主机上重新执行同一个 `insarhub processor ...` CLI 调用 — 工作目录会以相同路径绑定挂载，因此输出会像本机运行一样落在原处，ISCE2 也完全不需要在宿主机上被发现。容器镜像只需在 ISCE2/topsStack 旁额外安装 `insarhub`（可参考仓库根目录的 [`Dockerfile`](https://github.com/jldz9/InSARHub/blob/main/Dockerfile) 作为现成示例）。
+
+        ```python
+        cfg = ISCE_S1_Config(
+            workdir='/data/p100_f466',
+            bbox=[33.0, 38.0, -120.0, -115.0],
+            container='ghcr.io/jldz9/insarhub-isce2:latest',
+        )
+        processor = Processor.create('ISCE_S1', pairs=pairs, config=cfg)
+        processor.submit()
+        ```
+
+        `container` 是按次调用的设置，而非持久化配置 — 之后每次调用（`retry()`、新的 `submit()` 等）若也要在容器内运行，都需要再次设置。
+
 *[HyP3]: Hybrid Pluggable Processing Pipeline

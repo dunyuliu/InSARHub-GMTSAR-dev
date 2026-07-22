@@ -43,7 +43,20 @@ def wrap_container_cmd(
         )
 
     user_flag = f"--user {os.getuid()}:{os.getgid()}" if hasattr(os, "getuid") else ""
+    # --user's numeric UID/GID has no /etc/passwd entry in the image unless it
+    # happens to match one baked in at build time, so HOME resolves to "/" --
+    # anything writing to $HOME (e.g. insarhub's own dask temp-dir setup)
+    # fails with a permission error against root's home. Point HOME at the
+    # bind-mounted dir instead, which the user can always write to.
+    #
+    # No --pid=host: it doesn't actually help on Docker Desktop (Windows/Mac/
+    # WSL2) since those run containers inside Docker Desktop's own VM, sharing
+    # a PID namespace with *that* VM rather than the user's real host shell --
+    # so a PID recorded inside the container would still be unrelated to
+    # anything in the host's own process table. See isce_base.py's
+    # INSARHUB_HOST_PID (in _reinvoke_via_container/_step_executor) for how
+    # container-run step liveness is actually tracked instead.
     return (
-        f"docker run --rm {user_flag} -v {bind_dir}:{bind_dir} -w {wd} "
-        f"{container} bash -c {quoted_cmd}"
+        f"docker run --rm {user_flag} -e HOME={bind_dir} "
+        f"-v {bind_dir}:{bind_dir} -w {wd} {container} bash -c {quoted_cmd}"
     ).replace("  ", " ")

@@ -3,6 +3,7 @@ channels:
     - conda-forge
 dependencies:
     - python >=3.11,<3.13
+    - numpy <2.0
     - gdal >=3.8
     - mintpy
     - pip
@@ -19,5 +20,3 @@ dependencies:
         - uvicorn
         - openpyxl
         - python-multipart
-        - numpy <2.0
-        

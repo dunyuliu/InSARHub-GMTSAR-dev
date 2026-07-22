@@ -272,6 +272,12 @@ def create_parser() -> argparse.ArgumentParser:
              "Bare --ls shows it for every step; --ls 03 (also accepts '3', "
              "'run_03') shows it for just that one step. Omit for step-level "
              "summary only (default).")
+    p_proc_refresh.add_argument(
+        "--container", metavar="PATH", default=None,
+        help="Local/ISCE processors only: path to a .sif/Apptainer image or a "
+             "Docker image reference with insarhub installed — needed on a host "
+             "with no local ISCE2 install, since the processor is constructed "
+             "(and ISCE2 discovery attempted) before refresh's own logic runs.")
 
     # --- download  (HyP3) --------------------------------------------- #
     p_proc_dl = proc_sub.add_parser("download", help="Download completed HyP3 job outputs")
@@ -302,16 +308,28 @@ def create_parser() -> argparse.ArgumentParser:
                               help="Parallel download workers (overrides saved config)")
     p_proc_watch.add_argument("-r", "--recursive", action="store_true",
                               help="Recursively search workdir for hyp3*.json job files")
+    p_proc_watch.add_argument(
+        "--container", metavar="PATH", default=None,
+        help="Local/ISCE processors only: path to a .sif/Apptainer image or a "
+             "Docker image reference with insarhub installed — needed on a host "
+             "with no local ISCE2 install, since the processor is constructed "
+             "(and ISCE2 discovery attempted) before watch's own logic runs.")
 
     # --- credits  (HyP3) ----------------------------------------------- #
     p_proc_credits = proc_sub.add_parser("credits", help="Show remaining HyP3 processing credits")
     _add_credential_pool(p_proc_credits)
 
     # --- cancel  (local / HPC) ----------------------------------------- #
-    proc_sub.add_parser(
+    p_proc_cancel = proc_sub.add_parser(
         "cancel",
         help="Cancel all running/pending jobs (local: SIGTERM; HPC: scancel)"
     )
+    p_proc_cancel.add_argument(
+        "--container", metavar="PATH", default=None,
+        help="Local/ISCE processors only: path to a .sif/Apptainer image or a "
+             "Docker image reference with insarhub installed — needed on a host "
+             "with no local ISCE2 install, since the processor is constructed "
+             "(and ISCE2 discovery attempted) before cancel's own logic runs.")
 
     # ------------------------------------------------------------------ #
     # analyzer — prepare + run MintPy SBAS time-series analysis
@@ -327,6 +345,10 @@ def create_parser() -> argparse.ArgumentParser:
         "  ----------    ----------------------------------------\n"
         "  prep_data     Prepare data (unzip, clip, write .mintpy.cfg)  [alias: prep]\n"
         "  all           prep_data + all MintPy steps below (default if --step omitted)\n"
+        "  plot          (Re)generate figures under mintpy/pic/ from already-computed\n"
+        "                results. Not a real MintPy step -- runs automatically after\n"
+        "                any --step selection of more than one MintPy step, or on its\n"
+        "                own via --step plot.\n"
         "\n"
         "  MintPy step             \n"
         "  --------------------\n"
@@ -709,7 +731,8 @@ def _field_argparse_kwargs(annotation, default) -> dict:
 
 
 _MINTPY_ALL_STEPS = [
-    'load_data', 'modify_network', 'reference_point', 'quick_overview', 'invert_network',
+    'load_data', 'modify_network', 'reference_point', 'quick_overview',
+    'correct_unwrap_error', 'invert_network',
     'correct_LOD', 'correct_SET', 'correct_ionosphere', 'correct_troposphere',
     'deramp', 'correct_topography', 'residual_RMS', 'reference_date',
     'velocity', 'geocode', 'google_earth', 'hdfeos5',
@@ -1916,7 +1939,9 @@ def _proc_local_refresh(args):
         print("[ERROR] No isce_jobs.json found. Run submit first.", file=sys.stderr)
         sys.exit(1)
     hpc_mode = getattr(args, "hpc_mode", False)
-    _load_local_processor(processor_name, workdir, jobs_path, hpc_mode=hpc_mode).refresh(
+    container = getattr(args, "container", None)
+    _load_local_processor(processor_name, workdir, jobs_path,
+                          hpc_mode=hpc_mode, container=container).refresh(
         ls=getattr(args, "ls", None))
 
 
@@ -1943,7 +1968,9 @@ def _proc_local_cancel(args):
         print("[ERROR] No isce_jobs.json found. Nothing to cancel.", file=sys.stderr)
         sys.exit(1)
     hpc_mode = getattr(args, "hpc_mode", False)
-    _load_local_processor(processor_name, workdir, jobs_path, hpc_mode=hpc_mode).cancel()
+    container = getattr(args, "container", None)
+    _load_local_processor(processor_name, workdir, jobs_path,
+                          hpc_mode=hpc_mode, container=container).cancel()
 
 
 def _proc_local_watch(args):
@@ -1956,7 +1983,10 @@ def _proc_local_watch(args):
         sys.exit(1)
 
     hpc_mode = getattr(args, "hpc_mode", False)
-    _load_local_processor(processor_name, workdir, jobs_path, hpc_mode=hpc_mode).watch(refresh_interval=refresh_interval)
+    container = getattr(args, "container", None)
+    _load_local_processor(processor_name, workdir, jobs_path,
+                          hpc_mode=hpc_mode, container=container).watch(
+        refresh_interval=refresh_interval)
 
 
 def cmd_analyzer(args, extra_args: list[str]):
@@ -1998,7 +2028,7 @@ def cmd_analyzer(args, extra_args: list[str]):
 def _az_run(args, extra_args: list[str]):
     import dataclasses
     from insarhub import Analyzer
-    from insarhub.commands import PrepDataCommand, AnalyzeCommand
+    from insarhub.commands import PrepDataCommand, AnalyzeCommand, PlotCommand
 
     analyzer_cls = Analyzer._registry[args.analyzer_name]
 
@@ -2017,6 +2047,7 @@ def _az_run(args, extra_args: list[str]):
                 overrides[f.name] = val
 
     run_prep = False
+    run_plot_explicit = False
     mintpy_steps: list[str] | None = None
     steps = getattr(args, 'step', None) or ['all']  # default: run everything including prep_data
     expanded: list[str] = []
@@ -2026,6 +2057,10 @@ def _az_run(args, extra_args: list[str]):
         elif s == 'all':
             run_prep = True
             expanded.extend(_MINTPY_ALL_STEPS)
+        elif s == 'plot':
+            # Not a real MintPy step name (TimeSeriesAnalysis.run() would
+            # silently ignore it) -- handled separately below via plot().
+            run_plot_explicit = True
         else:
             expanded.append(s)
     mintpy_steps = expanded or None  # None → AnalyzeCommand uses full default
@@ -2067,8 +2102,16 @@ def _az_run(args, extra_args: list[str]):
     overrides["debug"] = getattr(args, "debug", False)
     workdir = _resolve_workdir(args.workdir)
 
+    # Auto-plot mirrors MintPy's own CLI semantics (a bulk multi-step run()
+    # auto-plots) even though steps are executed one at a time below for
+    # per-step progress reporting -- that means run()'s own internal
+    # len(run_steps) > 1 check never actually fires here, so it's
+    # replicated at this orchestration level instead. Explicit '--step plot'
+    # always plots regardless of how many other steps were requested.
+    should_plot = run_plot_explicit or len(mintpy_steps or []) > 1
+
     # Build ordered step list for display
-    display_steps = (["prep_data"] if run_prep else []) + (mintpy_steps or [])
+    display_steps = (["prep_data"] if run_prep else []) + (mintpy_steps or []) + (["plot"] if should_plot else [])
     total = len(display_steps)
 
     for analysis_dir in _iter_analysis_dirs(workdir):
@@ -2080,9 +2123,12 @@ def _az_run(args, extra_args: list[str]):
         step_num = 1
         hpc = getattr(analyzer.config, "hpc_mode", False)
 
-        # HPC mode: submit everything (prep_data + MintPy steps) as a single sbatch job
+        # HPC mode: submit everything (prep_data + MintPy steps + plot) as a
+        # single sbatch job; 'plot' is a real token the CLI understands (see
+        # above), so it survives the sbatch job's own re-invocation of this
+        # same command.
         if hpc:
-            hpc_steps = (["prep_data"] if run_prep else []) + (mintpy_steps or [])
+            hpc_steps = (["prep_data"] if run_prep else []) + (mintpy_steps or []) + (["plot"] if should_plot else [])
             job_id = analyzer.submit_hpc(steps=hpc_steps or None)
             if job_id is None:
                 sys.exit(0)  # sbatch_options.json was just created/updated — stop for review
@@ -2093,7 +2139,7 @@ def _az_run(args, extra_args: list[str]):
             step_num += 1
             result = PrepDataCommand(analyzer).run()
             _fail(result, f"prep_data {tag}".strip())
-            if mintpy_steps is None:
+            if mintpy_steps is None and not should_plot:
                 continue  # only 'prep_data' was requested for this dir
 
         for step in (mintpy_steps or []):
@@ -2101,6 +2147,12 @@ def _az_run(args, extra_args: list[str]):
             step_num += 1
             result = AnalyzeCommand(analyzer, steps=[step]).run()
             _fail(result, f"{step} {tag}".strip())
+
+        if should_plot:
+            print(f"\nStep {step_num}/{total}: plot")
+            step_num += 1
+            result = PlotCommand(analyzer).run()
+            _fail(result, f"plot {tag}".strip())
 
 
 def _az_cleanup(args):
