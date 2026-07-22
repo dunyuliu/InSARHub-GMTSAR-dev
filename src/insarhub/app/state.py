@@ -11,10 +11,11 @@ For reassignable values (_auth_cache), route modules must access via the module:
 """
 
 import dataclasses
-import json
 import logging
 import re
+import threading
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -160,10 +161,58 @@ def _make_progress(job_id: str):
     return callback
 
 
+def _make_download_progress(job_id: str):
+    """Progress callback for download commands: extracts a leading '[N/M]'-style
+    count from the message and shows it as 'Downloading N/M' — shared by every
+    route that runs a DownloadScenesCommand."""
+    def callback(message: str, percent: int):
+        count = message.split(']')[0].lstrip('[') if ']' in message else ''
+        _jobs[job_id]["message"]  = f"Downloading {count}" if count else message
+        _jobs[job_id]["progress"] = percent
+    return callback
+
+
+@contextmanager
+def stop_event(job_id: str):
+    """Register a threading.Event as job_id's stop signal, yield it, and remove
+    it from _stop_events on exit regardless of outcome — the register/cleanup
+    pair repeated at the top/bottom of every stoppable job runner."""
+    ev = threading.Event()
+    _stop_events[job_id] = ev
+    try:
+        yield ev
+    finally:
+        _stop_events.pop(job_id, None)
+
+
+def launch_job(background_tasks, runner, *args, start_message: str = "Starting…", **kwargs) -> dict:
+    """Create a new job, schedule runner(job_id, *args, **kwargs) as a background
+    task, and return {"job_id": job_id} — the 3-line skeleton repeated at the
+    top of nearly every job-launching route."""
+    job_id, _ = _new_job(start_message)
+    background_tasks.add_task(runner, job_id, *args, **kwargs)
+    return {"job_id": job_id}
+
+
 # ---------------------------------------------------------------------------
 # Unified insarhub_config.json helpers — implementations live in utils/config_io.py
 # ---------------------------------------------------------------------------
 from insarhub.utils.config_io import read_insarhub_config, write_insarhub_config  # noqa: F401
+
+
+def _cfg_dict(cfg, *, exclude: tuple = ("workdir",)) -> dict[str, Any]:
+    """dataclasses.asdict(cfg) with the given fields excluded — shared by every
+    route that persists a resolved config back to insarhub_config.json."""
+    return {k: v for k, v in dataclasses.asdict(cfg).items() if k not in exclude}
+
+
+def _read_processor_type(folder: Path) -> str | None:
+    """Return the processor type recorded in folder's insarhub_config.json, if any."""
+    try:
+        cfg = read_insarhub_config(folder)
+        return cfg.get("processor", {}).get("type")
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------------------

@@ -1,9 +1,9 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Theme } from './theme'
+import { statusColor, type Theme } from './theme'
 import { useResizable, ResizeHandle } from './useResizable'
+import { API } from './api'
 
-const API = import.meta.env.DEV ? 'http://localhost:8080' : ''
 
 interface StackSummary {
   stackKey:              string
@@ -206,7 +206,7 @@ export default function StackSummaryDrawer({
   }
 
   const checkedCount = checked.size
-  const dlColor = dlStatus === 'done' ? '#4caf50' : dlStatus === 'error' ? '#e53935' : t.accent
+  const dlColor = statusColor(dlStatus, t.accent)
 
   return (
     <div style={{
@@ -307,7 +307,7 @@ export default function StackSummaryDrawer({
           const isActive      = s.stackKey === selectedStackKey
           const isChecked     = checked.has(s.stackKey)
           const isTriggered   = triggered.has(s.stackKey)
-          const triggerColor  = dlStatus === 'done' ? '#4caf50' : dlStatus === 'error' ? '#e53935' : t.accent
+          const triggerColor  = statusColor(dlStatus, t.accent)
           const triggerLabel  = dlStatus === 'running' ? '⬇' : dlStatus === 'done' ? '✓' : dlStatus === 'error' ? '✗' : '⬇'
           return (
             <div

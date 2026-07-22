@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Theme } from './theme'
+import { API } from './api'
 
-const API = import.meta.env.DEV ? 'http://localhost:8080' : ''
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

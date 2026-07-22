@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from insarhub.core.base import BaseAnalyzer
-from .base import BaseCommand, CommandResult
+from .base import BaseCommand, CommandResult, safe_command
 
 
 class PrepDataCommand(BaseCommand):
@@ -16,6 +16,7 @@ class PrepDataCommand(BaseCommand):
         super().__init__(progress_callback)
         self.analyzer = analyzer
 
+    @safe_command
     def run(self) -> CommandResult:
         if not hasattr(self.analyzer, "prep_data"):
             return CommandResult(
@@ -23,13 +24,10 @@ class PrepDataCommand(BaseCommand):
                 message=f"{type(self.analyzer).__name__} does not support prep_data()",
                 errors=[f"{type(self.analyzer).__name__} has no prep_data() method"],
             )
-        try:
-            self.progress("Preparing HyP3 data for MintPy...", 0)
-            self.analyzer.prep_data()
-            self.progress("Data preparation complete", 100)
-            return CommandResult(success=True, message="Data preparation complete")
-        except Exception as e:
-            return CommandResult(success=False, message=str(e), errors=[str(e)])
+        self.progress("Preparing HyP3 data for MintPy...", 0)
+        self.analyzer.prep_data()
+        self.progress("Data preparation complete", 100)
+        return CommandResult(success=True, message="Data preparation complete")
 
 
 class AnalyzeCommand(BaseCommand):
@@ -40,11 +38,9 @@ class AnalyzeCommand(BaseCommand):
         self.analyzer = analyzer
         self.steps = steps
 
+    @safe_command
     def run(self) -> CommandResult:
-        try:
-            self.progress("Running MintPy time-series analysis...", 0)
-            self.analyzer.run(self.steps)
-            self.progress("Analysis complete", 100)
-            return CommandResult(success=True, message="Analysis complete")
-        except Exception as e:
-            return CommandResult(success=False, message=str(e), errors=[str(e)])
+        self.progress("Running MintPy time-series analysis...", 0)
+        self.analyzer.run(self.steps)
+        self.progress("Analysis complete", 100)
+        return CommandResult(success=True, message="Analysis complete")

@@ -298,6 +298,8 @@ def create_parser() -> argparse.ArgumentParser:
     _add_job_file(p_proc_watch)
     p_proc_watch.add_argument("--interval", metavar="SEC", type=int, default=300,
                               help="Seconds between refreshes (default: 300)")
+    p_proc_watch.add_argument("--worker", metavar="INT", type=int, default=None,
+                              help="Parallel download workers (overrides saved config)")
     p_proc_watch.add_argument("-r", "--recursive", action="store_true",
                               help="Recursively search workdir for hyp3*.json job files")
 
@@ -608,6 +610,16 @@ def _iter_job_dirs(workdir: Path, job_file_override: str | None,
     return subdirs if subdirs else [workdir]
 
 
+def _iter_job_entries(workdir: Path, args) -> "Iterator[tuple[Path, Path, str]]":
+    """Yield (job_dir, job_file, tag) for every HyP3 job file across all matched
+    job directories — shared by refresh/download/retry/watch's identical scan."""
+    recursive = getattr(args, "recursive", False)
+    for job_dir in _iter_job_dirs(workdir, args.job_file, recursive=recursive):
+        for jf in _find_job_files(job_dir, args.job_file, include_retry=recursive):
+            tag = f"[{job_dir.name}/{jf.name}] " if job_dir != workdir else f"[{jf.name}] "
+            yield job_dir, jf, tag
+
+
 def _iter_analysis_dirs(workdir: Path) -> list[Path]:
     """
     Return the list of directories to run analysis on.
@@ -672,14 +684,6 @@ def _unwrap_optional(annotation):
     return annotation
 
 
-def _str_to_bool(v: str) -> bool:
-    """Convert a string like 'true'/'false'/'1'/'0' to bool."""
-    if v.lower() in ("true", "1", "yes"):
-        return True
-    if v.lower() in ("false", "0", "no"):
-        return False
-    raise argparse.ArgumentTypeError(f"Expected true/false, got '{v}'")
-
 
 def _field_argparse_kwargs(annotation, default) -> dict:
     """Return kwargs for ArgumentParser.add_argument() inferred from a type annotation."""
@@ -732,8 +736,7 @@ _SAVED_CFG_SKIP = _SUBMIT_SKIP_FIELDS | {"hpc_mode", "dry_run"} | _RUNTIME_ONLY_
 _ANALYZER_SKIP_FIELDS = {"name", "workdir", "debug"}
 
 
-import re as _re
-_NEG_NUMBER_RE = _re.compile(r'^-\d[\d.eE+\-]*$')
+_NEG_NUMBER_RE = re.compile(r'^-\d[\d.eE+\-]*$')
 
 
 def _filter_unknown_flags(unknown: list[str]) -> list[str]:
@@ -784,6 +787,34 @@ def _build_config_parser(config_cls, skip_fields: set | None = None) -> argparse
     p._unset_sentinel = _UNSET  # type: ignore[attr-defined]
 
     return p
+
+
+def _apply_config_overrides(overrides: dict, config_cls, extra_args: list[str],
+                            skip_fields: set, label: str) -> None:
+    """Parse extra_args as --flag overrides for config_cls's dataclass fields,
+    merging any explicitly-provided values into `overrides` (mutated in place).
+
+    Prints an [ERROR] and exits if any flags are unrecognized; prints a
+    [WARNING] and does nothing if config_cls has no dataclass fields at all.
+    """
+    import dataclasses
+
+    if config_cls is None or not dataclasses.is_dataclass(config_cls):
+        if extra_args:
+            print(f"[WARNING] Extra args ignored (no config dataclass): {extra_args}", file=sys.stderr)
+        return
+
+    config_parser = _build_config_parser(config_cls, skip_fields=skip_fields)
+    config_ns, unknown = config_parser.parse_known_args(extra_args)
+    if _filter_unknown_flags(unknown):
+        print(f"[ERROR] Unknown flags for '{label}': {_filter_unknown_flags(unknown)}", file=sys.stderr)
+        sys.exit(1)
+
+    unset = config_parser._unset_sentinel  # type: ignore[attr-defined]
+    for f in dataclasses.fields(config_cls):
+        val = getattr(config_ns, f.name, unset)
+        if val is not unset and val is not None:
+            overrides[f.name] = val
 
 
 def _print_config_options(config_cls_or_instance, display_label: str | None = None,
@@ -897,14 +928,6 @@ def _read_config_json(cfg_path: Path) -> dict:
         return {}
 
 
-def _write_config_json(cfg_path: Path, overrides: dict) -> None:
-    """Merge overrides into the existing JSON config file, then write back."""
-    existing = _read_config_json(cfg_path)
-    existing.update(overrides)
-    cfg_path.parent.mkdir(parents=True, exist_ok=True)
-    cfg_path.write_text(json.dumps(existing, indent=2, default=str))
-
-
 def _find_jobs_file(workdir: Path, pattern: str) -> Path | None:
     """Return the first matching jobs JSON file.
 
@@ -943,37 +966,31 @@ def _find_subfolder_config(workdir: Path, filename: str) -> Path | None:
     return None
 
 
-_RUNTIME_ONLY_FIELDS = {"workdir", "name", "saved_job_path"}
+# Identity/reference fields to strip when reading a saved role-config section —
+# distinct from _RUNTIME_ONLY_FIELDS (per-invocation flags never persisted at all).
+_ROLE_CONFIG_STRIP_FIELDS = {"workdir", "name", "saved_job_path"}
 
 
 def _read_dl_config_from_folder(folder: Path) -> dict:
-    """Read downloader config from insarhub_config.json or fallback downloader_config.json."""
-    insarhub_cfg = folder / "insarhub_config.json"
-    if insarhub_cfg.exists():
-        try:
-            data = json.loads(insarhub_cfg.read_text())
-            cfg = data.get("downloader", {}).get("config", {})
-            if cfg:
-                return {k: v for k, v in cfg.items() if k not in _RUNTIME_ONLY_FIELDS}
-        except Exception:
-            pass
+    """Read downloader config from insarhub_config.json (or legacy formats), else fallback downloader_config.json."""
+    from insarhub.utils.config_io import read_insarhub_config
+    data = read_insarhub_config(folder)
+    cfg = data.get("downloader", {}).get("config", {})
+    if cfg:
+        return {k: v for k, v in cfg.items() if k not in _ROLE_CONFIG_STRIP_FIELDS}
     raw = _read_config_json(folder / "downloader_config.json")
-    return {k: v for k, v in raw.items() if k not in _RUNTIME_ONLY_FIELDS}
+    return {k: v for k, v in raw.items() if k not in _ROLE_CONFIG_STRIP_FIELDS}
 
 
 def _read_proc_config_from_folder(folder: Path) -> dict:
-    """Read processor config from insarhub_config.json or fallback processor_config.json."""
-    insarhub_cfg = folder / "insarhub_config.json"
-    if insarhub_cfg.exists():
-        try:
-            data = json.loads(insarhub_cfg.read_text())
-            cfg = data.get("processor", {}).get("config", {})
-            if cfg:
-                return {k: v for k, v in cfg.items() if k not in _RUNTIME_ONLY_FIELDS}
-        except Exception:
-            pass
+    """Read processor config from insarhub_config.json (or legacy formats), else fallback processor_config.json."""
+    from insarhub.utils.config_io import read_insarhub_config
+    data = read_insarhub_config(folder)
+    cfg = data.get("processor", {}).get("config", {})
+    if cfg:
+        return {k: v for k, v in cfg.items() if k not in _ROLE_CONFIG_STRIP_FIELDS}
     raw = _read_config_json(folder / "processor_config.json")
-    return {k: v for k, v in raw.items() if k not in _RUNTIME_ONLY_FIELDS}
+    return {k: v for k, v in raw.items() if k not in _ROLE_CONFIG_STRIP_FIELDS}
 
 
 _GROUP_KEY_RE = re.compile(r"p(\d+)_f(\d+)")
@@ -1056,31 +1073,6 @@ def _load_pairs(args, workdir: Path) -> dict | list:
     print(f"[ERROR] No pairs file found under current workdir {workdir}. Use --pairs-file, --pairs, or run "
           "'insarhub downloader --select-pairs' first.", file=sys.stderr)
     sys.exit(1)
-
-
-def _generate_consecutive_pairs(results: dict) -> dict:
-    """
-    For each (path, frame) stack, sort scenes by date and generate consecutive
-    (reference, secondary) pairs.
-
-    Returns
-    -------
-    dict
-        ``{"path_frame": [["ref_scene", "sec_scene"], ...], ...}``
-    """
-    from dateutil.parser import isoparse
-
-    out = {}
-    for key, scenes in results.items():
-        sorted_scenes = sorted(scenes, key=lambda s: isoparse(s.properties["startTime"]))
-        pairs = [
-            [sorted_scenes[i].properties["sceneName"],
-             sorted_scenes[i + 1].properties["sceneName"]]
-            for i in range(len(sorted_scenes) - 1)
-        ]
-        if pairs:
-            out[f"{key[0]}_{key[1]}"] = pairs
-    return out
 
 
 # ---------------------------------------------------------------------------
@@ -1188,18 +1180,8 @@ def cmd_downloader(args, extra_args: list[str]):
     # Parse extra_args as downloader config overrides; explicit CLI args override saved config
     overrides: dict = dict(saved_cfg)
     config_cls = getattr(downloader_cls, "default_config", None)
-    if config_cls is not None and dataclasses.is_dataclass(config_cls):
-        config_parser = _build_config_parser(config_cls)
-        config_ns, unknown = config_parser.parse_known_args(extra_args)
-        if _filter_unknown_flags(unknown):
-            print(f"[ERROR] Unknown flags for '{args.downloader_name}': {_filter_unknown_flags(unknown)}", file=sys.stderr)
-            sys.exit(1)
-        for f in dataclasses.fields(config_cls):
-            val = getattr(config_ns, f.name, None)
-            if val is not getattr(config_parser, '_unset_sentinel', None) and val is not None:
-                overrides[f.name] = val
-    elif extra_args:
-        print(f"[WARNING] Extra args ignored (no config dataclass): {extra_args}", file=sys.stderr)
+    _apply_config_overrides(overrides, config_cls, extra_args,
+                            skip_fields=_SEARCH_SKIP_FIELDS, label=args.downloader_name)
 
     if args.AOI:
         from insarhub.utils.tool import _to_wkt
@@ -1532,20 +1514,8 @@ def _proc_submit(args, extra_args: list[str]):
     overrides: dict = {k: v for k, v in saved_cfg.items()
                        if k not in _SAVED_CFG_SKIP and k not in ("processor_type",)}
     config_cls = getattr(processor_cls, "default_config", None)
-    if config_cls is not None and dataclasses.is_dataclass(config_cls):
-        config_parser = _build_config_parser(config_cls, skip_fields=_SUBMIT_SKIP_FIELDS)
-        config_ns, unknown = config_parser.parse_known_args(extra_args)
-        if _filter_unknown_flags(unknown):
-            print(f"[ERROR] Unknown flags for '{processor_name}': {_filter_unknown_flags(unknown)}", file=sys.stderr)
-            sys.exit(1)
-        for f in dataclasses.fields(config_cls):
-            if f.name in _SUBMIT_SKIP_FIELDS:
-                continue
-            val = getattr(config_ns, f.name, None)
-            if val is not getattr(config_parser, '_unset_sentinel', None) and val is not None:
-                overrides[f.name] = val
-    elif extra_args:
-        print(f"[WARNING] Extra args ignored (no config dataclass): {extra_args}", file=sys.stderr)
+    _apply_config_overrides(overrides, config_cls, extra_args,
+                            skip_fields=_SUBMIT_SKIP_FIELDS, label=processor_name)
 
     overrides["name_prefix"] = args.name_prefix
     if getattr(args, "worker", None) is not None:
@@ -1653,38 +1623,32 @@ def _proc_refresh(args):
     from insarhub.commands import RefreshCommand
     processor_name = getattr(args, "processor_name", "Hyp3_S1")
     workdir = _resolve_workdir(args.workdir)
-    for job_dir in _iter_job_dirs(workdir, args.job_file, recursive=getattr(args, "recursive", False)):
-        for jf in _find_job_files(job_dir, args.job_file, include_retry=getattr(args, "recursive", False)):
-            tag = f"[{job_dir.name}/{jf.name}] " if job_dir != workdir else f"[{jf.name}] "
-            print(f"{tag}Refreshing…")
-            processor = _load_hyp3_processor(job_dir, job_file=jf, processor_name=processor_name)
-            _fail(RefreshCommand(processor).run(), f"refresh {tag}".strip())
+    for job_dir, jf, tag in _iter_job_entries(workdir, args):
+        print(f"{tag}Refreshing…")
+        processor = _load_hyp3_processor(job_dir, job_file=jf, processor_name=processor_name)
+        _fail(RefreshCommand(processor).run(), f"refresh {tag}".strip())
 
 
 def _proc_download_results(args):
     from insarhub.commands import RefreshCommand, DownloadResultsCommand
     processor_name = getattr(args, "processor_name", "Hyp3_S1")
     workdir = _resolve_workdir(args.workdir)
-    for job_dir in _iter_job_dirs(workdir, args.job_file, recursive=getattr(args, "recursive", False)):
-        for jf in _find_job_files(job_dir, args.job_file, include_retry=getattr(args, "recursive", False)):
-            tag = f"[{job_dir.name}/{jf.name}] " if job_dir != workdir else f"[{jf.name}] "
-            print(f"{tag}Downloading results…")
-            processor = _load_hyp3_processor(job_dir, job_file=jf, processor_name=processor_name,
-                                             max_workers=getattr(args, "worker", None))
-            RefreshCommand(processor).run()
-            _fail(DownloadResultsCommand(processor).run(), f"download {tag}".strip())
+    for job_dir, jf, tag in _iter_job_entries(workdir, args):
+        print(f"{tag}Downloading results…")
+        processor = _load_hyp3_processor(job_dir, job_file=jf, processor_name=processor_name,
+                                         max_workers=getattr(args, "worker", None))
+        RefreshCommand(processor).run()
+        _fail(DownloadResultsCommand(processor).run(), f"download {tag}".strip())
 
 
 def _proc_retry(args):
     from insarhub.commands import RetryCommand
     processor_name = getattr(args, "processor_name", "Hyp3_S1")
     workdir = _resolve_workdir(args.workdir)
-    for job_dir in _iter_job_dirs(workdir, args.job_file, recursive=getattr(args, "recursive", False)):
-        for jf in _find_job_files(job_dir, args.job_file, include_retry=getattr(args, "recursive", False)):
-            tag = f"[{job_dir.name}/{jf.name}] " if job_dir != workdir else f"[{jf.name}] "
-            print(f"{tag}Retrying failed jobs…")
-            processor = _load_hyp3_processor(job_dir, job_file=jf, processor_name=processor_name)
-            _fail(RetryCommand(processor).run(), f"retry {tag}".strip())
+    for job_dir, jf, tag in _iter_job_entries(workdir, args):
+        print(f"{tag}Retrying failed jobs…")
+        processor = _load_hyp3_processor(job_dir, job_file=jf, processor_name=processor_name)
+        _fail(RetryCommand(processor).run(), f"retry {tag}".strip())
 
 
 def _proc_watch(args):
@@ -1699,10 +1663,10 @@ def _proc_watch(args):
     from insarhub.processor.hyp3_base import Hyp3Base
     entries: list[tuple[Path, Path, Hyp3Base]] = []
     processor_name = getattr(args, "processor_name", "Hyp3_S1")
-    for job_dir in _iter_job_dirs(workdir, args.job_file, recursive=getattr(args, "recursive", False)):
-        for jf in _find_job_files(job_dir, args.job_file, include_retry=getattr(args, "recursive", False)):
-            entries.append((job_dir, jf, _load_hyp3_processor(job_dir, job_file=jf,
-                                                               processor_name=processor_name)))
+    for job_dir, jf, _tag in _iter_job_entries(workdir, args):
+        entries.append((job_dir, jf, _load_hyp3_processor(job_dir, job_file=jf,
+                                                           processor_name=processor_name,
+                                                           max_workers=getattr(args, "worker", None))))
 
     downloaded: dict[Path, set] = {jf: set() for _, jf, _ in entries}
 
@@ -1733,6 +1697,16 @@ def _proc_watch(args):
                 sink = io.StringIO()
                 with redirect_stdout(sink), redirect_stderr(sink):
                     processor.refresh()
+                # refresh() swallows per-user errors internally (prints and
+                # continues) so a broken credential/auth pool entry silently
+                # leaves processor.batchs empty forever, looking like a
+                # frozen 0/0 progress bar with no explanation. Surface just
+                # those failure lines — everything else refresh() prints
+                # (the noisy per-job status table) stays suppressed.
+                for line in sink.getvalue().splitlines():
+                    if "Failed to refresh" in line:
+                        with tqdm.external_write_mode(file=sys.stderr):
+                            tqdm.write(f"{_bar_label(job_dir, jf)} {line.strip()}")
 
                 total = active = failed = succeeded = 0
                 new_succeeded: dict = {}
@@ -1748,8 +1722,6 @@ def _proc_watch(args):
                     new = [j for j in succ if j.job_id not in downloaded[jf]]
                     if new:
                         new_succeeded[username] = new
-                        for j in new:
-                            downloaded[jf].add(j.job_id)
 
                 ts = time.strftime("%H:%M:%S")
                 bars[i].set_postfix_str(
@@ -1763,8 +1735,30 @@ def _proc_watch(args):
                     processor.batchs = {u: HyP3Batch(jobs) for u, jobs in new_succeeded.items()}
                     with tqdm.external_write_mode(file=sys.stderr):
                         print(f"{label} {n} job(s) succeeded — downloading…")
-                        processor.download()
+                    # download() spawns its own worker threads, each opening a
+                    # per-file tqdm progress bar — those need tqdm's global
+                    # write lock too. external_write_mode() holds that same
+                    # lock for its whole `with` block, so calling download()
+                    # from inside it deadlocks: the main thread holds the
+                    # lock waiting for the workers to finish, while every
+                    # worker blocks trying to acquire that same lock just to
+                    # create/update its own bar. Call it after the lock is
+                    # released instead.
+                    _out_dir, dl_results = processor.download()
                     processor.batchs = old_batchs
+                    # Only mark job IDs as handled once download() actually
+                    # reported no failures for this round — marking them
+                    # beforehand meant a transient download failure (network
+                    # blip, disk error) permanently skipped that job on every
+                    # later watch iteration, even though its ZIP never landed.
+                    if dl_results.get("failed", 0) == 0:
+                        for jobs in new_succeeded.values():
+                            for j in jobs:
+                                downloaded[jf].add(j.job_id)
+                    else:
+                        with tqdm.external_write_mode(file=sys.stderr):
+                            tqdm.write(f"{label} {dl_results['failed']} download(s) failed "
+                                       f"— will retry next refresh.")
 
                 if total > 0 and active == 0:
                     done_count += 1
@@ -1809,7 +1803,14 @@ def _proc_local_submit(args, extra_args: list[str]):
         saved_cfg = _read_proc_config_from_folder(_cfg_path.parent) or _read_config_json(_cfg_path)
         print(f"[INFO] Loaded config from {_cfg}")
     elif _default_cfg_requested:
+        # --config with no value: prefer insarhub_config.json (new format), fall back to
+        # processor_config.json (legacy), check workdir then p*_f* subdirs
         saved_cfg = _read_proc_config_from_folder(workdir)
+        if not saved_cfg:
+            subdir_cfg = _find_subfolder_config(workdir, "insarhub_config.json") or \
+                         _find_subfolder_config(workdir, "processor_config.json")
+            if subdir_cfg:
+                saved_cfg = _read_proc_config_from_folder(subdir_cfg.parent) or _read_config_json(subdir_cfg)
         if not saved_cfg:
             print(f"[ERROR] --config specified but no insarhub_config.json found in {workdir}",
                   file=sys.stderr)
@@ -1821,19 +1822,8 @@ def _proc_local_submit(args, extra_args: list[str]):
     # ── Parse extra CLI flags as config overrides ──────────────────────────
     config_cls = getattr(processor_cls, "default_config", None)
     overrides: dict = {k: v for k, v in saved_cfg.items() if k not in _SAVED_CFG_SKIP}
-    if config_cls is not None and dataclasses.is_dataclass(config_cls):
-        config_parser = _build_config_parser(config_cls, skip_fields=_SUBMIT_SKIP_FIELDS)
-        config_ns, unknown = config_parser.parse_known_args(extra_args)
-        if _filter_unknown_flags(unknown):
-            print(f"[ERROR] Unknown flags for '{processor_name}': {_filter_unknown_flags(unknown)}", file=sys.stderr)
-            sys.exit(1)
-        _unset = config_parser._unset_sentinel  # type: ignore[attr-defined]
-        for f in dataclasses.fields(config_cls):
-            if f.name in _SUBMIT_SKIP_FIELDS:
-                continue
-            val = getattr(config_ns, f.name, _unset)
-            if val is not _unset:
-                overrides[f.name] = val
+    _apply_config_overrides(overrides, config_cls, extra_args,
+                            skip_fields=_SUBMIT_SKIP_FIELDS, label=processor_name)
 
     overrides["workdir"] = str(workdir)
 
@@ -2014,20 +2004,10 @@ def _az_run(args, extra_args: list[str]):
 
     overrides: dict = {}
     config_cls = getattr(analyzer_cls, "default_config", None)
+    # Collect overrides from extra_args (flags passed after subcommand)
+    _apply_config_overrides(overrides, config_cls, extra_args,
+                            skip_fields=_ANALYZER_SKIP_FIELDS, label=args.analyzer_name)
     if config_cls is not None and dataclasses.is_dataclass(config_cls):
-        # Collect overrides from extra_args (flags passed after subcommand)
-        config_parser = _build_config_parser(config_cls, skip_fields=_ANALYZER_SKIP_FIELDS)
-        config_ns, unknown = config_parser.parse_known_args(extra_args)
-        if _filter_unknown_flags(unknown):
-            print(f"[ERROR] Unknown flags for '{args.analyzer_name}': {_filter_unknown_flags(unknown)}",
-                  file=sys.stderr)
-            sys.exit(1)
-        for f in dataclasses.fields(config_cls):
-            if f.name in _ANALYZER_SKIP_FIELDS:
-                continue
-            val = getattr(config_ns, f.name, None)
-            if val is not getattr(config_parser, '_unset_sentinel', None) and val is not None:
-                overrides[f.name] = val
         # Also collect overrides from args (pre-registered flags on p_analyzer, no subcommand)
         for f in dataclasses.fields(config_cls):
             if f.name in _ANALYZER_SKIP_FIELDS or f.name in overrides:
@@ -2035,9 +2015,6 @@ def _az_run(args, extra_args: list[str]):
             val = getattr(args, f.name, None)  # only present if user explicitly set it (SUPPRESS default)
             if val is not None:
                 overrides[f.name] = val
-    elif extra_args:
-        print(f"[WARNING] Extra args ignored (no config dataclass): {extra_args}",
-              file=sys.stderr)
 
     run_prep = False
     mintpy_steps: list[str] | None = None

@@ -310,7 +310,7 @@ export default function TopBar({
           color: t.textMuted,
         }}
       >
-        {i18n.language === 'zh' ? 'EN' : '中'}
+        {i18n.language === 'zh' ? '中' : 'EN'}
       </button>
 
       {/* Theme toggle — icon only */}

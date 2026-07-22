@@ -55,6 +55,22 @@ def _parse_scene_filter(scenes) -> set[str] | None:
     return set(str(s) for s in scenes)
 
 
+def _end_of_day(value: str) -> str:
+    """Normalize a bare 'YYYY-MM-DD' end-date string to the end of that day.
+
+    Both the GUI (an HTML <input type="date">) and typical CLI usage pass a
+    date-only string for `end`. Handed to asf_search as-is, that gets parsed
+    as midnight (00:00:00) of that day, which silently excludes every scene
+    acquired later that same day — a scene dated exactly on the requested
+    end date would be dropped even though the user meant "through this day".
+    Strings that already carry a time component (contain 'T' or ':') are
+    left untouched.
+    """
+    if not value or 'T' in value or ':' in value:
+        return value
+    return f"{value}T23:59:59"
+
+
 class ASF_Base_Downloader(BaseDownloader):
     """
     Simplify searching and downloading satellite data using ASF Search API.
@@ -291,6 +307,8 @@ Check documentation for how to setup .netrc file.\n""")
         print(f"Searching for SLCs....")
         search_opts = {k: v for k, v in asdict(self.config).items()
                        if v is not None and k not in ['workdir', 'name', 'bbox', 'granule_names', 'ssl_verify']}
+        if 'end' in search_opts and isinstance(search_opts['end'], str):
+            search_opts['end'] = _end_of_day(search_opts['end'])
 
         for attempt in range(1, 11):
             try:
@@ -564,8 +582,8 @@ Check documentation for how to setup .netrc file.\n""")
         else:
             targets = None
 
-        start_dt = isoparse(start).replace(tzinfo=None) if start else None
-        end_dt   = isoparse(end).replace(tzinfo=None)   if end   else None
+        start_dt = isoparse(start).replace(tzinfo=None)             if start else None
+        end_dt   = isoparse(_end_of_day(end)).replace(tzinfo=None)  if end   else None
         frames     = {frame}    if isinstance(frame, int)    else set(frame)    if frame    else None
         asf_frames = {asfFrame} if isinstance(asfFrame, int) else set(asfFrame) if asfFrame else None
         relative_orbits  = {relativeOrbit}  if isinstance(relativeOrbit, int)  else set(relativeOrbit)  if relativeOrbit  else None

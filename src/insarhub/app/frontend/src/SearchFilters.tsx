@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Theme } from './theme'
+import { API } from './api'
 
 // Downloader-declared schema fields/groups are plain strings from the backend
 // (see BaseDownloader.search_filter_schema) — this maps the ones S1_SLC ships
@@ -65,7 +66,6 @@ interface Props {
   onApply:        (f: Filters) => void
 }
 
-const API = import.meta.env.DEV ? 'http://localhost:8080' : ''
 
 function rangeArray(start: number, end: number): number[] {
   const [lo, hi] = start <= end ? [start, end] : [end, start]

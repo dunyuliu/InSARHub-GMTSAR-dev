@@ -5,15 +5,12 @@ from .downloader import (
     DownloadScenesCommand,
     SummaryCommand,
     FootprintCommand,
-    ResetCommand,
-    DEMCommand,
 )
 from .processor import (
     SubmitCommand,
     RefreshCommand,
     DownloadResultsCommand,
     RetryCommand,
-    WatchCommand,
     SaveJobsCommand,
     CheckCreditsCommand,
 )
@@ -29,14 +26,11 @@ __all__ = [
     "DownloadScenesCommand",
     "SummaryCommand",
     "FootprintCommand",
-    "ResetCommand",
-    "DEMCommand",
     # processor
     "SubmitCommand",
     "RefreshCommand",
     "DownloadResultsCommand",
     "RetryCommand",
-    "WatchCommand",
     "SaveJobsCommand",
     "CheckCreditsCommand",
     # analyzer

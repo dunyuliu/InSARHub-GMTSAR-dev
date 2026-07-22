@@ -8,7 +8,6 @@ from pathlib import Path
 import numpy as np
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from fastapi.responses import Response as _Resp
 from pyproj import Transformer
 from rasterio.crs import CRS
 from rasterio.transform import from_bounds
@@ -355,21 +354,6 @@ async def folder_ifg_list(path: str):
     return {"pairs": pairs}
 
 
-@router.get("/api/serve-tif")
-async def serve_tif(zip: str, file: str):
-    """Serve a TIF file extracted from a zip archive."""
-    try:
-        with _zipfile.ZipFile(zip) as zf:
-            data = zf.read(file)
-            return _Resp(content=data, media_type="image/tiff",
-                         headers={"Cache-Control": "no-store",
-                                  "Content-Disposition": f"inline; filename={Path(file).name}"})
-    except KeyError:
-        raise HTTPException(status_code=404, detail=f"'{file}' not in archive")
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
-
-
 @router.get("/api/render-tif")
 async def render_tif_colored(zip: str, file: str, type_hint: str = ""):
     """Server-side render a TIF to colored PNG + downsampled float32 for hover."""
@@ -384,7 +368,6 @@ async def render_tif_colored(zip: str, file: str, type_hint: str = ""):
         raise HTTPException(status_code=404, detail=str(e))
 
     try:
-        import rasterio
         from rasterio.warp import transform_bounds
         from rasterio.io import MemoryFile
 
@@ -506,7 +489,7 @@ async def mintpy_network_data(path: str):
             parts = line.split()
             if len(parts) < 5:
                 continue
-            date12, coh, btemp, bperp = parts[0], float(parts[1]), float(parts[2]), float(parts[3])
+            date12, coh, _, bperp = parts[0], float(parts[1]), float(parts[2]), float(parts[3])
             ref_d, sec_d = date12.split('_')
             pairs.append((ref_d, sec_d))
             coherences.append(coh)

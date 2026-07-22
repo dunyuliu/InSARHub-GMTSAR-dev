@@ -1,8 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Theme } from './theme'
+import { statusColor, type Theme } from './theme'
 import { NetworkEditor } from './NetworkEditor'
-import { useResizable, ResizeHandle } from './useResizable'
+import { useResizable } from './useResizable'
+import { DrawerShell, DrawerHeader } from './Drawer'
+import { useCopyFeedback } from './useCopyFeedback'
+import { useFetchJson } from './useFetchJson'
+import { API } from './api'
 
 // ── Raster overlay passed up to the map ──────────────────────────────────────
 
@@ -21,7 +25,6 @@ export interface RasterOverlay {
   source?:   { kind: 'mintpy'; folderPath: string; tsFile: string | null }
 }
 
-const API = import.meta.env.DEV ? 'http://localhost:8080' : ''
 
 // Persist active download job IDs across L2 drawer unmount/remount
 const _dlJobs:    Map<string, string> = new Map()
@@ -40,7 +43,6 @@ interface JobFolder {
 interface FolderDetails {
   downloader_config: Record<string, any> | null
   has_pairs:         boolean
-  network_image:     string | null
 }
 
 interface Props {
@@ -133,13 +135,10 @@ function PairDetailDrawer({ theme: t, ref_, sec, onClose, rightOffset }: PairDet
   const dtDays = (r.date && s.date)
     ? Math.round(Math.abs(new Date(s.date).getTime() - new Date(r.date).getTime()) / 86400000)
     : null
-  const [copiedKey, setCopiedKey] = useState<string | null>(null)
-
+  const { copiedKey, copy: copyVal0 } = useCopyFeedback()
   function copyVal(key: string, val: string) {
     if (!val || val === '—') return
-    navigator.clipboard.writeText(val)
-    setCopiedKey(key)
-    setTimeout(() => setCopiedKey(null), 1200)
+    copyVal0(key, val)
   }
 
   const cfgRow = (label: string, val: string) => (
@@ -167,22 +166,10 @@ function PairDetailDrawer({ theme: t, ref_, sec, onClose, rightOffset }: PairDet
   )
 
   return (
-    <div style={{
-      position: 'fixed', top: 48, right: rightOffset, bottom: 0, width,
-      background: t.bg, borderLeft: `1px solid ${t.border}`,
-      display: 'flex', flexDirection: 'column', zIndex: 114,
-      boxShadow: '-4px 0 20px rgba(0,0,0,0.25)',
-    }}>
-      <ResizeHandle onMouseDown={onHandleMouseDown} />
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '10px 14px', borderBottom: `1px solid ${t.border}`,
-        background: t.bg2, flexShrink: 0,
-      }}>
+    <DrawerShell theme={t} rightOffset={rightOffset} width={width} zIndex={114} onHandleMouseDown={onHandleMouseDown}>
+      <DrawerHeader theme={t} onClose={onClose}>
         <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>{tr('jobQueue.pairDetail')}</span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none',
-          cursor: 'pointer', color: t.textMuted, fontSize: 20, lineHeight: 1, padding: '0 4px' }}>×</button>
-      </div>
+      </DrawerHeader>
 
       {dtDays !== null && (
         <div style={{ padding: '8px 14px', background: t.bg2, borderBottom: `1px solid ${t.border}`, flexShrink: 0 }}>
@@ -197,7 +184,7 @@ function PairDetailDrawer({ theme: t, ref_, sec, onClose, rightOffset }: PairDet
           {sceneCard(tr('jobQueue.secondary'), '#a5d6a7', s)}
         </div>
       </div>
-    </div>
+    </DrawerShell>
   )
 }
 
@@ -208,26 +195,13 @@ interface PairsDrawerProps { theme: Theme; folderPath: string; onClose: () => vo
 function PairsDrawer({ theme: t, folderPath, onClose, rightOffset }: PairsDrawerProps) {
   const { t: tr } = useTranslation()
   const { width, onHandleMouseDown } = useResizable(280)
-  const [pairs,       setPairs]       = useState<string[][]>([])
-  const [count,       setCount]       = useState(0)
-  const [fname,       setFname]       = useState('')
-  const [loading,     setLoading]     = useState(true)
-  const [error,       setError]       = useState('')
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
 
-  useEffect(() => {
-    setLoading(true)
-    fetch(`${API}/api/folder-pairs?path=${encodeURIComponent(folderPath)}`)
-      .then(r => r.json())
-      .then(d => {
-        if (d.detail) { setError(d.detail); setLoading(false); return }
-        setPairs(d.pairs ?? [])
-        setCount(d.count ?? 0)
-        setFname(d.file ?? '')
-        setLoading(false)
-      })
-      .catch(e => { setError(String(e)); setLoading(false) })
-  }, [folderPath])
+  const { data, loading, error } = useFetchJson<{ pairs: string[][]; count: number; file: string }>(
+    `${API}/api/folder-pairs?path=${encodeURIComponent(folderPath)}`, [folderPath])
+  const pairs = data?.pairs ?? []
+  const count = data?.count ?? 0
+  const fname = data?.file ?? ''
 
   const extractDate = (name: string) => {
     const d = name?.slice(17, 25)
@@ -246,27 +220,15 @@ function PairsDrawer({ theme: t, folderPath, onClose, rightOffset }: PairsDrawer
         />
       )}
 
-      <div style={{
-        position: 'fixed', top: 48, right: rightOffset, bottom: 0, width,
-        background: t.bg, borderLeft: `1px solid ${t.border}`,
-        display: 'flex', flexDirection: 'column', zIndex: 113,
-        boxShadow: '-4px 0 20px rgba(0,0,0,0.25)',
-      }}>
-        <ResizeHandle onMouseDown={onHandleMouseDown} />
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '10px 14px', borderBottom: `1px solid ${t.border}`,
-          background: t.bg2, flexShrink: 0,
-        }}>
+      <DrawerShell theme={t} rightOffset={rightOffset} width={width} zIndex={113} onHandleMouseDown={onHandleMouseDown}>
+        <DrawerHeader theme={t} onClose={onClose}>
           <div>
             <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>{tr('jobQueue.pairs')}</span>
             {count > 0 && (
               <span style={{ color: t.textMuted, fontSize: 10, marginLeft: 8 }}>{tr('jobQueue.pairsCount', { count })} · {fname}</span>
             )}
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none',
-            cursor: 'pointer', color: t.textMuted, fontSize: 20, lineHeight: 1, padding: '0 4px' }}>×</button>
-        </div>
+        </DrawerHeader>
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {loading ? (
@@ -291,7 +253,7 @@ function PairsDrawer({ theme: t, folderPath, onClose, rightOffset }: PairsDrawer
             )
           })}
         </div>
-      </div>
+      </DrawerShell>
     </>
   )
 }
@@ -619,7 +581,7 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
 
             {message && (
               <div style={{
-                color: status === 'done' ? '#4caf50' : status === 'error' ? '#e53935' : t.textMuted,
+                color: statusColor(status, t.textMuted),
                 fontSize: 11, fontFamily: 'monospace',
               }}>{message}</div>
             )}
@@ -1090,7 +1052,7 @@ function AnalyzerPanel({ theme: t, folderPath, analyzerType }: AnalyzerPanelProp
         <div style={{
           fontSize: 10, fontFamily: 'monospace', padding: '5px 8px', borderRadius: 3,
           background: t.bg2, border: `1px solid ${t.divider}`,
-          color: runStat === 'done' ? '#4caf50' : runStat === 'error' ? '#e53935' : t.textMuted,
+          color: statusColor(runStat, t.textMuted),
           whiteSpace: 'pre', overflowX: 'auto', maxHeight: 300, overflowY: 'auto',
         }}>{runMsg}</div>
       )}
@@ -1153,20 +1115,13 @@ interface IfgViewerProps {
 function IfgViewerDrawer({ theme: t, folderPath, onClose, onRasterSelect, rightOffset }: IfgViewerProps) {
   const { t: tr } = useTranslation()
   const { width, onHandleMouseDown } = useResizable(300)
-  const [pairs,        setPairs]       = useState<IfgPair[]>([])
-  const [loading,      setLoading]     = useState(true)
-  const [error,        setError]       = useState('')
   const [active,       setActive]      = useState<string | null>(null)
   const [decoding,     setDecoding]    = useState(false)
   const [expandedPair, setExpandedPair] = useState<string | null>(null)
 
-  useEffect(() => {
-    setLoading(true)
-    fetch(`${API}/api/folder-ifg-list?path=${encodeURIComponent(folderPath)}`)
-      .then(r => r.json())
-      .then(d => { if (d.detail) { setError(d.detail); setLoading(false); return } setPairs(d.pairs ?? []); setLoading(false) })
-      .catch(e => { setError(String(e)); setLoading(false) })
-  }, [folderPath])
+  const { data, loading, error } = useFetchJson<{ pairs: IfgPair[] }>(
+    `${API}/api/folder-ifg-list?path=${encodeURIComponent(folderPath)}`, [folderPath])
+  const pairs = data?.pairs ?? []
 
   async function handleFileClick(pair: IfgPair, f: { filename: string; type: string }) {
     const key = `${pair.zip}|${f.filename}`
@@ -1187,24 +1142,10 @@ function IfgViewerDrawer({ theme: t, folderPath, onClose, onRasterSelect, rightO
   }
 
   return (
-    <div style={{
-      position: 'fixed', top: 48, right: rightOffset, bottom: 0, width,
-      background: t.bg, borderLeft: `1px solid ${t.border}`,
-      display: 'flex', flexDirection: 'column', zIndex: 113,
-      boxShadow: '-4px 0 20px rgba(0,0,0,0.25)',
-    }}>
-      <ResizeHandle onMouseDown={onHandleMouseDown} />
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '10px 14px', borderBottom: `1px solid ${t.border}`,
-        background: t.bg2, flexShrink: 0,
-      }}>
+    <DrawerShell theme={t} rightOffset={rightOffset} width={width} zIndex={113} onHandleMouseDown={onHandleMouseDown}>
+      <DrawerHeader theme={t} onClose={onClose}>
         <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>{tr('jobQueue.data')}</span>
-        <button onClick={onClose} style={{
-          background: 'none', border: 'none', cursor: 'pointer',
-          color: t.textMuted, fontSize: 20, lineHeight: 1, padding: '0 4px',
-        }}>×</button>
-      </div>
+      </DrawerHeader>
 
       {decoding && (
         <div style={{ padding: '4px 14px', background: '#0d3b6e', fontSize: 10, color: '#90caf9' }}>
@@ -1271,7 +1212,7 @@ function IfgViewerDrawer({ theme: t, folderPath, onClose, onRasterSelect, rightO
           )
         })}
       </div>
-    </div>
+    </DrawerShell>
   )
 }
 
@@ -1553,7 +1494,7 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
             <div style={{
               fontSize: 10, fontFamily: 'monospace', padding: '5px 8px', borderRadius: 3,
               background: t.bg2, border: `1px solid ${t.divider}`,
-              color: actionStat === 'done' ? '#4caf50' : actionStat === 'error' ? '#e53935' : t.textMuted,
+              color: statusColor(actionStat, t.textMuted),
               whiteSpace: 'pre', overflowX: 'auto', maxHeight: 300, overflowY: 'auto',
             }}>{actionMsg}</div>
           )}
@@ -1649,24 +1590,10 @@ function MintpyViewerDrawer({ theme: t, folderPath, tsList, hidden, onClose, onR
   }
 
   return (
-    <div style={{
-      position: 'fixed', top: 48, right: rightOffset, bottom: 0, width,
-      background: t.bg, borderLeft: `1px solid ${t.border}`,
-      display: 'flex', flexDirection: 'column', zIndex: 113,
-      boxShadow: '-4px 0 20px rgba(0,0,0,0.25)',
-      visibility: hidden ? 'hidden' : 'visible',
-      pointerEvents: hidden ? 'none' : 'auto',
-    }}>
-      <ResizeHandle onMouseDown={onHandleMouseDown} />
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '10px 14px', borderBottom: `1px solid ${t.border}`,
-        background: t.bg2, flexShrink: 0,
-      }}>
+    <DrawerShell theme={t} rightOffset={rightOffset} width={width} zIndex={113} onHandleMouseDown={onHandleMouseDown} hidden={hidden}>
+      <DrawerHeader theme={t} onClose={onClose}>
         <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>{tr('jobQueue.results')}</span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer',
-          color: t.textMuted, fontSize: 20, lineHeight: 1, padding: '0 4px' }}>×</button>
-      </div>
+      </DrawerHeader>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {tsList.length > 0 && (
@@ -1711,7 +1638,7 @@ function MintpyViewerDrawer({ theme: t, folderPath, tsList, hidden, onClose, onR
           {decoding ? tr('jobQueue.loading') : active ? tr('jobQueue.hideVelocity') : tr('jobQueue.plot')}
         </button>
       </div>
-    </div>
+    </DrawerShell>
   )
 }
 
@@ -1786,24 +1713,10 @@ function MintpyOverviewDrawer({ theme: t, folderPath, hidden, onClose, onRasterS
   }
 
   return (
-    <div style={{
-      position: 'fixed', top: 48, right: rightOffset, bottom: 0, width,
-      background: t.bg, borderLeft: `1px solid ${t.border}`,
-      display: 'flex', flexDirection: 'column', zIndex: 113,
-      boxShadow: '-4px 0 20px rgba(0,0,0,0.25)',
-      visibility: hidden ? 'hidden' : 'visible',
-      pointerEvents: hidden ? 'none' : 'auto',
-    }}>
-      <ResizeHandle onMouseDown={onHandleMouseDown} />
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '10px 14px', borderBottom: `1px solid ${t.border}`,
-        background: t.bg2, flexShrink: 0,
-      }}>
+    <DrawerShell theme={t} rightOffset={rightOffset} width={width} zIndex={113} onHandleMouseDown={onHandleMouseDown} hidden={hidden}>
+      <DrawerHeader theme={t} onClose={onClose}>
         <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>{tr('jobQueue.overview')}</span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer',
-          color: t.textMuted, fontSize: 20, lineHeight: 1, padding: '0 4px' }}>×</button>
-      </div>
+      </DrawerHeader>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {error && <span style={{ color: '#e53935', fontSize: 10 }}>{error}</span>}
@@ -1828,7 +1741,7 @@ function MintpyOverviewDrawer({ theme: t, folderPath, hidden, onClose, onRasterS
           </span>
         )}
       </div>
-    </div>
+    </DrawerShell>
   )
 }
 
@@ -1929,31 +1842,16 @@ function CohDecayMapsDrawer({ theme: t, folderPath, onClose, onRasterSelect, rig
   }
 
   return (
-    <div style={{
-      position: 'fixed', top: 48, right: rightOffset, bottom: 0, width,
-      background: t.bg, borderLeft: `1px solid ${t.border}`,
-      display: 'flex', flexDirection: 'column', zIndex: 113,
-      boxShadow: '-4px 0 20px rgba(0,0,0,0.25)',
-    }}>
-      <ResizeHandle onMouseDown={onHandleMouseDown} />
-
+    <DrawerShell theme={t} rightOffset={rightOffset} width={width} zIndex={113} onHandleMouseDown={onHandleMouseDown}>
       {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '10px 14px', borderBottom: `1px solid ${t.border}`,
-        background: t.bg2, flexShrink: 0,
-      }}>
+      <DrawerHeader theme={t} onClose={onClose}>
         <div>
           <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>{tr('jobQueue.coherenceDecayMaps')}</span>
           {maps.length > 0 && (
             <span style={{ color: t.textMuted, fontSize: 10, marginLeft: 8 }}>{tr('jobQueue.seasonsCount', { count: maps.length })}</span>
           )}
         </div>
-        <button onClick={onClose} style={{
-          background: 'none', border: 'none', cursor: 'pointer',
-          color: t.textMuted, fontSize: 20, lineHeight: 1, padding: '0 4px',
-        }}>×</button>
-      </div>
+      </DrawerHeader>
 
       {/* Band legend */}
       <div style={{
@@ -2072,7 +1970,7 @@ function CohDecayMapsDrawer({ theme: t, folderPath, onClose, onRasterSelect, rig
           </button>
         </div>
       )}
-    </div>
+    </DrawerShell>
   )
 }
 
@@ -2250,12 +2148,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
         .filter(r => r.val !== '')
     : []
 
-  const [copiedCfgKey, setCopiedCfgKey] = useState<string | null>(null)
-  function copyCfgVal(label: string, val: string) {
-    navigator.clipboard.writeText(val)
-    setCopiedCfgKey(label)
-    setTimeout(() => setCopiedCfgKey(null), 1200)
-  }
+  const { copiedKey: copiedCfgKey, copy: copyCfgVal } = useCopyFeedback()
 
   return (
     <>
@@ -2353,23 +2246,9 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
         />
       )}
 
-      <div style={{
-        position: 'fixed', top: 48, right: rightOffset, bottom: 0,
-        width,
-        background: t.bg, borderLeft: `1px solid ${t.border}`,
-        display: 'flex', flexDirection: 'column',
-        zIndex: 112,
-        boxShadow: '-4px 0 20px rgba(0,0,0,0.25)',
-        visibility: hidden ? 'hidden' : 'visible',
-        pointerEvents: hidden ? 'none' : 'auto',
-      }}>
-        <ResizeHandle onMouseDown={onHandleMouseDown} />
+      <DrawerShell theme={t} rightOffset={rightOffset} width={width} zIndex={112} onHandleMouseDown={onHandleMouseDown} hidden={hidden}>
         {/* Header */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '12px 16px', borderBottom: `1px solid ${t.border}`,
-          background: t.bg2, flexShrink: 0,
-        }}>
+        <DrawerHeader theme={t} onClose={onClose} padding="12px 16px">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{
               fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 3,
@@ -2378,9 +2257,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
             }}>{tr(`jobQueue.role.${role}`, { defaultValue: role })}</span>
             <span style={{ color: t.text, fontWeight: 700, fontSize: 13 }}>{cls}</span>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none',
-            cursor: 'pointer', color: t.textMuted, fontSize: 20, lineHeight: 1, padding: '0 4px' }}>×</button>
-        </div>
+        </DrawerHeader>
 
         {/* Folder context */}
         <div style={{
@@ -2683,7 +2560,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
             <span style={{ color: t.textMuted, fontSize: 11 }}>{tr('jobQueue.actionsComingSoon')}</span>
           )}
         </div>
-      </div>
+      </DrawerShell>
     </>
   )
 }
@@ -2758,21 +2635,9 @@ export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiW
       )}
 
       {/* Main drawer */}
-      <div style={{
-        position: 'fixed', top: 48, right: 0, bottom: 0,
-        width: l1Width,
-        background: t.bg, borderLeft: `1px solid ${t.border}`,
-        display: 'flex', flexDirection: 'column',
-        zIndex: 111,
-        boxShadow: '-4px 0 24px rgba(0,0,0,0.3)',
-      }}>
-        <ResizeHandle onMouseDown={onL1Handle} />
+      <DrawerShell theme={t} rightOffset={0} width={l1Width} zIndex={111} onHandleMouseDown={onL1Handle} boxShadow="-4px 0 24px rgba(0,0,0,0.3)">
         {/* Header */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '10px 16px', borderBottom: `1px solid ${t.border}`,
-          background: t.bg2, flexShrink: 0, gap: 6,
-        }}>
+        <DrawerHeader theme={t} onClose={() => { setL2(null); setL2Visible(false); onClose() }} padding="10px 16px" gap={6}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               {browsePath && (
@@ -2797,12 +2662,7 @@ export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiW
                 : workdir}
             </div>
           </div>
-          <button
-            onClick={() => { setL2(null); setL2Visible(false); onClose() }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer',
-                     color: t.textMuted, fontSize: 20, lineHeight: 1, padding: '0 4px', flexShrink: 0 }}
-          >×</button>
-        </div>
+        </DrawerHeader>
 
         {/* Content */}
         <div style={{ overflowY: 'auto', flex: 1, padding: '10px 0' }}>
@@ -2936,7 +2796,7 @@ export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiW
             </button>
           </div>
         </div>
-      </div>
+      </DrawerShell>
     </>
   )
 }

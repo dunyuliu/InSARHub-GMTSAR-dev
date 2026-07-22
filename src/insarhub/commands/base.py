@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import functools
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 from pathlib import Path
@@ -36,3 +37,18 @@ class BaseCommand:
 
     def run(self) -> CommandResult:
         raise NotImplementedError
+
+
+def safe_command(fn: Callable[..., CommandResult]) -> Callable[..., CommandResult]:
+    """Decorator for Command.run() methods: converts any raised exception into
+    a failed CommandResult(success=False, message=str(e), errors=[str(e)])
+    instead of every subclass repeating the same try/except."""
+
+    @functools.wraps(fn)
+    def wrapper(self, *args, **kwargs) -> CommandResult:
+        try:
+            return fn(self, *args, **kwargs)
+        except Exception as e:
+            return CommandResult(success=False, message=str(e), errors=[str(e)])
+
+    return wrapper

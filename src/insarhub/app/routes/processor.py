@@ -4,14 +4,13 @@
 import asyncio
 import dataclasses
 import json
-import threading as _threading
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 import insarhub.app.state as state
 from insarhub.app.models import ProcessRequest, Hyp3ActionRequest, LocalActionRequest
-from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job, write_insarhub_config
+from insarhub.app.state import _apply_config_from_dict, _finish_job, write_insarhub_config
 from insarhub.commands.processor import SaveJobsCommand, SubmitCommand
 from insarhub.core.registry import Processor
 
@@ -25,9 +24,7 @@ async def folder_process(req: ProcessRequest, background_tasks: BackgroundTasks)
     stack_files = sorted(folder.glob("stack_p*_f*.json"))
     if not stack_files:
         raise HTTPException(status_code=404, detail="No stack file found in folder")
-    job_id, _ = _new_job("Starting…")
-    background_tasks.add_task(_run_folder_process, job_id, req)
-    return {"job_id": job_id}
+    return state.launch_job(background_tasks, _run_folder_process, req)
 
 
 async def _run_folder_process(job_id: str, req: ProcessRequest):
@@ -62,7 +59,7 @@ async def _run_folder_process(job_id: str, req: ProcessRequest):
                 cfg.__post_init__()  # re-resolve any "auto"/"" values reintroduced by user dict
             cfg.pairs = pairs
 
-            proc_cfg = {k: v for k, v in dataclasses.asdict(cfg).items() if k not in ("workdir", "pairs", "container")}
+            proc_cfg = state._cfg_dict(cfg, exclude=("workdir", "pairs", "container"))
 
             import inspect as _inspect
             _sig = _inspect.signature(proc_cls.__init__).parameters
@@ -134,13 +131,7 @@ async def get_folder_hyp3_jobs(path: str):
             users = []
         files.append({"name": f.name, "total": total, "users": users})
     # Prefer insarhub_config.json (new format), fall back to legacy processor_config.json
-    proc_type = None
-    try:
-        from insarhub.app.state import read_insarhub_config
-        cfg = read_insarhub_config(folder)
-        proc_type = cfg.get("processor", {}).get("type")
-    except Exception:
-        pass
+    proc_type = state._read_processor_type(folder)
     if not proc_type:
         proc_cfg_path = folder / "processor_config.json"
         if proc_cfg_path.exists():
@@ -154,9 +145,7 @@ async def get_folder_hyp3_jobs(path: str):
 
 @router.post("/api/folder-hyp3-action")
 async def folder_hyp3_action(req: Hyp3ActionRequest, background_tasks: BackgroundTasks):
-    job_id, _ = _new_job("Starting…")
-    background_tasks.add_task(_run_hyp3_action, job_id, req)
-    return {"job_id": job_id}
+    return state.launch_job(background_tasks, _run_hyp3_action, req)
 
 
 async def _run_hyp3_action(job_id: str, req: Hyp3ActionRequest):
@@ -227,22 +216,20 @@ async def _run_hyp3_action(job_id: str, req: Hyp3ActionRequest):
                 _finish_job(job_id, status="done", message="Retry submitted. New job file saved.")
 
             elif req.action == "download":
-                dl_stop = _threading.Event()
-                state._stop_events[job_id] = dl_stop
-                state._jobs[job_id]["message"] = "Downloading succeeded jobs…"
+                with state.stop_event(job_id) as dl_stop:
+                    state._jobs[job_id]["message"] = "Downloading succeeded jobs…"
 
-                def _dl_progress(msg: str, pct: int):
-                    state._jobs[job_id]["progress"] = pct
-                    state._jobs[job_id]["message"]  = msg
+                    def _dl_progress(msg: str, pct: int):
+                        state._jobs[job_id]["progress"] = pct
+                        state._jobs[job_id]["message"]  = msg
 
-                _, dl_results = processor.download(progress_callback=_dl_progress, stop_event=dl_stop)
-                state._stop_events.pop(job_id, None)
-                r = dl_results
-                summary = f"{r['downloaded']} downloaded, {r['skipped']} existing, {r['failed']} failed"
-                if dl_stop.is_set():
-                    summary = f"Stopped. {summary}"
-                pct = 100 if not dl_stop.is_set() else state._jobs[job_id].get("progress", 0)
-                _finish_job(job_id, status="done", progress=pct, message=summary)
+                    _, dl_results = processor.download(progress_callback=_dl_progress, stop_event=dl_stop)
+                    r = dl_results
+                    summary = f"{r['downloaded']} downloaded, {r['skipped']} existing, {r['failed']} failed"
+                    if dl_stop.is_set():
+                        summary = f"Stopped. {summary}"
+                    pct = 100 if not dl_stop.is_set() else state._jobs[job_id].get("progress", 0)
+                    _finish_job(job_id, status="done", progress=pct, message=summary)
 
             else:
                 _finish_job(job_id, status="error", progress=0, message=f"Unknown action: {req.action}")
@@ -273,21 +260,13 @@ async def get_folder_local_jobs(path: str):
             total = 0
         rel = f.relative_to(folder)
         files.append({"name": str(rel), "total": total, "users": []})
-    proc_type = None
-    try:
-        from insarhub.app.state import read_insarhub_config
-        cfg = read_insarhub_config(folder)
-        proc_type = cfg.get("processor", {}).get("type")
-    except Exception:
-        pass
+    proc_type = state._read_processor_type(folder)
     return {"files": files, "processor_type": proc_type}
 
 
 @router.post("/api/folder-local-action")
 async def folder_local_action(req: LocalActionRequest, background_tasks: BackgroundTasks):
-    job_id, _ = state._new_job("Starting…")
-    background_tasks.add_task(_run_local_action, job_id, req)
-    return {"job_id": job_id}
+    return state.launch_job(background_tasks, _run_local_action, req)
 
 
 async def _run_local_action(job_id: str, req: LocalActionRequest):
@@ -382,17 +361,6 @@ async def get_processor_steps(processor: str):
     return {"steps": steps}
 
 
-@router.get("/api/folder-pairs-files")
-async def get_folder_pairs_files(path: str):
-    """List stack/pairs JSON files in a folder for ISCE_S1 submit."""
-    folder = Path(path).expanduser().resolve()
-    if not folder.exists():
-        raise HTTPException(status_code=404, detail="Folder not found")
-    seen: set[str] = set()
-    for pattern in ("stack_p*_f*.json", "pairs*.json", "*_pairs.json"):
-        for f in folder.glob(pattern):
-            seen.add(f.name)
-    return {"files": sorted(seen)}
 
 
 from insarhub.processor.isce_base import _SBATCH_DEFAULT_TEMPLATE
@@ -404,16 +372,13 @@ async def get_sbatch_options(path: str):
     folder = Path(path).expanduser().resolve()
     if not folder.exists():
         raise HTTPException(status_code=404, detail="Folder not found")
+    from insarhub.processor.isce_base import load_or_init_sbatch_options
+    # Shared migrate/load/upgrade logic (also renames legacy srun_options.json,
+    # unlike the old inline copy here which left it behind as a stale duplicate).
+    # Returns None only when the file was just freshly created — its content is
+    # then exactly _SBATCH_DEFAULT_TEMPLATE.
+    existing = load_or_init_sbatch_options(folder) or _SBATCH_DEFAULT_TEMPLATE
     sbatch_path = folder / "sbatch_options.json"
-    existing: dict = {}
-    # Migrate from old srun_options.json if present
-    old_path = folder / "srun_options.json"
-    src = sbatch_path if sbatch_path.exists() else (old_path if old_path.exists() else None)
-    if src:
-        try:
-            existing = json.loads(src.read_text())
-        except Exception:
-            pass
     # Rebuild in template order, preserving any user-set per-step flags
     merged = {}
     for k, v in _SBATCH_DEFAULT_TEMPLATE.items():

@@ -4,7 +4,6 @@
 import asyncio
 import base64
 import dataclasses
-import json
 import os
 import tempfile
 import threading as _threading
@@ -17,8 +16,8 @@ from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
 
 import insarhub.app.state as state
 from insarhub.app.models import (
-    AddJobRequest, AddMergedJobRequest, DownloadByNameRequest, DownloadMergedRequest,
-    DownloadRequest, DownloadSceneRequest, JobResponse, ParseAoiRequest, SearchRequest,
+    AddJobRequest, AddMergedJobRequest, DownloadMergedRequest,
+    DownloadSceneRequest, JobResponse, ParseAoiRequest, SearchRequest,
 )
 from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job, write_insarhub_config
 from insarhub.commands.downloader import DownloadScenesCommand, SearchCommand
@@ -87,10 +86,8 @@ async def parse_granule_file(file: UploadFile = File(...)):
 
 @router.post("/api/search", response_model=JobResponse)
 async def start_search(req: SearchRequest, background_tasks: BackgroundTasks):
-    job_id, _ = _new_job("Starting search...")
-    session_id = str(uuid.uuid4())
-    background_tasks.add_task(_run_search, job_id, session_id, req)
-    return {"job_id": job_id}
+    return state.launch_job(background_tasks, _run_search, str(uuid.uuid4()), req,
+                            start_message="Starting search...")
 
 
 async def _run_search(job_id: str, session_id: str, req: SearchRequest):
@@ -154,40 +151,14 @@ async def _run_search(job_id: str, session_id: str, req: SearchRequest):
     await asyncio.to_thread(run)
 
 
-@router.post("/api/download", response_model=JobResponse)
-async def start_download(req: DownloadRequest, background_tasks: BackgroundTasks):
-    if req.session_id not in state._sessions:
-        raise HTTPException(status_code=404, detail="Session not found — run /api/search first")
-    job_id, _ = _new_job("Starting download...")
-    background_tasks.add_task(_run_download, job_id, req)
-    return {"job_id": job_id}
-
-
-async def _run_download(job_id: str, req: DownloadRequest):
-    def run():
-        try:
-            downloader = state._sessions[req.session_id]
-            cmd    = DownloadScenesCommand(downloader, progress_callback=state._make_progress(job_id))
-            result = cmd.run()
-            _finish_job(job_id, status="done" if result.success else "error",
-                        message=result.message, data=str(result.data) if result.data else None)
-        except Exception as e:
-            _finish_job(job_id, status="error", progress=0, message=str(e))
-    await asyncio.to_thread(run)
-
-
 @router.post("/api/download-scene", response_model=JobResponse)
 async def download_single_scene(req: DownloadSceneRequest, background_tasks: BackgroundTasks):
-    job_id, _ = _new_job("Starting download...")
-    background_tasks.add_task(_run_download_scene, job_id, req)
-    return {"job_id": job_id}
+    return state.launch_job(background_tasks, _run_download_scene, req,
+                            start_message="Starting download...")
 
 
 async def _run_download_scene(job_id: str, req: DownloadSceneRequest):
-    stop_ev = _threading.Event()
-    state._stop_events[job_id] = stop_ev
-
-    def run():
+    def run(stop_ev):
         file_path = None
         try:
             import asf_search as asf
@@ -225,10 +196,9 @@ async def _run_download_scene(job_id: str, req: DownloadSceneRequest):
             if file_path and file_path.exists():
                 file_path.unlink(missing_ok=True)
             _finish_job(job_id, status="error", progress=0, message=str(e))
-        finally:
-            state._stop_events.pop(job_id, None)
 
-    await asyncio.to_thread(run)
+    with state.stop_event(job_id) as stop_ev:
+        await asyncio.to_thread(run, stop_ev)
 
 
 @router.post("/api/download-stack", response_model=JobResponse)
@@ -267,12 +237,9 @@ async def _run_download_stack(job_id: str, req: AddJobRequest, stop_ev: _threadi
             total = sum(len(v) for v in downloader.results.values())
             state._jobs[job_id]["message"] = f"Downloading 0/{total}"
 
-            def _on_progress(msg: str, pct: int):
-                count = msg.split(']')[0].lstrip('[') if ']' in msg else ''
-                state._jobs[job_id]["message"]  = f"Downloading {count}" if count else msg
-                state._jobs[job_id]["progress"] = pct
-
-            dl_result = DownloadScenesCommand(downloader, stop_event=stop_ev, on_progress=_on_progress).run()
+            dl_result = DownloadScenesCommand(
+                downloader, stop_event=stop_ev, on_progress=state._make_download_progress(job_id)
+            ).run()
             save_dir  = workdir / f"p{req.relativeOrbit}_f{req.frame}"
             if stop_ev.is_set():
                 _finish_job(job_id, status="done", progress=0, message="Stopped.")
@@ -289,7 +256,6 @@ async def _run_download_stack(job_id: str, req: AddJobRequest, stop_ev: _threadi
 
 @router.post("/api/add-job")
 async def add_job(req: AddJobRequest):
-    from insarhub.utils.tool import write_workflow_marker
     workdir = Path(req.workdir).expanduser().resolve()
     subdir  = StackPaths(workdir).stack_dir(req.relativeOrbit, req.frame)
     subdir.mkdir(parents=True, exist_ok=True)
@@ -304,7 +270,7 @@ async def add_job(req: AddJobRequest):
         "intersectsWith": req.wkt, "flightDirection": req.flightDirection,
         "platform": req.platform,
     })
-    cfg = {k: v for k, v in dataclasses.asdict(cfg_instance).items() if k != "workdir"}
+    cfg = state._cfg_dict(cfg_instance)
     write_insarhub_config(subdir, {"downloader": {"type": req.downloaderType, "config": cfg}})
     return {"path": str(subdir), "name": subdir.name}
 
@@ -348,23 +314,19 @@ async def add_merged_job(req: AddMergedJobRequest):
         # selected stack's platform would silently restrict every future
         # re-search on this folder to one satellite and starve the network.
     })
-    cfg = {k: v for k, v in dataclasses.asdict(cfg_instance).items() if k != "workdir"}
+    cfg = state._cfg_dict(cfg_instance)
     write_insarhub_config(subdir, {"downloader": {"type": req.downloaderType, "config": cfg}})
     return {"path": str(subdir), "name": subdir.name}
 
 
 @router.post("/api/download-orbit-stack", response_model=JobResponse)
 async def download_orbit_stack(req: AddJobRequest, background_tasks: BackgroundTasks):
-    job_id, _ = _new_job("Starting orbit download…")
-    background_tasks.add_task(_run_download_orbit_stack, job_id, req)
-    return {"job_id": job_id}
+    return state.launch_job(background_tasks, _run_download_orbit_stack, req,
+                            start_message="Starting orbit download…")
 
 
 async def _run_download_orbit_stack(job_id: str, req: AddJobRequest):
-    stop_ev = _threading.Event()
-    state._stop_events[job_id] = stop_ev
-
-    def run():
+    def run(stop_ev):
         try:
             workdir  = Path(req.workdir).expanduser().resolve()
             save_dir = workdir / f"p{req.relativeOrbit}_f{req.frame}"
@@ -392,10 +354,9 @@ async def _run_download_orbit_stack(job_id: str, req: AddJobRequest):
                 _finish_job(job_id, status="done", message="Orbit files downloaded.")
         except Exception as e:
             _finish_job(job_id, status="error", progress=0, message=str(e))
-        finally:
-            state._stop_events.pop(job_id, None)
 
-    await asyncio.to_thread(run)
+    with state.stop_event(job_id) as stop_ev:
+        await asyncio.to_thread(run, stop_ev)
 
 
 @router.post("/api/download-merged", response_model=JobResponse)
@@ -470,16 +431,11 @@ async def _run_download_merged(job_id: str, req: DownloadMergedRequest, stop_ev:
                 total = sum(len(v) for v in primary.results.values())
                 state._jobs[job_id]["message"] = f"Downloading 0/{total} scenes → {merged_dir.name}/"
 
-                def _on_progress(msg: str, pct: int):
-                    count = msg.split(']')[0].lstrip('[') if ']' in msg else ''
-                    state._jobs[job_id]["message"]  = f"Downloading {count}" if count else msg
-                    state._jobs[job_id]["progress"] = pct
-
                 dl_result = DownloadScenesCommand(
                     primary,
                     merge=True,
                     stop_event=stop_ev,
-                    on_progress=_on_progress,
+                    on_progress=state._make_download_progress(job_id),
                 ).run()
                 if not dl_result.success:
                     _finish_job(job_id, status="error", progress=0, message=dl_result.message)
@@ -497,61 +453,6 @@ async def _run_download_merged(job_id: str, req: DownloadMergedRequest, stop_ev:
                     message=f"Merged download complete → {merged_dir.name}/",
                     data=str(merged_dir),
                 )
-        except Exception as e:
-            _finish_job(job_id, status="error", progress=0, message=str(e))
-        finally:
-            state._stop_events.pop(job_id, None)
-
-    await asyncio.to_thread(run)
-
-
-@router.post("/api/download-by-name", response_model=JobResponse)
-async def download_by_name(req: DownloadByNameRequest, background_tasks: BackgroundTasks):
-    if not req.scene_names and not req.scene_file:
-        raise HTTPException(status_code=422, detail="Provide scene_names or scene_file")
-    job_id, _ = _new_job("Starting…")
-    stop_ev = _threading.Event()
-    state._stop_events[job_id] = stop_ev
-    background_tasks.add_task(_run_download_by_name, job_id, req, stop_ev)
-    return {"job_id": job_id}
-
-
-async def _run_download_by_name(job_id: str, req: DownloadByNameRequest, stop_ev: _threading.Event):
-    def run():
-        try:
-            workdir = Path(req.workdir).expanduser().resolve()
-            workdir.mkdir(parents=True, exist_ok=True)
-            dl_cls  = Downloader._registry.get(req.downloaderType)
-            cfg_cls = getattr(dl_cls, "default_config", S1_SLC_Config) if dl_cls else S1_SLC_Config
-            cfg     = cfg_cls(workdir=workdir)
-            downloader = Downloader.create(req.downloaderType, cfg)
-
-            from insarhub.utils.tool import parse_scene_names_from_file
-            names: list[str] = list(req.scene_names)
-            if req.scene_file:
-                names = list(dict.fromkeys(names + parse_scene_names_from_file(req.scene_file)))
-            cfg.granule_names = names
-            state._jobs[job_id]["message"] = f"Searching {len(names)} scene(s)…"
-            downloader.search()
-
-            if stop_ev.is_set():
-                _finish_job(job_id, status="done", progress=0, message="Stopped.")
-                return
-
-            total = sum(len(v) for v in downloader.results.values())
-            state._jobs[job_id]["message"] = f"Downloading 0/{total}"
-
-            def _on_progress(msg: str, pct: int):
-                count = msg.split(']')[0].lstrip('[') if ']' in msg else ''
-                state._jobs[job_id]["message"]  = f"Downloading {count}" if count else msg
-                state._jobs[job_id]["progress"] = pct
-
-            dl_result = DownloadScenesCommand(downloader, stop_event=stop_ev, on_progress=_on_progress).run()
-            if stop_ev.is_set():
-                _finish_job(job_id, status="done", progress=0, message="Stopped.")
-            else:
-                _finish_job(job_id, status="done" if dl_result.success else "error",
-                            message=dl_result.message, data=str(workdir))
         except Exception as e:
             _finish_job(job_id, status="error", progress=0, message=str(e))
         finally:

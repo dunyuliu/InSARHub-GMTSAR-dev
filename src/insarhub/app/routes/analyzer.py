@@ -3,14 +3,13 @@
 
 import asyncio
 import dataclasses
-import threading as _threading
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 import insarhub.app.state as state
 from insarhub.app.models import InitAnalyzerRequest, RunAnalyzerRequest
-from insarhub.app.state import _new_job, _finish_job, read_insarhub_config, write_insarhub_config
+from insarhub.app.state import _finish_job, read_insarhub_config, write_insarhub_config
 from insarhub.core.registry import Analyzer
 
 router = APIRouter()
@@ -128,16 +127,11 @@ async def get_analyzer_steps(analyzer_type: str):
 
 @router.post("/api/folder-run-analyzer")
 async def folder_run_analyzer(req: RunAnalyzerRequest, background_tasks: BackgroundTasks):
-    job_id, _ = _new_job("Starting analyzer…")
-    background_tasks.add_task(_run_analyzer, job_id, req)
-    return {"job_id": job_id}
+    return state.launch_job(background_tasks, _run_analyzer, req, start_message="Starting analyzer…")
 
 
 async def _run_analyzer(job_id: str, req: RunAnalyzerRequest):
-    stop_ev = _threading.Event()
-    state._stop_events[job_id] = stop_ev
-
-    def run():
+    def run(stop_ev):
         log: list[str] = []
 
         def update(msg: str, pct: int):
@@ -180,7 +174,7 @@ async def _run_analyzer(job_id: str, req: RunAnalyzerRequest):
             analyzer = cls(cfg)
 
             # Save updated analyzer config back to insarhub_config.json
-            cfg_dict = {k: v for k, v in dataclasses.asdict(cfg).items() if k not in ('workdir', 'container')}
+            cfg_dict = state._cfg_dict(cfg, exclude=('workdir', 'container'))
             write_insarhub_config(folder, {"analyzer": {"type": req.analyzer_type, "config": cfg_dict}})
 
             # Use the analyzer's own cfg_path (e.g. ISCE_SBAS writes to mintpy/.mintpy.cfg)
@@ -218,7 +212,7 @@ async def _run_analyzer(job_id: str, req: RunAnalyzerRequest):
                         analyzer.prep_data()
                         # Persist load paths set by _set_load_parameters() so the
                         # next run (e.g. load_data only) can read them from disk.
-                        _post_cfg = {k: v for k, v in dataclasses.asdict(analyzer.config).items() if k not in ('workdir', 'container')}
+                        _post_cfg = state._cfg_dict(analyzer.config, exclude=('workdir', 'container'))
                         write_insarhub_config(folder, {"analyzer": {"type": req.analyzer_type, "config": _post_cfg}})
                         _acfg_path = getattr(analyzer, "cfg_path", None) or (folder / ".mintpy.cfg")
                         if hasattr(analyzer.config, "write_mintpy_config"):
@@ -240,10 +234,8 @@ async def _run_analyzer(job_id: str, req: RunAnalyzerRequest):
                 except Exception as e:
                     update(f"[{i+1}/{total}] {step} — ERROR: {e}", int(i / total * 100))
                     state._jobs[job_id]["status"] = "error"
-                    state._stop_events.pop(job_id, None)
                     return
 
-            state._stop_events.pop(job_id, None)
             if stop_ev.is_set():
                 state._jobs[job_id]["status"] = "done"
             else:
@@ -252,11 +244,11 @@ async def _run_analyzer(job_id: str, req: RunAnalyzerRequest):
                 state._jobs[job_id]["progress"] = 100
 
         except Exception as e:
-            state._stop_events.pop(job_id, None)
             log.append(f"FATAL: {e}")
             _finish_job(job_id, status="error", progress=0, message="\n".join(log))
 
-    await asyncio.to_thread(run)
+    with state.stop_event(job_id) as stop_ev:
+        await asyncio.to_thread(run, stop_ev)
 
 
 @router.post("/api/folder-analyzer-cleanup")

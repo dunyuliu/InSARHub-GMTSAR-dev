@@ -14,8 +14,7 @@ import JobQueueDrawer, { type RasterOverlay } from './JobQueueDrawer'
 import { bboxToWkt, geometryToWkt, getGeometryBbox, type Bbox } from './geoUtils'
 import { DARK, LIGHT } from './theme'
 import shpjs from 'shpjs'
-
-const API = ''
+import { API } from './api'
 
 // ── Colorbar ────────────────────────────────────────────────────────────────
 function colormapGradient(type: string): string {

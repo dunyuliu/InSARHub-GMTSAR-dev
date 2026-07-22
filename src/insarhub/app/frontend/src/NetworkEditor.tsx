@@ -7,8 +7,8 @@ import { useTranslation } from 'react-i18next'
 import {
   Application, Container, Graphics, Text, TextStyle, Point, Rectangle,
 } from 'pixi.js'
+import { API } from './api'
 
-const API = import.meta.env.DEV ? 'http://localhost:8080' : ''
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
