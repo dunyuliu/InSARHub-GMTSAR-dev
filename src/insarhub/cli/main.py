@@ -37,7 +37,7 @@ import sys
 from pathlib import Path
 
 from insarhub._version import __version__
-from insarhub.config.paths import Hyp3Paths, ISCEPaths, StackPaths
+from insarhub.config.paths import Hyp3Paths, StackPaths
 from insarhub.utils.defaults import SELECT_PAIRS_DEFAULTS as _SP, DOWNLOAD_DEFAULTS as _DL
 
 
@@ -951,29 +951,36 @@ def _read_config_json(cfg_path: Path) -> dict:
         return {}
 
 
-def _find_jobs_file(workdir: Path, pattern: str) -> Path | None:
+def _find_jobs_file(workdir: Path, pattern: str, subdir: str | None = None) -> Path | None:
     """Return the first matching jobs JSON file.
 
     Search order:
       1. workdir/ directly
-      2. workdir/isce/          ← ISCE_S1 stores isce_jobs.json here
+      2. workdir/<subdir>/      ← e.g. "isce" for ISCE_S1, "gmtsar_case" for
+                                   GMTSAR_S1 (processor_cls.JOBS_SUBDIR)
       3. workdir/<p*_f*>/
-      4. workdir/<p*_f*>/isce/
+      4. workdir/<p*_f*>/<subdir>/
+
+    `subdir` generalizes what used to be a hardcoded ISCEPaths(...).isce_dir
+    lookup -- found via a real gap: GMTSAR_S1's gmtsar_jobs.json lives under
+    gmtsar_case/, which the old hardcoded isce/ lookup could never find.
     """
     for p in sorted(workdir.glob(pattern)):
         return p
-    isce_sub = ISCEPaths(workdir).isce_dir
-    if isce_sub.is_dir():
-        for p in sorted(isce_sub.glob(pattern)):
-            return p
-    for subdir in sorted(workdir.iterdir()):
-        if subdir.is_dir() and _parse_group_key(subdir.name):
-            for p in sorted(subdir.glob(pattern)):
+    if subdir:
+        sub = workdir / subdir
+        if sub.is_dir():
+            for p in sorted(sub.glob(pattern)):
                 return p
-            nested = ISCEPaths(subdir).isce_dir
-            if nested.is_dir():
-                for p in sorted(nested.glob(pattern)):
-                    return p
+    for d in sorted(workdir.iterdir()):
+        if d.is_dir() and _parse_group_key(d.name):
+            for p in sorted(d.glob(pattern)):
+                return p
+            if subdir:
+                nested = d / subdir
+                if nested.is_dir():
+                    for p in sorted(nested.glob(pattern)):
+                        return p
     return None
 
 
@@ -1865,7 +1872,10 @@ def _proc_local_submit(args, extra_args: list[str]):
     # ── Load pairs (same helpers as Hyp3) ──────────────────────────────────
     pairs_data = _load_pairs(args, workdir)
     raw_pairs  = pairs_data if isinstance(pairs_data, list) else next(iter(pairs_data.values()), [])
-    pairs      = [(str(p[0]), str(p[1])) for p in raw_pairs]
+    # Preserve full arity -- ISCE_S1/Hyp3_S1 use 2-tuples (ref, sec), but
+    # GMTSAR_S1 requires 4-tuples (ref_safe, ref_eof, sec_safe, sec_eof).
+    # Used to hardcode (p[0], p[1]), silently truncating GMTSAR_S1 pairs.
+    pairs      = [tuple(str(x) for x in p) for p in raw_pairs]
     if not pairs:
         print("[ERROR] No pairs found. Use --pairs-file or place stack_*.json in workdir.",
               file=sys.stderr)
@@ -1906,6 +1916,16 @@ def _proc_local_submit(args, extra_args: list[str]):
     processor.submit(**submit_kwargs)
 
 
+def _jobs_glob(processor_name: str) -> tuple[str, str | None]:
+    """(pattern, subdir) for this processor's saved-job file, from its own
+    JOBS_FILE/JOBS_SUBDIR class attributes -- see LocalProcessor in core/base.py."""
+    from insarhub import Processor
+    processor_cls = Processor._registry[processor_name]
+    jobs_file = getattr(processor_cls, "JOBS_FILE", None) or "isce_jobs.json"
+    pattern = f"{Path(jobs_file).stem}*.json"
+    return pattern, getattr(processor_cls, "JOBS_SUBDIR", None)
+
+
 def _load_local_processor(processor_name: str, workdir: Path, jobs_path: Path,
                            hpc_mode: bool = False, dry_run: bool = False,
                            container: str | None = None):
@@ -1927,14 +1947,25 @@ def _load_local_processor(processor_name: str, workdir: Path, jobs_path: Path,
     else:
         cfg = None
     saved = json.loads(jobs_path.read_text())
-    pairs = [(j["step"], j["step"]) for j in saved.get("jobs", {}).values()]
+    # ISCE wraps its saved jobs as {"jobs": {...}, "workdir": ...}; other
+    # local processors (e.g. GMTSAR_S1.save()) write the jobs dict directly
+    # at the top level, no wrapper. Handle both shapes.
+    jobs = (saved["jobs"] if "jobs" in saved else saved).values()
+    # ISCE's saved jobs are keyed by step name (no real "pair" concept);
+    # other local processors (e.g. GMTSAR_S1) store the real pair tuple
+    # under "pair" -- prefer that when present instead of assuming ISCE's
+    # step-based shape (found via a real gap: this used to always rebuild
+    # (j["step"], j["step"]), which is meaningless for GMTSAR_S1's 4-tuple
+    # pairs and would crash its pairs-arity validation).
+    pairs = [tuple(j["pair"]) if "pair" in j else (j["step"], j["step"]) for j in jobs]
     return processor_cls(pairs=pairs or [("_", "_")], config=cfg)
 
 
 def _proc_local_refresh(args):
     processor_name = getattr(args, "processor_name", "ISCE_S1")
     workdir        = _resolve_workdir(args.workdir)
-    jobs_path      = _find_jobs_file(workdir, pattern="isce_jobs*.json")
+    jobs_pattern, jobs_subdir = _jobs_glob(processor_name)
+    jobs_path      = _find_jobs_file(workdir, pattern=jobs_pattern, subdir=jobs_subdir)
     if jobs_path is None:
         print("[ERROR] No isce_jobs.json found. Run submit first.", file=sys.stderr)
         sys.exit(1)
@@ -1948,7 +1979,8 @@ def _proc_local_refresh(args):
 def _proc_local_retry(args):
     processor_name = getattr(args, "processor_name", "ISCE_S1")
     workdir        = _resolve_workdir(args.workdir)
-    jobs_path      = _find_jobs_file(workdir, pattern="isce_jobs*.json")
+    jobs_pattern, jobs_subdir = _jobs_glob(processor_name)
+    jobs_path      = _find_jobs_file(workdir, pattern=jobs_pattern, subdir=jobs_subdir)
     if jobs_path is None:
         print("[ERROR] No isce_jobs.json found. Run submit first.", file=sys.stderr)
         sys.exit(1)
@@ -1963,7 +1995,8 @@ def _proc_local_retry(args):
 def _proc_local_cancel(args):
     processor_name = getattr(args, "processor_name", "ISCE_S1")
     workdir        = _resolve_workdir(args.workdir)
-    jobs_path      = _find_jobs_file(workdir, pattern="isce_jobs*.json")
+    jobs_pattern, jobs_subdir = _jobs_glob(processor_name)
+    jobs_path      = _find_jobs_file(workdir, pattern=jobs_pattern, subdir=jobs_subdir)
     if jobs_path is None:
         print("[ERROR] No isce_jobs.json found. Nothing to cancel.", file=sys.stderr)
         sys.exit(1)
@@ -1977,7 +2010,8 @@ def _proc_local_watch(args):
     processor_name   = getattr(args, "processor_name", "ISCE_S1")
     workdir          = _resolve_workdir(args.workdir)
     refresh_interval = getattr(args, "interval", 60)
-    jobs_path        = _find_jobs_file(workdir, pattern="isce_jobs*.json")
+    jobs_pattern, jobs_subdir = _jobs_glob(processor_name)
+    jobs_path        = _find_jobs_file(workdir, pattern=jobs_pattern, subdir=jobs_subdir)
     if jobs_path is None:
         print("[ERROR] No isce_jobs.json found. Run submit first.", file=sys.stderr)
         sys.exit(1)

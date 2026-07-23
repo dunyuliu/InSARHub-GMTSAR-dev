@@ -199,12 +199,16 @@ class GMTSAR_S1(LocalProcessor):
     description = (
         "Sentinel-1 InSAR via GMTSAR (p2p_processing or p2p_S1_TOPS_Frame). "
         "Requires GMTSAR installed (gmtsar/python/install.py) and GMTSAR "
-        "env vars set. Single-subswath output is directly consumable by "
-        "MintPy's prep_gmtsar.py -- Frame-mode output not yet verified, "
-        "see module docstring."
+        "env vars set. Single-interferogram metadata (ALOOKS/RLOOKS/HEADING/"
+        "geo-transform) is real-data confirmed loadable via MintPy's "
+        "prep_gmtsar.py -- full stack loading additionally needs a real "
+        "multi-pair baseline_table.dat GMTSAR_S1 does not generate yet, "
+        "see docs/gmtsar_s1_notes/OPEN_ISSUES.md."
     )
     compatible_downloader = "S1_SLC"
     default_config = GMTSAR_S1_Config
+    JOBS_FILE = JOBS_FILE      # "gmtsar_jobs.json" -- module constant, exposed for cli/main.py
+    JOBS_SUBDIR = "gmtsar_case"  # matches case_dir property below
 
     def __init__(
         self,
