@@ -154,6 +154,14 @@ def load_or_init_sbatch_options(
 
 # ── ISCE2 discovery ───────────────────────────────────────────────────────────
 
+_CONTAINER_HINT = (
+    "\nAlternatively, skip installing ISCE2 locally and run this processor "
+    "inside a container instead: pass --container <path-or-image> (the "
+    "container needs `insarhub` installed alongside ISCE2 — see the "
+    "--container docs)."
+)
+
+
 def _check_isce2(isce_home: Path | None) -> Path:
     """Return the resolved path to topsApp.py, raising if ISCE2 is missing."""
     if isce_home:
@@ -163,7 +171,7 @@ def _check_isce2(isce_home: Path | None) -> Path:
                 return c
         raise EnvironmentError(
             f"ISCE2 not found under isce_home='{isce_home}'. "
-            "Check the path or set $ISCE_HOME."
+            "Check the path or set $ISCE_HOME." + _CONTAINER_HINT
         )
     env_home = os.environ.get("ISCE_HOME")
     if env_home:
@@ -175,7 +183,7 @@ def _check_isce2(isce_home: Path | None) -> Path:
     raise EnvironmentError(
         "ISCE2 is not installed or not findable. "
         "Install ISCE2 and either set $ISCE_HOME or add its applications/ "
-        "directory to $PATH, or pass isce_home= to the config."
+        "directory to $PATH, or pass isce_home= to the config." + _CONTAINER_HINT
     )
 
 
@@ -221,7 +229,7 @@ def _find_topsstack(isce_home: Path | None) -> tuple[Path, Path]:
     if not candidates:
         raise EnvironmentError(
             "ISCE2 not found and no base path available to download topsStack into. "
-            "Set $ISCE_HOME or pass isce_home= to the config."
+            "Set $ISCE_HOME or pass isce_home= to the config." + _CONTAINER_HINT
         )
     from insarhub.utils.tool import _download_isce_stacktool
     s = _download_isce_stacktool(candidates[0])
@@ -343,9 +351,15 @@ class ISCE_Base(LocalProcessor):
 
     def __init__(self, config):
         super().__init__(config)
-        _isce_home = Path(self.config.isce_home) if self.config.isce_home else None
-        self._stack_bin, self._pythonpath_add = _find_topsstack(_isce_home)
-        self._isce_app_bin = _check_isce2(_isce_home)
+        if self.config.container:
+            # Container mode re-invokes the whole pipeline inside the
+            # container, which brings its own ISCE2/topsStack install — no
+            # need (and no way, if the host has none) to discover one here.
+            self._stack_bin = self._pythonpath_add = self._isce_app_bin = None
+        else:
+            _isce_home = Path(self.config.isce_home) if self.config.isce_home else None
+            self._stack_bin, self._pythonpath_add = _find_topsstack(_isce_home)
+            self._isce_app_bin = _check_isce2(_isce_home)
 
         self.workdir: Path = Path(self.config.workdir).expanduser().resolve()
         self.workdir.mkdir(parents=True, exist_ok=True)
@@ -917,7 +931,19 @@ class ISCE_Base(LocalProcessor):
             ]
 
             print(f"\n{Fore.CYAN}  ▶ {step}{Style.RESET_ALL}  ({len(commands)} command(s))")
-            _write_status(self._run_files_dir, step, _RUNNING, str(os.getpid()))
+            # Inside a container, os.getpid() is a PID in the *container's*
+            # own PID namespace -- meaningless to a host-side os.kill(pid, 0)
+            # liveness check (refresh() runs on the host). This is true even
+            # with `docker run --pid=host` on Docker Desktop (Windows/Mac/
+            # WSL2): its containers run inside Docker Desktop's own VM, which
+            # shares a PID namespace with *that* VM, not with the user's
+            # actual host shell. INSARHUB_HOST_PID (set by
+            # _reinvoke_via_container, only present when running as a
+            # container re-invocation) is the PID of the *host-side* process
+            # blocking on `docker run` -- a real, host-checkable stand-in for
+            # "is this container job still alive".
+            running_pid = os.environ.get("INSARHUB_HOST_PID") or str(os.getpid())
+            _write_status(self._run_files_dir, step, _RUNNING, running_pid)
             self.jobs[step]["status"] = _RUNNING
 
             success = self._run_step(script, log_dir)
@@ -1636,6 +1662,10 @@ class ISCE_Base(LocalProcessor):
 
     def retry(self) -> dict:
         """Re-run the first failed step and all subsequent steps."""
+        if getattr(self.config, "container", None):
+            self._reinvoke_via_container("retry")
+            return self.jobs
+
         failed = [n for n, m in sorted(self.jobs.items()) if m["status"] == _FAILED]
         if not failed:
             self.refresh()
@@ -1666,12 +1696,100 @@ class ISCE_Base(LocalProcessor):
             self._start_local_background(to_retry)
         return self.jobs
 
+    # ── Container re-invocation ───────────────────────────────────────────────
+
+    def _reinvoke_via_container(self, action: str, steps: list[str] | None = None) -> None:
+        """Re-run this same `insarhub processor ... {action}` CLI call inside
+        self.config.container instead of on the host.
+
+        The container image is expected to have `insarhub` (plus ISCE2/topsStack)
+        installed — the container-side process runs the identical InSARHub code,
+        so refresh()/retry()/cancel() need no container-awareness of their own:
+        they just read the same status files this container-side process writes
+        to the shared (bind-mounted) workdir.
+        """
+        import dataclasses
+
+        from insarhub.utils.config_io import write_insarhub_config
+        from insarhub.utils.container import wrap_container_cmd
+
+        cfg_dict = {
+            f.name: getattr(self.config, f.name)
+            for f in dataclasses.fields(self.config)
+            if f.name not in ("container", "workdir", "saved_job_path")
+        }
+        write_insarhub_config(self.workdir, {
+            "processor": {"type": type(self).name, "config": cfg_dict}
+        })
+
+        step_args = f" --step {' '.join(steps)}" if steps else ""
+
+        def _build_cli_cmd(host_pid: int | None = None) -> str:
+            # INSARHUB_CONTAINER_CHILD tells _start_local_background() (running
+            # inside the container) not to fork+detach again: this call already
+            # forks and blocks on `docker run` below, so backgrounding is
+            # already handled at the host level -- see that method's docstring.
+            # INSARHUB_HOST_PID (only known once we're the forked child, after
+            # os.fork()) is this host-side process's own PID -- a real,
+            # host-checkable liveness marker for _step_executor to record
+            # instead of a container-namespace PID that's meaningless from the
+            # host's side (see _step_executor's comment for why).
+            env_prefix = "INSARHUB_CONTAINER_CHILD=1"
+            if host_pid is not None:
+                env_prefix += f" INSARHUB_HOST_PID={host_pid}"
+            return (f"{env_prefix} insarhub processor "
+                    f"-N {type(self).name} -w {self.workdir} {action}{step_args}")
+
+        self._run_files_dir.mkdir(parents=True, exist_ok=True)
+        log_file = self._run_files_dir / "executor.log"
+        pid_file = self._run_files_dir / "executor.pid"
+        if os.name == "posix":
+            pid = os.fork()
+            if pid == 0:  # child — detach and run
+                try:
+                    os.setsid()
+                    own_pid = os.getpid()
+                    cli_cmd = _build_cli_cmd(host_pid=own_pid)
+                    wrapped = wrap_container_cmd(self.config.container, cli_cmd, self.workdir)
+                    with open(log_file, "w") as _lf:
+                        os.dup2(_lf.fileno(), sys.stdout.fileno())
+                        os.dup2(_lf.fileno(), sys.stderr.fileno())
+                    subprocess.run(wrapped, shell=True)
+                finally:
+                    os._exit(0)
+            # parent
+            pid_file.write_text(str(pid))
+            print(f"{Fore.GREEN}Container executor running in background (PID {pid}).{Style.RESET_ALL}")
+            print(f"  log : {log_file}")
+            print(f"  Use 'refresh' to check status, 'cancel' to stop.")
+        else:
+            # Windows: no fork — run blocking. No separate host PID to hand
+            # off either: this call itself is already the thing the user is
+            # waiting on, so a container-namespace PID recorded inside never
+            # gets checked against a *different*, already-returned host process.
+            cli_cmd = _build_cli_cmd()
+            wrapped = wrap_container_cmd(self.config.container, cli_cmd, self.workdir)
+            subprocess.run(wrapped, shell=True)
+
     # ── Background local execution ────────────────────────────────────────────
 
     def _start_local_background(self, pending_steps: list[str]) -> None:
-        """Fork a detached process to run steps; parent returns immediately."""
+        """Fork a detached process to run steps; parent returns immediately.
+
+        Skipped when re-invoked inside a container by _reinvoke_via_container:
+        that host-side call already forks and blocks on `docker run`, which is
+        what provides the "return control to the user, keep running" behavior.
+        Forking *again* here would let the container's own foreground process
+        (this one) exit right after the fork, and `docker run --rm` tears the
+        whole container down -- including this freshly-forked, barely-started
+        child -- as soon as its main process exits. Running _step_executor
+        directly instead keeps the container alive until the steps finish.
+        """
         pid_file = self._run_files_dir / "executor.pid"
         log_file = self._run_files_dir / "executor.log"
+        if os.environ.get("INSARHUB_CONTAINER_CHILD"):
+            self._step_executor(pending_steps)
+            return
         if os.name == "posix":
             pid = os.fork()
             if pid == 0:  # child — detach and run

@@ -71,8 +71,9 @@
     ```bash
     git clone https://github.com/jldz9/InSARHub.git
     cd InSARHub
-    conda env create -f environment-isce2.yml -n insar_dev
+    conda env create -f environment.yml -n insar_dev
     conda activate insar_dev
+    conda install -c conda-forge "numpy<2.0" isce2
     pip install -e .
     ```
 

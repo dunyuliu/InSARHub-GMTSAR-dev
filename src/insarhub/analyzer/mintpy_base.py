@@ -8,10 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pyaps3
 from colorama import Fore, Style
-from mintpy.utils import readfile
-from mintpy.smallbaselineApp import TimeSeriesAnalysis
 
 from insarhub.config.defaultconfig import Mintpy_SBAS_Base_Config
 from insarhub.config.paths import MintPyPaths, Hyp3Paths
@@ -42,6 +39,8 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
 
     def prep_data(self):
         """Write the MintPy config file to workdir."""
+        if self.config.container:
+            return self._run_via_container(["prep_data"])
         self.config.write_mintpy_config(self.cfg_path)
 
     def _validate_cds_token(self, key: str) -> bool:
@@ -95,6 +94,61 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
             print(f"{Fore.GREEN}Credentials saved to {cdsapirc_path}.\n")
             return True
     
+    def _serialize_config_overrides(self) -> str:
+        """Serialize non-default config fields back to '--flag value' CLI args.
+
+        Used to re-invoke `insarhub analyzer ... run` (via SLURM or a
+        container) with the same resolved config. `container` itself is
+        always excluded — it's a per-invocation flag, and including it here
+        would make a container/HPC re-invocation try to launch another
+        nested container.
+        """
+        _skip = {"name", "workdir", "debug", "hpc_mode", "container"}
+        config_cls = type(self.config)
+        defaults = {}
+        for f in dataclasses.fields(config_cls):
+            if f.default is not dataclasses.MISSING:
+                defaults[f.name] = f.default
+            elif f.default_factory is not dataclasses.MISSING:
+                defaults[f.name] = f.default_factory()
+
+        override_flags = []
+        for f in dataclasses.fields(config_cls):
+            if f.name in _skip:
+                continue
+            val = getattr(self.config, f.name)
+            if val == defaults.get(f.name):
+                continue
+            if isinstance(val, bool):
+                if val:
+                    override_flags.append(f"--{f.name}")
+            elif isinstance(val, (list, tuple)):
+                override_flags.append(f"--{f.name} " + " ".join(str(v) for v in val))
+            elif isinstance(val, dict):
+                override_flags.append(f"--{f.name} '{json.dumps(val)}'")
+            elif val is not None:
+                override_flags.append(f"--{f.name} {val}")
+
+        return (" " + " ".join(override_flags)) if override_flags else ""
+
+    def _run_via_container(self, steps: list[str] | None = None) -> None:
+        """Re-invoke `insarhub analyzer ... run` inside self.config.container.
+
+        The container image is expected to have `insarhub` (plus MintPy)
+        installed — mirrors ISCE_Base._reinvoke_via_container's approach for
+        the processor side.
+        """
+        from insarhub.utils.container import wrap_container_cmd
+
+        step_args = f" --step {' '.join(steps)}" if steps else ""
+        extra = self._serialize_config_overrides()
+        cli_cmd = f"insarhub analyzer -N {type(self).name} -w {self.workdir} run{step_args}{extra}"
+        wrapped = wrap_container_cmd(self.config.container, cli_cmd, Path(self.workdir))
+
+        result = subprocess.run(wrapped, shell=True)
+        if result.returncode != 0:
+            raise RuntimeError(f"Container run failed (exit {result.returncode}): {wrapped}")
+
     def submit_hpc(self, steps: list[str] | None = None) -> str | None:
         """Generate a sbatch script for the full MintPy run and submit it.
 
@@ -139,37 +193,16 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
 
         # Serialize non-default config overrides back to CLI flags so that
         # prep_data inside SLURM writes the correct .mintpy.cfg values.
-        _skip = {"name", "workdir", "debug", "hpc_mode"}
-        config_cls = type(self.config)
-        defaults = {}
-        for f in dataclasses.fields(config_cls):
-            if f.default is not dataclasses.MISSING:
-                defaults[f.name] = f.default
-            elif f.default_factory is not dataclasses.MISSING:
-                defaults[f.name] = f.default_factory()
+        extra = self._serialize_config_overrides()
 
-        override_flags = []
-        for f in dataclasses.fields(config_cls):
-            if f.name in _skip:
-                continue
-            val = getattr(self.config, f.name)
-            if val == defaults.get(f.name):
-                continue
-            if isinstance(val, bool):
-                if val:
-                    override_flags.append(f"--{f.name}")
-            elif isinstance(val, (list, tuple)):
-                override_flags.append(f"--{f.name} " + " ".join(str(v) for v in val))
-            elif isinstance(val, dict):
-                override_flags.append(f"--{f.name} '{json.dumps(val)}'")
-            elif val is not None:
-                override_flags.append(f"--{f.name} {val}")
-
-        extra = (" " + " ".join(override_flags)) if override_flags else ""
+        body_cmd = f"{insarhub_bin} analyzer -N {analyzer_name} -w {self.workdir} run{step_args}{extra}"
+        if self.config.container:
+            from insarhub.utils.container import wrap_container_cmd
+            body_cmd = wrap_container_cmd(self.config.container, body_cmd, Path(self.workdir))
 
         body = "\n".join([
             f'export PATH="{current_path}"',
-            f"{insarhub_bin} analyzer -N {analyzer_name} -w {self.workdir} run{step_args}{extra}",
+            body_cmd,
         ])
 
         lines = ["#!/bin/bash"] + slurm_cfg.to_header_lines() + ["", body, ""]
@@ -215,7 +248,7 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
                 default full workflow is executed:
                     [
                         'load_data', 'modify_network', 'reference_point', 'quick_overview',
-                        'invert_network', 'correct_LOD', 'correct_SET',
+                        'correct_unwrap_error', 'invert_network', 'correct_LOD', 'correct_SET',
                         'correct_ionosphere', 'correct_troposphere',
                         'deramp', 'correct_topography', 'residual_RMS',
                         'reference_date', 'velocity', 'geocode',
@@ -234,8 +267,12 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
             - Processing is executed inside `self.workdir`.
             - This method wraps MintPy TimeSeriesAnalysis for SBAS workflows.
         """
+        if self.config.container:
+            return self._run_via_container(steps)
+
         run_steps = steps or [
-            'load_data', 'modify_network', 'reference_point', 'quick_overview', 'invert_network',
+            'load_data', 'modify_network', 'reference_point', 'quick_overview',
+            'correct_unwrap_error', 'invert_network',
             'correct_LOD', 'correct_SET', 'correct_ionosphere', 'correct_troposphere',
             'deramp', 'correct_topography', 'residual_RMS', 'reference_date',
             'velocity', 'geocode', 'google_earth', 'hdfeos5'
@@ -251,11 +288,51 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
             self._cds_authorize()
         print(f'{Style.BRIGHT}{Fore.MAGENTA}Running MintPy Analysis...{Fore.RESET}')
         self.mintpy_dir.mkdir(parents=True, exist_ok=True)
+        from mintpy.smallbaselineApp import TimeSeriesAnalysis
         app = TimeSeriesAnalysis(self.cfg_path.as_posix(), self.mintpy_dir.as_posix())
-        app.open()
-        app.run(steps=run_steps)
-        if 'geocode' in run_steps:
-            self._geocode_diagnostic_files(self.mintpy_dir)
+        try:
+            app.open()
+            app.run(steps=run_steps)
+            if 'geocode' in run_steps:
+                self._geocode_diagnostic_files(self.mintpy_dir)
+            # Mirrors mintpy.smallbaselineApp's own CLI wrapper
+            # (run_smallbaselineApp()), which calls these two after run() --
+            # plot_result() is what actually populates mintpy_dir/pic/, and
+            # close() is what restores the process's working directory after
+            # open() changed into mintpy_dir (skipping it would leave a
+            # long-running server process permanently cd'd into the last
+            # analyzed folder).
+            if app.template.get('mintpy.plot') and len(run_steps) > 1:
+                app.plot_result()
+        finally:
+            app.close()
+
+    def plot(self) -> None:
+        """(Re)generate the figures under mintpy_dir/pic/ from already-computed results.
+
+        run()'s own post-run plotting only fires for a single bulk multi-step
+        call (mirroring MintPy's own CLI semantics: len(run_steps) > 1). Both
+        the CLI (`analyzer run`) and the GUI execute steps one at a time
+        internally for per-step progress reporting, so that condition never
+        actually triggers there — this method is the explicit, standalone
+        alternative both call once after their step sequence completes
+        (or on-demand, e.g. the GUI's "plot" checkbox / CLI's `--step plot`).
+        """
+        if self.config.container:
+            return self._run_via_container(['plot'])
+        if not self.cfg_path.exists():
+            raise FileNotFoundError(
+                f"{self.cfg_path} not found — run prep_data and at least "
+                f"load_data/invert_network/velocity before plotting."
+            )
+        self.mintpy_dir.mkdir(parents=True, exist_ok=True)
+        from mintpy.smallbaselineApp import TimeSeriesAnalysis
+        app = TimeSeriesAnalysis(self.cfg_path.as_posix(), self.mintpy_dir.as_posix())
+        try:
+            app.open()
+            app.plot_result()
+        finally:
+            app.close()
 
     def _geocode_diagnostic_files(self, mintpy_work: Path) -> None:
         """Geocode diagnostic files omitted from MintPy's default geocode step.

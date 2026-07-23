@@ -416,5 +416,20 @@ Processor.available()
         `frame_mode=False`: `<workdir>/gmtsar_case/intf/<ref_stem>_<sec_stem>/` — GMTSAR's native file names (`corr_ll.grd`, `phasefilt_ll.grd`, `unwrap_ll.grd`, two numeric-named `*.PRM` files), which is exactly what MintPy's `prep_gmtsar.py` expects directly.
 
         `frame_mode=True`: `<workdir>/gmtsar_case/<ref_safe>_<sec_safe>/merge/` — the merged, geocoded product across all three subswaths (`phasefilt_ll.grd`, `corr_ll.grd`, plus PNG/KML previews).
+    - **Running without a local ISCE2 install**
+
+        Set the `container` field to a path to an Apptainer/Singularity `.sif` image, or a Docker image reference (name[:tag]), and `submit()`/`retry()`/`refresh()`/`watch()`/`cancel()` all re-invoke the same `insarhub processor ...` CLI call inside that container instead of on the host — the workdir is bind-mounted at the identical path, so output lands exactly where a native run would put it, and ISCE2 never needs to be discovered on the host at all. The container image just needs `insarhub` installed alongside ISCE2/topsStack (see [`Dockerfile`](https://github.com/jldz9/InSARHub/blob/main/Dockerfile) in the repo root for a ready-to-build example).
+
+        ```python
+        cfg = ISCE_S1_Config(
+            workdir='/data/p100_f466',
+            bbox=[33.0, 38.0, -120.0, -115.0],
+            container='ghcr.io/jldz9/insarhub-isce2:latest',
+        )
+        processor = Processor.create('ISCE_S1', pairs=pairs, config=cfg)
+        processor.submit()
+        ```
+
+        `container` is a per-invocation setting, not persisted config — it must be set again on every subsequent call (`retry()`, a fresh `submit()`, etc.) that should also run inside the container.
 
 *[HyP3]: Hybrid Pluggable Processing Pipeline

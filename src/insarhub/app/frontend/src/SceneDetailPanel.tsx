@@ -1,7 +1,9 @@
 import { useState, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Theme } from './theme'
+import { statusColor, type Theme } from './theme'
 import { useResizable, ResizeHandle } from './useResizable'
+import { useCopyFeedback } from './useCopyFeedback'
+import { API } from './api'
 
 interface Props {
   feature: GeoJSON.Feature
@@ -9,8 +11,6 @@ interface Props {
   workdir: string
   onClose: () => void
 }
-
-const API = import.meta.env.DEV ? 'http://localhost:8080' : ''
 
 function fmtTime(iso: string | undefined | null): string {
   if (!iso) return '—'
@@ -49,7 +49,8 @@ export default function SceneDetailPanel({ feature, theme: t, workdir, onClose }
 
   const [dlStatus,  setDlStatus]  = useState<'idle'|'downloading'|'done'|'error'>('idle')
   const [dlMessage, setDlMessage] = useState('')
-  const [copied,    setCopied]    = useState(false)
+  const { copiedKey, copy: copyUrl } = useCopyFeedback(2000)
+  const copied = copiedKey === 'url'
   const pollRef  = useRef<ReturnType<typeof setInterval> | null>(null)
   const jobIdRef = useRef<string | null>(null)
 
@@ -98,10 +99,7 @@ export default function SceneDetailPanel({ feature, theme: t, workdir, onClose }
 
   function handleCopyUrl() {
     if (!p.url) return
-    navigator.clipboard.writeText(p.url).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
+    copyUrl('url', p.url)
   }
 
   // ── Layout helpers ────────────────────────────────────────────────────────
@@ -134,7 +132,7 @@ export default function SceneDetailPanel({ feature, theme: t, workdir, onClose }
     </div>
   )
 
-  const dlStatusColor = dlStatus === 'done' ? '#4caf50' : dlStatus === 'error' ? '#e53935' : t.textMuted
+  const dlStatusColor = statusColor(dlStatus, t.textMuted)
 
   return (
     <div style={{

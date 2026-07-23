@@ -10,7 +10,6 @@ from rasterio.warp import transform_bounds
 import logging
 
 from colorama import Fore
-from osgeo import gdal
 from pathlib import Path
 from tqdm import tqdm
 

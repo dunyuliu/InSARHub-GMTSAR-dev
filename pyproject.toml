@@ -15,7 +15,6 @@ dependencies = [
 "contextily",
 "dem_stitcher",
 "hyp3_sdk",
-"mintpy",
 "rasterio>=1.4",
 "sentineleof",
 "openpyxl",
@@ -23,6 +22,12 @@ dependencies = [
 "uvicorn",
 "python-multipart",
 "numpy<2.0",
+"psutil",
+"networkx",
+"mintpy",
+"pyaps3",
+"dask",
+"h5py",
 ]
 requires-python = ">=3.11,<3.13"
 classifiers = [

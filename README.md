@@ -94,15 +94,16 @@ conda activate insarhub_dev
 pip install -e .
 ```
 
-**ISCE2 local processing** requires a separate ISCE2 environment. Use the provided environment file:
+**ISCE2 local processing** requires ISCE2 installed into the same environment. After the `environment.yml` setup above:
 
 ```bash
-conda env create -f environment-isce2.yml -n insarhub_isce2
-conda activate insarhub_isce2
-pip install -e .
+conda activate insarhub_dev
+conda install -c conda-forge "numpy<2.0" isce2
 ```
 
-> ISCE2 must be installed and activated in the same environment. See the [ISCE2 installation guide](https://github.com/isce-framework/isce2) for details.
+> The explicit `numpy<2.0` keeps conda's solver from re-resolving numpy upward when adding isce2 to an already-created environment. See the [ISCE2 installation guide](https://github.com/isce-framework/isce2) for details.
+>
+> Alternatively, skip installing ISCE2 locally entirely and run ISCE_S1 processing inside a container via `--container` — see `Dockerfile` for a ready-to-build image with ISCE2 + insarhub included.
 
 ## Requirements
 - Python >=3.11,<3.13

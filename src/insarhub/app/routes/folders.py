@@ -2,17 +2,14 @@
 """Folder management, pairs, and select-pairs endpoints."""
 
 import asyncio
-import dataclasses
 import json
 import logging
-import threading as _threading
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
-from fastapi.responses import Response
 
 import insarhub.app.state as state
 from insarhub.app.models import FolderDownloadRequest, SelectPairsRequest, SavePairsRequest
@@ -22,25 +19,20 @@ from insarhub.core.registry import Downloader
 from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job, read_insarhub_config, write_insarhub_config
 from insarhub.utils.pair_quality._cache import seed_prefetch
 from insarhub.utils.pair_quality._geom import footprint_wkt_from_products
-from insarhub.utils.pair_quality._db import PairQualityDB
-from insarhub.utils.stack_io import write_stack_file, merge_db_scores_into_stack
+from insarhub.utils.stack_io import write_stack_file
 
 router = APIRouter()
 
 
 @router.get("/api/folder-details")
 async def get_folder_details(path: str):
-    """Return downloader config, pairs file presence, and network image path for a job folder."""
+    """Return downloader config and pairs file presence for a job folder."""
     folder = Path(path).expanduser().resolve()
     cfg = read_insarhub_config(folder)
-    result: dict[str, Any] = {
+    return {
         "downloader_config": cfg.get("downloader", {}).get("config"),
         "has_pairs": bool(list(folder.glob("stack_p*_f*.json"))),
-        "network_image": None,
     }
-    network_files = sorted(folder.glob("network_p*_f*.png"))
-    result["network_image"] = str(network_files[0]) if network_files else None
-    return result
 
 
 @router.get("/api/folder-pairs")
@@ -58,36 +50,18 @@ async def get_folder_pairs(path: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/api/folder-image")
-async def get_folder_image(path: str):
-    """Serve a PNG image from the filesystem by absolute path."""
-    img_path = Path(path).expanduser().resolve()
-    workdir = Path(state._settings["workdir"])
-    try:
-        img_path.resolve().relative_to(workdir.resolve())
-    except ValueError:
-        raise HTTPException(status_code=403, detail="Path is outside workdir")
-    if not img_path.exists() or img_path.suffix.lower() != ".png":
-        raise HTTPException(status_code=404, detail="Image not found")
-    return Response(content=img_path.read_bytes(), media_type="image/png")
-
-
 @router.post("/api/folder-download")
 async def folder_download(req: FolderDownloadRequest, background_tasks: BackgroundTasks):
     """Re-search and download using insarhub_config.json saved in the job folder."""
     folder = Path(req.folder_path).expanduser().resolve()
     if not read_insarhub_config(folder).get("downloader"):
         raise HTTPException(status_code=404, detail="No downloader config found in folder")
-    job_id, _ = _new_job("Starting search…")
-    background_tasks.add_task(_run_folder_download, job_id, req.folder_path)
-    return {"job_id": job_id}
+    return state.launch_job(background_tasks, _run_folder_download, req.folder_path,
+                            start_message="Starting search…")
 
 
 async def _run_folder_download(job_id: str, folder_path: str):
-    stop_ev = _threading.Event()
-    state._stop_events[job_id] = stop_ev
-
-    def run():
+    def run(stop_ev):
         try:
             folder = Path(folder_path).expanduser().resolve()
             insarhub_cfg = read_insarhub_config(folder)
@@ -113,15 +87,10 @@ async def _run_folder_download(job_id: str, folder_path: str):
             total = sum(len(v) for v in downloader.results.values())
             state._jobs[job_id]["message"] = f"Downloading 0/{total}"
 
-            def _on_progress(msg: str, pct: int):
-                count = msg.split(']')[0].lstrip('[') if ']' in msg else ''
-                state._jobs[job_id]["message"] = f"Downloading {count}" if count else msg
-                state._jobs[job_id]["progress"] = pct
-
             dl_result = DownloadScenesCommand(
                 downloader,
                 stop_event=stop_ev,
-                on_progress=_on_progress,
+                on_progress=state._make_download_progress(job_id),
                 save_path=str(folder.parent),
             ).run()
 
@@ -132,10 +101,9 @@ async def _run_folder_download(job_id: str, folder_path: str):
             _finish_job(job_id, status="done" if dl_result.success else "error", message=dl_result.message)
         except Exception as e:
             _finish_job(job_id, status="error", progress=0, message=str(e))
-        finally:
-            state._stop_events.pop(job_id, None)
 
-    await asyncio.to_thread(run)
+    with state.stop_event(job_id) as stop_ev:
+        await asyncio.to_thread(run, stop_ev)
 
 
 @router.post("/api/folder-download-orbit")
@@ -144,16 +112,12 @@ async def folder_download_orbit(req: FolderDownloadRequest, background_tasks: Ba
     folder = Path(req.folder_path).expanduser().resolve()
     if not read_insarhub_config(folder).get("downloader"):
         raise HTTPException(status_code=404, detail="No downloader config found in folder")
-    job_id, _ = _new_job("Starting orbit download…")
-    background_tasks.add_task(_run_folder_download_orbit, job_id, req.folder_path)
-    return {"job_id": job_id}
+    return state.launch_job(background_tasks, _run_folder_download_orbit, req.folder_path,
+                            start_message="Starting orbit download…")
 
 
 async def _run_folder_download_orbit(job_id: str, folder_path: str):
-    stop_ev = _threading.Event()
-    state._stop_events[job_id] = stop_ev
-
-    def run():
+    def run(stop_ev):
         try:
             folder = Path(folder_path).expanduser().resolve()
             insarhub_cfg = read_insarhub_config(folder)
@@ -181,10 +145,9 @@ async def _run_folder_download_orbit(job_id: str, folder_path: str):
                 _finish_job(job_id, status="done", message="Orbit files downloaded.")
         except Exception as e:
             _finish_job(job_id, status="error", progress=0, message=str(e))
-        finally:
-            state._stop_events.pop(job_id, None)
 
-    await asyncio.to_thread(run)
+    with state.stop_event(job_id) as stop_ev:
+        await asyncio.to_thread(run, stop_ev)
 
 
 @router.post("/api/folder-select-pairs")
@@ -193,9 +156,8 @@ async def folder_select_pairs(req: SelectPairsRequest, background_tasks: Backgro
     folder = Path(req.folder_path).expanduser().resolve()
     if not read_insarhub_config(folder).get("downloader"):
         raise HTTPException(status_code=404, detail="No downloader config found in folder")
-    job_id, _ = _new_job("Starting search…")
-    background_tasks.add_task(_run_folder_select_pairs, job_id, req)
-    return {"job_id": job_id}
+    return state.launch_job(background_tasks, _run_folder_select_pairs, req,
+                            start_message="Starting search…")
 
 
 
@@ -315,7 +277,7 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                     # scatter results into new sibling folders under the parent.
                     subdir = folder if _dl_is_stack else _sp.dir_for(path, frame)
                     subdir.mkdir(parents=True, exist_ok=True)
-                    cfg_dict = {k: v for k, v in dataclasses.asdict(cfg).items() if k != 'workdir'}
+                    cfg_dict = state._cfg_dict(cfg)
                     cfg_dict['relativeOrbit'] = path
                     if not is_merged:
                         cfg_dict['frame'] = frame
@@ -339,7 +301,7 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                     # `folder` itself (whatever it's actually named) rather than
                     # the name _sp.dir_for(path, frame) would compute.
                     stack_path = subdir / _sp.stack_file_for(path, frame).name
-                    stack_data = write_stack_file(stack_path, group_pairs, sp, stack_scenes)
+                    write_stack_file(stack_path, group_pairs, sp, stack_scenes)
                     state._jobs[job_id]["message"] = f"Building weather/snow cache — {label}…"
                     seed_prefetch(subdir, prefetch_cache.get((path, frame), {}))
                     db_job_id = _launch_db_build(
@@ -350,7 +312,7 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                     if db_job_id:
                         db_job_ids.append(db_job_id)
             else:
-                cfg_dict = {k: v for k, v in dataclasses.asdict(cfg).items() if k != 'workdir'}
+                cfg_dict = state._cfg_dict(cfg)
                 if not cfg_dict.get('intersectsWith'):
                     all_prods = [r for rs in downloader.active_results.values() for r in rs]
                     wkt = footprint_wkt_from_products(all_prods)
@@ -360,7 +322,7 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                 sp = scene_bperp if isinstance(scene_bperp, dict) else {}
                 stack_scenes = scenes_by_stack.get((0, 0), [])
                 stack_path = folder / _sp.stack_file(0, 0).name
-                stack_data = write_stack_file(stack_path, pairs, sp, stack_scenes)
+                write_stack_file(stack_path, pairs, sp, stack_scenes)
                 state._jobs[job_id]["message"] = "Building weather/snow cache…"
                 seed_prefetch(folder, prefetch_cache)
                 db_job_id = _launch_db_build(
@@ -376,23 +338,6 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
             _finish_job(job_id, status="error", progress=0, message=str(e))
 
     await asyncio.to_thread(run)
-
-
-@router.get("/api/folder-pairs-candidates")
-async def get_folder_pairs_candidates(path: str):
-    """Return all stack JSON files with their pair lists for the network editor."""
-    folder = Path(path).expanduser().resolve()
-    stack_files = sorted(folder.glob("stack_p*_f*.json"))
-    result = {}
-    for sf in stack_files:
-        # key mirrors old "pairs_p100_f466" convention for frontend compatibility
-        key = sf.stem.replace("stack_", "pairs_", 1)
-        try:
-            data = json.loads(sf.read_text())
-            result[key] = data.get("pairs", [])
-        except Exception:
-            result[key] = []
-    return {"candidates": result}
 
 
 @router.get("/api/folder-network-data")

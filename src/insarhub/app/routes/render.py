@@ -8,7 +8,6 @@ from pathlib import Path
 import numpy as np
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from fastapi.responses import Response as _Resp
 from pyproj import Transformer
 from rasterio.crs import CRS
 from rasterio.transform import from_bounds
@@ -109,33 +108,10 @@ def _tif_file_type(stem: str) -> str:
 
 def _tif_bounds_wgs84(zip_path: str, tif_name: str) -> list | None:
     try:
-        try:
-            import rasterio
-            from rasterio.warp import transform_bounds
-            with rasterio.open(f"/vsizip/{zip_path}/{tif_name}") as src:
-                return list(transform_bounds(src.crs, "EPSG:4326", *src.bounds))
-        except ImportError:
-            from osgeo import gdal, osr
-            ds = gdal.Open(f"/vsizip/{zip_path}/{tif_name}")
-            if ds is None:
-                return None
-            gt = ds.GetGeoTransform()
-            cols, rows = ds.RasterXSize, ds.RasterYSize
-            src_srs = osr.SpatialReference()
-            src_srs.ImportFromWkt(ds.GetProjection())
-            tgt_srs = osr.SpatialReference()
-            tgt_srs.ImportFromEPSG(4326)
-            tgt_srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
-            ct = osr.CoordinateTransformation(src_srs, tgt_srs)
-            corners = [(gt[0], gt[3]), (gt[0] + cols * gt[1], gt[3]),
-                       (gt[0] + cols * gt[1], gt[3] + rows * gt[5]),
-                       (gt[0], gt[3] + rows * gt[5])]
-            lons, lats = [], []
-            for x, y in corners:
-                pt = ct.TransformPoint(x, y)
-                lons.append(pt[0]); lats.append(pt[1])
-            ds = None
-            return [min(lons), min(lats), max(lons), max(lats)]
+        import rasterio
+        from rasterio.warp import transform_bounds
+        with rasterio.open(f"/vsizip/{zip_path}/{tif_name}") as src:
+            return list(transform_bounds(src.crs, "EPSG:4326", *src.bounds))
     except Exception:
         return None
 
@@ -378,21 +354,6 @@ async def folder_ifg_list(path: str):
     return {"pairs": pairs}
 
 
-@router.get("/api/serve-tif")
-async def serve_tif(zip: str, file: str):
-    """Serve a TIF file extracted from a zip archive."""
-    try:
-        with _zipfile.ZipFile(zip) as zf:
-            data = zf.read(file)
-            return _Resp(content=data, media_type="image/tiff",
-                         headers={"Cache-Control": "no-store",
-                                  "Content-Disposition": f"inline; filename={Path(file).name}"})
-    except KeyError:
-        raise HTTPException(status_code=404, detail=f"'{file}' not in archive")
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
-
-
 @router.get("/api/render-tif")
 async def render_tif_colored(zip: str, file: str, type_hint: str = ""):
     """Server-side render a TIF to colored PNG + downsampled float32 for hover."""
@@ -407,7 +368,6 @@ async def render_tif_colored(zip: str, file: str, type_hint: str = ""):
         raise HTTPException(status_code=404, detail=str(e))
 
     try:
-        import rasterio
         from rasterio.warp import transform_bounds
         from rasterio.io import MemoryFile
 
@@ -529,7 +489,7 @@ async def mintpy_network_data(path: str):
             parts = line.split()
             if len(parts) < 5:
                 continue
-            date12, coh, btemp, bperp = parts[0], float(parts[1]), float(parts[2]), float(parts[3])
+            date12, coh, _, bperp = parts[0], float(parts[1]), float(parts[2]), float(parts[3])
             ref_d, sec_d = date12.split('_')
             pairs.append((ref_d, sec_d))
             coherences.append(coh)

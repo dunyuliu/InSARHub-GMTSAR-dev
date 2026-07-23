@@ -45,3 +45,9 @@ export const LIGHT: Theme = {
   divider:         '#c8cdd4',
   accent:          '#2e86c1',
 }
+
+/** Text color for a 'done' | 'error' | other status — the same green/red
+ * ternary repeated across several download/action status displays. */
+export function statusColor(status: string, fallback: string): string {
+  return status === 'done' ? '#4caf50' : status === 'error' ? '#e53935' : fallback
+}

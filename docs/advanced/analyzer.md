@@ -107,6 +107,36 @@ Analyzer.available()
                 show_source: false
                 heading_level: 5
 
+    - **Plot**
+
+        (Re)generate the figures under `mintpy/pic/` from already-computed results, without recomputing anything. `run()`'s own auto-plot only fires for a single call covering more than one step (mirroring MintPy's own CLI semantics) — the CLI and GUI execute steps one at a time internally for per-step progress reporting, so that condition never actually fires there; `plot()` is the explicit, standalone alternative both call once after their step sequence completes (or on demand, e.g. after tweaking a plotting-related config value and wanting fresh figures without rerunning the whole pipeline).
+
+        ```python
+        analyzer.plot()
+        ```
+
+        ::: insarhub.analyzer.mintpy_base.Mintpy_SBAS_Base_Analyzer.plot
+            options:
+                members: false
+                show_source: false
+                heading_level: 5
+
+    - **Running without a local MintPy (or ISCE2) install**
+
+        Set the `container` field to a path to an Apptainer/Singularity `.sif` image, or a Docker image reference (name[:tag]), and `run()`/`prep_data()`/`submit_hpc()` all re-invoke the same `insarhub analyzer ...` CLI call inside that container instead of on the host — the workdir is bind-mounted at the identical path, so output lands exactly where a native run would put it. The container image just needs `insarhub` installed alongside MintPy (and ISCE2, for `ISCE_SBAS`) — see [`Dockerfile`](https://github.com/jldz9/InSARHub/blob/main/Dockerfile) in the repo root for a ready-to-build example.
+
+        ```python
+        cfg = Mintpy_SBAS_Base_Config(
+            workdir="/your/work/dir",
+            load_processor="hyp3",
+            container="ghcr.io/jldz9/insarhub-isce2:latest",
+        )
+        analyzer = Analyzer.create('Hyp3_SBAS', config=cfg)
+        analyzer.run()
+        ```
+
+        `container` is a per-invocation setting, not persisted config — it must be set again on every subsequent call that should also run inside the container.
+
     - **Clean up**
 
         Remove intermediate processing files generated during the time-series process

@@ -29,20 +29,10 @@ class SearchRequest(BaseModel):
     )
 
 
-class DownloadRequest(BaseModel):
-    session_id: str = Field(..., description="session_id returned by /api/search")
-    workdir:    str = Field(..., example="/data/bryce")
-
-
 class DownloadSceneRequest(BaseModel):
     url:      str        = Field(..., description="Direct ASF download URL")
     filename: str | None = Field(default=None)
     workdir:  str        = Field(default=".", example="/data/bryce")
-
-
-class DownloadStackRequest(BaseModel):
-    urls:    list[str] = Field(..., description="List of ASF download URLs")
-    workdir: str       = Field(default=".", example="/data/bryce")
 
 
 class AddJobRequest(BaseModel):
@@ -55,13 +45,6 @@ class AddJobRequest(BaseModel):
     flightDirection: str | None = None
     platform:        str | None = None
     downloaderType:  str = "S1_SLC"
-
-
-class DownloadByNameRequest(BaseModel):
-    scene_names:   list[str] = Field(default=[])
-    scene_file:    str | None = Field(default=None)
-    workdir:       str = Field(default=".")
-    downloaderType: str = Field(default="S1_SLC")
 
 
 class MergedStackSpec(BaseModel):

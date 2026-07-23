@@ -65,6 +65,7 @@ InSARHub Web 界面每个面板的详细参考。
 | `modify_network` | 删除低相干性干涉图 |
 | `reference_point` | 选择稳定参考像素 |
 | `quick_overview` | 生成诊断概览图层（相干性、相位速度、解缠误差、连通分量掩模）— 启用**概览**按钮 |
+| `correct_unwrap_error` | 校正相位解缠错误 |
 | `invert_network` | SBAS 反演 → 时序 |
 | `correct_LOD` | 校正本地振荡器漂移 |
 | `correct_SET` | 固体地球潮汐校正 |

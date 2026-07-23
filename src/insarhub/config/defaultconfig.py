@@ -185,15 +185,6 @@ class S1_SLC_Config(ASF_Base_Config):
     polarization: str|list[str] | None = field(default_factory=lambda: [constants.POLARIZATION.VV, constants.POLARIZATION.VV_VH])
     processingLevel: str | None = constants.PRODUCT_TYPE.SLC
 
-@dataclass
-class S1_Burst_Config(ASF_Base_Config):
-    name:str = "S1_Burst_Config"
-    dataset: str | list[str] | None =  constants.DATASET.SENTINEL1
-    instrument: str | None = constants.INSTRUMENT.C_SAR
-    beamMode:str | None = constants.BEAMMODE.IW
-    polarization: str|list[str] | None = field(default_factory=lambda: [constants.POLARIZATION.VV, constants.POLARIZATION.VV_VH])
-    processingLevel: str | None = constants.PRODUCT_TYPE.BURST
-
 
 # ---------------------------------------------------------------------------
 # Processor configurations
@@ -431,6 +422,8 @@ class Mintpy_SBAS_Base_Config:
          "fields": ["plot", "plot_dpi", "plot_maxMemory"]},
         {"label": "HPC (SLURM)",
          "fields": ["hpc_mode"]},
+        {"label": "Container",
+         "fields": ["container"]},
     ]
     _ui_fields: ClassVar[dict] = {
         # Compute Resources
@@ -665,6 +658,10 @@ class Mintpy_SBAS_Base_Config:
                                 "hint": "Submit the full MintPy run as a single sbatch job. "
                                         "SLURM resources come from sbatch_options.json (step \"17\": \"SBAS\") "
                                         "in the workdir, generated automatically on first use."},
+        "container":           {"type": "text",
+                                "hint": "Path to a .sif/Apptainer image or a Docker image reference with insarhub "
+                                        "installed — re-runs this command inside the container instead of on the "
+                                        "host. Not remembered between runs; pass again for subsequent runs."},
     }
     # ─────────────────────────────────────────────────────────────────────────
 
@@ -672,6 +669,7 @@ class Mintpy_SBAS_Base_Config:
     workdir: Path | str = field(default_factory=lambda: Path.cwd())
     debug: bool = False
     hpc_mode: bool = False
+    container: str | None = None
 
     ## computing resource configuration
     compute_maxMemory : float | int = _env['memory']
@@ -933,6 +931,8 @@ class ISCE_S1_Config:
          "fields": ["max_workers", "skip_existing"]},
         {"label": "HPC (SLURM)",
          "fields": ["hpc_mode", "max_concurrent_hpc"]},
+        {"label": "Container",
+         "fields": ["container"]},
     ]
     _ui_fields: ClassVar[dict] = {
         "workdir":                  {"type": "text", "hint": "Processing root directory (auto = folder being processed)"},
@@ -983,6 +983,8 @@ class ISCE_S1_Config:
                                      "hint": "Preview commands without executing (HPC: generate sbatch scripts only; local: print commands only)"},
         "sbatch_options_per_step":  {"type": "text",
                                      "hint": "JSON dict mapping step number (or 'default') to SLURM resource keys, e.g. {\"default\": {\"partition\": \"compute\", \"account\": \"myproj\", \"time\": \"04:00:00\", \"cpus_per_task\": 2, \"mem\": \"8G\"}, \"07\": {\"cpus_per_task\": 4, \"mem\": \"32G\"}}. Steps not listed inherit the 'default' entry."},
+        "container":                {"type": "text",
+                                     "hint": "Path to a .sif/Apptainer image or a Docker image reference with insarhub installed — re-runs this command inside the container instead of on the host. Not remembered between runs; pass again for retry/subsequent submits."},
     }
 
     name: str                             = "ISCE_S1_Config"
@@ -1034,6 +1036,7 @@ class ISCE_S1_Config:
     max_concurrent_hpc: int               = 12
     dry_run: bool                         = False
     sbatch_options_per_step: dict           = field(default_factory=dict)
+    container: str | None                 = None
 
     def __post_init__(self):
         _AUTO = {"auto", ""}

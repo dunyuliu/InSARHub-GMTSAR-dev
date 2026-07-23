@@ -212,3 +212,83 @@ class TestOrbitValidityParsing:
         valid_end = "20241120T005942"
         acq_time = "20241121T000000"
         assert not (valid_start <= acq_time <= valid_end)
+
+
+# ===========================================================================
+# _end_of_day / end-date inclusivity (regression: scenes on the exact end
+# date were silently dropped because a bare 'YYYY-MM-DD' end date parses as
+# midnight, excluding every acquisition later that same day)
+# ===========================================================================
+
+class TestEndOfDay:
+    def _call(self, value):
+        from insarhub.downloader.asf_base import _end_of_day
+        return _end_of_day(value)
+
+    def test_bare_date_gets_end_of_day_time(self):
+        assert self._call("2024-01-15") == "2024-01-15T23:59:59"
+
+    def test_datetime_with_t_left_untouched(self):
+        assert self._call("2024-01-15T05:00:00") == "2024-01-15T05:00:00"
+
+    def test_datetime_with_colon_left_untouched(self):
+        assert self._call("2024-01-15 05:00:00") == "2024-01-15 05:00:00"
+
+    def test_none_or_empty_passthrough(self):
+        assert self._call(None) is None
+        assert self._call("") == ""
+
+
+class _FakeProduct:
+    def __init__(self, scene_name: str, start_time: str, frame_number: int = 1,
+                 relative_orbit: int = 64, flight_direction: str = "ASCENDING"):
+        self.properties = {
+            "sceneName": scene_name,
+            "startTime": start_time,
+            "frameNumber": frame_number,
+            "pathNumber": relative_orbit,
+            "flightDirection": flight_direction,
+        }
+        self.geometry = None
+
+
+def _make_filter_downloader(items: list):
+    """Build an ASF_Base_Downloader with pre-populated search results, no network."""
+    from insarhub.config import S1_SLC_Config
+    from insarhub.downloader.asf_base import ASF_Base_Downloader
+
+    cfg = S1_SLC_Config(intersectsWith="POINT(-120 37)")
+    obj = ASF_Base_Downloader.__new__(ASF_Base_Downloader)
+    obj.config = cfg
+    obj.results = {(64, 1): items}
+    obj._subset = None
+    return obj
+
+
+class TestFilterEndDateInclusive:
+    def test_scene_on_end_date_is_kept(self):
+        """A scene acquired on the exact end date (after midnight) must not
+        be dropped -- this was the reported bug."""
+        items = [
+            _FakeProduct("scene_on_end_date", "2024-01-15T13:30:00Z"),
+        ]
+        downloader = _make_filter_downloader(items)
+        result = downloader.filter(end="2024-01-15")
+        names = {i.properties["sceneName"] for v in result.values() for i in v}
+        assert "scene_on_end_date" in names
+
+    def test_scene_after_end_date_is_dropped(self):
+        items = [
+            _FakeProduct("scene_after_end_date", "2024-01-16T00:00:01Z"),
+        ]
+        downloader = _make_filter_downloader(items)
+        result = downloader.filter(end="2024-01-15")
+        assert result == {}
+
+    def test_scene_before_start_date_is_dropped(self):
+        items = [
+            _FakeProduct("scene_before_start", "2023-12-31T23:59:59Z"),
+        ]
+        downloader = _make_filter_downloader(items)
+        result = downloader.filter(start="2024-01-01")
+        assert result == {}

@@ -54,7 +54,6 @@ async def get_pair_quality(path: str, force_refresh: bool = False):
 
     def _run():
         import json
-        from pathlib import Path as _Path
 
         # Fast path: read pre-computed JSON written by select_pairs (stored in stack_p*_f*.json)
         if not force_refresh:
@@ -279,36 +278,3 @@ async def get_coherence_maps(path: str):
         raise HTTPException(status_code=500, detail=str(exc))
 
 
-_building: set[str] = set()  # track folders currently being built
-
-@router.post("/api/pair-quality-db/build")
-async def build_pair_quality_db(path: str):
-    """Trigger a background DB build for *path* from saved scenes_p*_f*.json files.
-
-    Returns immediately; idempotent — ignores if a build is already running.
-    """
-    import threading
-    from pathlib import Path
-    from insarhub.utils.pair_quality._db import PairQualityDB
-
-    folder = Path(path).expanduser().resolve()
-    if not folder.exists():
-        raise HTTPException(status_code=404, detail=f"Folder not found: {path}")
-
-    key = str(folder)
-    if key in _building:
-        return {"status": "already_building", "path": key}
-
-    def _run():
-        _building.add(key)
-        try:
-            PairQualityDB(folder).build_from_folder()
-        except Exception as exc:
-            import logging
-            logging.getLogger(__name__).error("DB build failed for %s: %s", key, exc)
-        finally:
-            _building.discard(key)
-
-    t = threading.Thread(target=_run, daemon=False, name=f"pq-db-{folder.name}")
-    t.start()
-    return {"status": "building", "path": key}

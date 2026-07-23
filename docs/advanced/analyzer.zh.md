@@ -107,6 +107,36 @@ Analyzer.available()
                 show_source: false
                 heading_level: 5
 
+    - **绘图**
+
+        基于已计算完成的结果，（重新）生成 `mintpy/pic/` 下的图片，不重新计算任何内容。`run()` 自身的自动绘图只在单次调用中涵盖一个以上步骤时才会触发（与 MintPy 自身的 CLI 语义一致）— CLI 和 GUI 在内部都是逐步执行每个步骤以提供逐步进度反馈，因此该条件在那里实际上永远不会触发；`plot()` 是显式的独立替代方案，两者都在各自的步骤序列完成后调用一次（或按需调用，例如调整了与绘图相关的配置值后，只想重新生成图片而不重新运行整个流程）。
+
+        ```python
+        analyzer.plot()
+        ```
+
+        ::: insarhub.analyzer.mintpy_base.Mintpy_SBAS_Base_Analyzer.plot
+            options:
+                members: false
+                show_source: false
+                heading_level: 5
+
+    - **无需本地安装 MintPy（或 ISCE2）**
+
+        将 `container` 字段设置为 Apptainer/Singularity `.sif` 镜像的路径，或 Docker 镜像引用（name[:tag]），`run()`/`prep_data()`/`submit_hpc()` 都会在容器内而非宿主机上重新执行同一个 `insarhub analyzer ...` CLI 调用 — 工作目录会以相同路径绑定挂载，因此输出会像本机运行一样落在原处。容器镜像只需在 MintPy（`ISCE_SBAS` 还需要 ISCE2）旁额外安装 `insarhub`（可参考仓库根目录的 [`Dockerfile`](https://github.com/jldz9/InSARHub/blob/main/Dockerfile) 作为现成示例）。
+
+        ```python
+        cfg = Mintpy_SBAS_Base_Config(
+            workdir="/your/work/dir",
+            load_processor="hyp3",
+            container="ghcr.io/jldz9/insarhub-isce2:latest",
+        )
+        analyzer = Analyzer.create('Hyp3_SBAS', config=cfg)
+        analyzer.run()
+        ```
+
+        `container` 是按次调用的设置，而非持久化配置 — 之后每次调用若也要在容器内运行，都需要再次设置。
+
     - **清理**
 
         删除时序处理过程中生成的中间处理文件

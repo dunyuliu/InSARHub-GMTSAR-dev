@@ -20,4 +20,3 @@ dependencies:
         - openpyxl
         - python-multipart
         - numpy <2.0
-        

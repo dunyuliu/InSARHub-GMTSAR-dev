@@ -65,6 +65,7 @@ Each MintPy processing step is shown with a checkbox. Select the steps you want 
 | `modify_network` | Remove low-coherence interferograms |
 | `reference_point` | Select a stable reference pixel |
 | `quick_overview` | Generate diagnostic overview layers (coherence, phase velocity, unwrapping errors, connected component mask) — enables the **Overview** button |
+| `correct_unwrap_error` | Correct phase-unwrapping errors |
 | `invert_network` | SBAS inversion → timeseries |
 | `correct_LOD` | Correct local oscillator drift |
 | `correct_SET` | Solid Earth tide correction |

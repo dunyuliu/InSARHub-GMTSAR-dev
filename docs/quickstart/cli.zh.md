@@ -287,11 +287,13 @@ insarhub processor [--list-processors] <action> [options]
     |------|---------|-------------|
     | `--interval` | `300` | 轮询间隔（秒） |
     | `-w`, `--workdir` | cwd | 工作目录 |
+    | `--worker` | 已保存配置 | 并行下载线程数（覆盖已保存配置） |
     | `-r`, `--recursive` | 关闭 | 递归搜索 workdir 下所有 `hyp3*.json` 文件（含重试文件） |
 
     ```bash
     insarhub processor watch -w /data/bryce --interval 600
     insarhub processor watch -w /data/bryce --interval 600 -r
+    insarhub processor watch -w /data/bryce --worker 8
     ```
 
     #### credits
@@ -336,6 +338,7 @@ insarhub processor [--list-processors] <action> [options]
     | `--step` | 全部 | 无论已保存状态如何，强制（重新）运行这些步骤 — 见下方说明 |
     | `--dry-run` | — | 预览运行脚本和路径检查，不实际执行 |
     | `--pairs-file` | 自动 | 来自 `downloader --select-pairs` 的干涉对 JSON |
+    | `--container` | — | 在容器内而非本机运行 — 见下方[无需本地安装 ISCE2](#running-without-a-local-isce2-install) |
 
     ```bash
     # 先进行演习运行（推荐）
@@ -381,6 +384,19 @@ insarhub processor [--list-processors] <action> [options]
 
         编辑 `sbatch_options.json` 以设置每个步骤的资源，然后重新运行 `submit`。
 
+    !!! note "无需本地安装 ISCE2"
+        `--container <path-or-image>` 会将整个 `insarhub processor ...` 命令重新在容器内执行，而不是在本机运行 — 传入 Apptainer/Singularity `.sif` 镜像的路径，或 Docker 镜像引用（name[:tag]）。工作目录会以相同路径绑定挂载到容器内，因此输出文件会像本机运行一样落在宿主机上，`ISCE_S1` 也完全不需要在宿主机上发现 ISCE2 安装。容器镜像只需在 ISCE2/topsStack 旁额外安装 `insarhub` 即可 — 可参考仓库根目录的 [`Dockerfile`](https://github.com/jldz9/InSARHub/blob/main/Dockerfile) 作为现成示例。
+
+        ```bash
+        insarhub processor submit  -N ISCE_S1 -w /data/p100_f466 --bbox 33.0 38.0 -120.0 -115.0 --container ghcr.io/jldz9/insarhub-isce2:latest
+        insarhub processor refresh -N ISCE_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
+        insarhub processor retry   -N ISCE_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
+        insarhub processor watch   -N ISCE_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
+        insarhub processor cancel  -N ISCE_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
+        ```
+
+        `--container` 是按次调用的标志，而非已保存设置 — 与 `--dry-run` 一样，它不会写入 `insarhub_config.json`，因此每次想在容器内运行 `submit`/`refresh`/`retry`/`watch`/`cancel` 时都需要再次传入。
+
     #### refresh
 
     从磁盘读取步骤和命令状态。
@@ -390,6 +406,7 @@ insarhub processor [--list-processors] <action> [options]
     | `-w`, `--workdir` | cwd | 工作目录 |
     | `--job-file` | 自动 | `<workdir>/isce/isce_jobs_*.json` |
     | `--ls [STEP]` | 关闭 | 显示单条命令（`cmd_XXXX`）详情 — 单独 `--ls` 显示所有步骤，`--ls 03`（也可写 `3` 或 `run_03`）只显示该步骤 |
+    | `--container` | — | 若宿主机未安装本地 ISCE2 则需要此项 — 见[上方说明](#running-without-a-local-isce2-install) |
 
     ```bash
     insarhub processor refresh -N ISCE_S1 -w /data/p100_f466
@@ -435,6 +452,7 @@ insarhub processor [--list-processors] <action> [options]
     |------|---------|-------------|
     | `-w`, `--workdir` | cwd | 工作目录 |
     | `--job-file` | 自动 | 已保存的作业文件 |
+    | `--container` | — | 若宿主机未安装本地 ISCE2 则需要此项 — 见[上方说明](#running-without-a-local-isce2-install) |
 
     ```bash
     insarhub processor retry -N ISCE_S1 -w /data/p100_f466
@@ -448,6 +466,7 @@ insarhub processor [--list-processors] <action> [options]
     |------|---------|-------------|
     | `-w`, `--workdir` | cwd | 工作目录 |
     | `--job-file` | 自动 | 已保存的作业文件 |
+    | `--container` | — | 若宿主机未安装本地 ISCE2 则需要此项 — 见[上方说明](#running-without-a-local-isce2-install) |
 
     ```bash
     insarhub processor cancel -N ISCE_S1 -w /data/p100_f466
@@ -461,6 +480,7 @@ insarhub processor [--list-processors] <action> [options]
     |------|---------|-------------|
     | `--interval` | `300` | 轮询间隔（秒） |
     | `-w`, `--workdir` | cwd | 工作目录 |
+    | `--container` | — | 若宿主机未安装本地 ISCE2 则需要此项 — 见[上方说明](#running-without-a-local-isce2-install) |
 
     ```bash
     insarhub processor watch -N ISCE_S1 -w /data/p100_f466 --interval 120
@@ -505,6 +525,7 @@ insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [option
     | `--step` | all | 要运行的步骤（空格分隔） |
     | `--debug` | — | 启用 MintPy 调试模式 |
     | `--hpc_mode` | `False` | 将完整 MintPy 流程作为单个 SLURM `sbatch` 作业提交，而非本地运行 |
+    | `--container` | — | 在容器内而非本机运行 — 需要在容器内额外安装 `insarhub`（`ISCE_SBAS` 还需要 ISCE2）；机制与 [ISCE_S1 的容器说明](#running-without-a-local-isce2-install)相同 |
 
     | 步骤关键字 | 描述 |
     |---|---|
@@ -513,6 +534,8 @@ insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [option
     | `load_data` | 将干涉图和几何数据加载到 MintPy HDF5 中 |
     | `modify_network` | 应用网络修改规则 |
     | `reference_point` | 选择参考像素 |
+    | `quick_overview` | 生成诊断概览图层（相干性、相位速度、解缠误差、连通分量掩模） |
+    | `correct_unwrap_error` | 校正相位解缠错误 |
     | `invert_network` | 反演干涉图网络（SBAS） |
     | `correct_LOD` | 校正本地振荡器漂移 |
     | `correct_SET` | 校正固体地球潮汐 |
@@ -526,6 +549,7 @@ insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [option
     | `geocode` | 将输出地理编码为地理坐标 |
     | `google_earth` | 生成 Google Earth KMZ 文件 |
     | `hdfeos5` | 导出为 HDF-EOS5 格式 |
+    | `plot` | （重新）生成 `mintpy/pic/` 下的图片。不是真正的 MintPy 步骤 — 由特殊逻辑处理。只要请求了一个以上的真实步骤（或完整的 `all` 流程）就会自动追加，行为与 MintPy 自身的 CLI 一致；也可单独使用（例如修改配置后只重新生成图片而不重新计算） |
 
     ```bash
     # 完整流程
@@ -599,6 +623,7 @@ insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [option
     | `--step` | all | 要运行的步骤（空格分隔） |
     | `--debug` | — | 启用 MintPy 调试模式 |
     | `--hpc_mode` | `False` | 将完整 MintPy 流程作为单个 SLURM `sbatch` 作业提交，而非本地运行 |
+    | `--container` | — | 在容器内而非本机运行 — 需要在容器内额外安装 `insarhub`（`ISCE_SBAS` 还需要 ISCE2）；机制与 [ISCE_S1 的容器说明](#running-without-a-local-isce2-install)相同 |
 
     | 步骤关键字 | 描述 |
     |---|---|
@@ -607,6 +632,8 @@ insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [option
     | `load_data` | 将干涉图和几何数据加载到 MintPy HDF5 中 |
     | `modify_network` | 应用网络修改规则 |
     | `reference_point` | 选择参考像素 |
+    | `quick_overview` | 生成诊断概览图层（相干性、相位速度、解缠误差、连通分量掩模） |
+    | `correct_unwrap_error` | 校正相位解缠错误 |
     | `invert_network` | 反演干涉图网络（SBAS） |
     | `correct_LOD` | 校正本地振荡器漂移 |
     | `correct_SET` | 校正固体地球潮汐 |
@@ -620,6 +647,7 @@ insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [option
     | `geocode` | 将输出地理编码为地理坐标 |
     | `google_earth` | 生成 Google Earth KMZ 文件 |
     | `hdfeos5` | 导出为 HDF-EOS5 格式 |
+    | `plot` | （重新）生成 `mintpy/pic/` 下的图片。不是真正的 MintPy 步骤 — 由特殊逻辑处理。只要请求了一个以上的真实步骤（或完整的 `all` 流程）就会自动追加，行为与 MintPy 自身的 CLI 一致；也可单独使用（例如修改配置后只重新生成图片而不重新计算） |
 
     ```bash
     # 完整流程

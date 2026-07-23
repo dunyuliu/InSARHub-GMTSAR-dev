@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Settings, health, workdir, and job-folder management endpoints."""
 
-import json
 import shutil
 import subprocess
 import sys

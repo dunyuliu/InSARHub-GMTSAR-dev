@@ -15,18 +15,15 @@ logging.disable(logging.CRITICAL)
 from insarhub._version import __version__
 _system_info = platform.system()
 
-# ---------------------MintPy Configuration---------------------------
-# Configuration followed the MintPy post-installation setip 
+# ---------------------MintPy Configuration-----------------------------------
+# MintPy is a required dependency.
+# Configuration followed the MintPy post-installation setup
 # https://github.com/insarlab/MintPy/blob/main/docs/installation.md#3-post-installation-setup
-try: 
-    import mintpy
-except ImportError:
-    print(f"{Fore.RED}MintPy is not installed.")
-    sys.exit(1)
+import mintpy
 
-# b. Dask for parallel processing
+# b. Dask for parallel processing (MintPy's compute_cluster option)
 from dask import config as dask_config
-tmp_dir = Path.home().joinpath('.dask','tmp') 
+tmp_dir = Path.home().joinpath('.dask','tmp')
 tmp_dir.mkdir(parents=True, exist_ok=True)
 dask_config.set({'temporary_directory':str(tmp_dir)})
 
@@ -34,6 +31,29 @@ dask_config.set({'temporary_directory':str(tmp_dir)})
 os.environ["VRT_SHARED_SOURCE"] = "0"
 os.environ["HDF5_DISABLE_VERSION_CHECK"] = "2"
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
+
+# ---------------------pyproj PROJ data-dir fix (conda envs)-----------------
+# In some conda environments, pyproj's compiled extension dynamically links
+# against the environment's own shared libproj.so rather than pyproj's
+# private bundled copy, but pyproj's default data-dir resolution still points
+# at that private bundled copy — a mismatch that makes every CRS/Transformer
+# call fail with "proj_create: no database context specified", even though
+# the environment's own PROJ install is otherwise completely fine and the
+# `PROJ_DATA`/`PROJ_LIB` env vars are set correctly (pyproj doesn't honor
+# either at the point its internal context is first created). Redirect
+# pyproj to the running interpreter's own PROJ data directory when one is
+# present. sys.prefix (the actual running interpreter's install location) is
+# used rather than $CONDA_PREFIX, which only reflects the shell's *activated*
+# environment and can point at the wrong one if a different env's Python is
+# invoked directly (e.g. by absolute path) without activating it first.
+for _proj_prefix in (sys.prefix, os.environ.get("CONDA_PREFIX")):
+    if not _proj_prefix:
+        continue
+    _candidate_proj_data = Path(_proj_prefix) / "share" / "proj"
+    if (_candidate_proj_data / "proj.db").is_file():
+        import pyproj
+        pyproj.datadir.set_data_dir(str(_candidate_proj_data))
+        break
 
 # ---------------------Check runing environment -----------
 if 'SLURM_MEM_PER_NODE' in os.environ:
@@ -95,7 +115,6 @@ from .config.defaultconfig import (
 from .downloader import (
     ASF_Base_Downloader,
     S1_SLC,
-    S1_Burst
 )
 
 from .processor import (

@@ -287,11 +287,13 @@ insarhub processor [--list-processors] <action> [options]
     |------|---------|-------------|
     | `--interval` | `300` | Seconds between polls |
     | `-w`, `--workdir` | cwd | Working directory |
+    | `--worker` | saved config | Parallel download threads (overrides saved config) |
     | `-r`, `--recursive` | off | Recursively search workdir for all `hyp3*.json` files (including retry files) |
 
     ```bash
     insarhub processor watch -w /data/bryce --interval 600
     insarhub processor watch -w /data/bryce --interval 600 -r
+    insarhub processor watch -w /data/bryce --worker 8
     ```
 
     #### credits
@@ -336,6 +338,7 @@ insarhub processor [--list-processors] <action> [options]
     | `--step` | all | Force (re)run only these step(s), regardless of saved status — see below |
     | `--dry-run` | — | Preview run scripts and path checks without executing |
     | `--pairs-file` | auto | Pairs JSON from `downloader --select-pairs` |
+    | `--container` | — | Run inside a container instead of on the host — see [Running without a local ISCE2 install](#running-without-a-local-isce2-install) below |
 
     ```bash
     # Dry run first (recommended)
@@ -381,6 +384,19 @@ insarhub processor [--list-processors] <action> [options]
 
         Edit `sbatch_options.json` to set resources per step, then re-run `submit`.
 
+    !!! note "Running without a local ISCE2 install"
+        `--container <path-or-image>` re-invokes the entire `insarhub processor ...` command inside a container instead of the host — pass a path to an Apptainer/Singularity `.sif` image, or a Docker image reference (name[:tag]). The workdir is bind-mounted into the container at the identical path, so output files land on the host exactly like a native run, and `ISCE_S1` never needs to discover a host ISCE2 install at all. The container image just needs `insarhub` installed alongside ISCE2/topsStack — see [`Dockerfile`](https://github.com/jldz9/InSARHub/blob/main/Dockerfile) in the repo root for a ready-to-build example.
+
+        ```bash
+        insarhub processor submit  -N ISCE_S1 -w /data/p100_f466 --bbox 33.0 38.0 -120.0 -115.0 --container ghcr.io/jldz9/insarhub-isce2:latest
+        insarhub processor refresh -N ISCE_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
+        insarhub processor retry   -N ISCE_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
+        insarhub processor watch   -N ISCE_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
+        insarhub processor cancel  -N ISCE_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
+        ```
+
+        `--container` is a per-invocation flag, not a saved setting — like `--dry-run`, it's never written to `insarhub_config.json`, so pass it again on every `submit`/`refresh`/`retry`/`watch`/`cancel` call you want to run inside the container.
+
     #### refresh
 
     Read step and command statuses from disk.
@@ -390,6 +406,7 @@ insarhub processor [--list-processors] <action> [options]
     | `-w`, `--workdir` | cwd | Working directory |
     | `--job-file` | auto | `<workdir>/isce/isce_jobs_*.json` |
     | `--ls [STEP]` | off | Show per-command (`cmd_XXXX`) detail — bare `--ls` for every step, `--ls 03` (also `3` or `run_03`) for just one step |
+    | `--container` | — | Needed if the host has no local ISCE2 install — see [below](#running-without-a-local-isce2-install) |
 
     ```bash
     insarhub processor refresh -N ISCE_S1 -w /data/p100_f466
@@ -435,6 +452,7 @@ insarhub processor [--list-processors] <action> [options]
     |------|---------|-------------|
     | `-w`, `--workdir` | cwd | Working directory |
     | `--job-file` | auto | Saved job file |
+    | `--container` | — | Needed if the host has no local ISCE2 install — see [below](#running-without-a-local-isce2-install) |
 
     ```bash
     insarhub processor retry -N ISCE_S1 -w /data/p100_f466
@@ -448,6 +466,7 @@ insarhub processor [--list-processors] <action> [options]
     |------|---------|-------------|
     | `-w`, `--workdir` | cwd | Working directory |
     | `--job-file` | auto | Saved job file |
+    | `--container` | — | Needed if the host has no local ISCE2 install — see [below](#running-without-a-local-isce2-install) |
 
     ```bash
     insarhub processor cancel -N ISCE_S1 -w /data/p100_f466
@@ -461,6 +480,7 @@ insarhub processor [--list-processors] <action> [options]
     |------|---------|-------------|
     | `--interval` | `300` | Seconds between polls |
     | `-w`, `--workdir` | cwd | Working directory |
+    | `--container` | — | Needed if the host has no local ISCE2 install — see [below](#running-without-a-local-isce2-install) |
 
     ```bash
     insarhub processor watch -N ISCE_S1 -w /data/p100_f466 --interval 120
@@ -505,6 +525,7 @@ Any field shown by `--list-options` can be overridden on the command line before
     | `--step` | all | Step(s) to run (space-separated) |
     | `--debug` | — | Enable MintPy debug mode |
     | `--hpc_mode` | `False` | Submit the full MintPy run as a single SLURM `sbatch` job instead of running locally |
+    | `--container` | — | Run inside a container instead of on the host — needs `insarhub` installed alongside MintPy (and ISCE2, for `ISCE_SBAS`); see [ISCE_S1's container note](#running-without-a-local-isce2-install) for the same mechanism |
 
     | Step keyword | Description |
     |---|---|
@@ -513,6 +534,8 @@ Any field shown by `--list-options` can be overridden on the command line before
     | `load_data` | Load interferograms and geometry into MintPy HDF5 |
     | `modify_network` | Apply network modification rules |
     | `reference_point` | Select reference pixel |
+    | `quick_overview` | Generate diagnostic overview layers (coherence, phase velocity, unwrapping errors, connected component mask) |
+    | `correct_unwrap_error` | Correct phase-unwrapping errors |
     | `invert_network` | Invert the interferogram network (SBAS) |
     | `correct_LOD` | Correct for local oscillator drift |
     | `correct_SET` | Correct for solid Earth tides |
@@ -526,6 +549,7 @@ Any field shown by `--list-options` can be overridden on the command line before
     | `geocode` | Geocode outputs to geographic coordinates |
     | `google_earth` | Generate Google Earth KMZ |
     | `hdfeos5` | Export to HDF-EOS5 format |
+    | `plot` | (Re)generate figures under `mintpy/pic/`. Not a real MintPy step — handled specially. Auto-added whenever more than one real step above is requested (or the full `all` pipeline), matching MintPy's own CLI behavior; also usable standalone (e.g. to re-plot after a config change without recomputing anything) |
 
     ```bash
     # Full pipeline
@@ -599,6 +623,7 @@ Any field shown by `--list-options` can be overridden on the command line before
     | `--step` | all | Step(s) to run (space-separated) |
     | `--debug` | — | Enable MintPy debug mode |
     | `--hpc_mode` | `False` | Submit the full MintPy run as a single SLURM `sbatch` job instead of running locally |
+    | `--container` | — | Run inside a container instead of on the host — needs `insarhub` installed alongside MintPy (and ISCE2, for `ISCE_SBAS`); see [ISCE_S1's container note](#running-without-a-local-isce2-install) for the same mechanism |
 
     | Step keyword | Description |
     |---|---|
@@ -607,6 +632,8 @@ Any field shown by `--list-options` can be overridden on the command line before
     | `load_data` | Load interferograms and geometry into MintPy HDF5 |
     | `modify_network` | Apply network modification rules |
     | `reference_point` | Select reference pixel |
+    | `quick_overview` | Generate diagnostic overview layers (coherence, phase velocity, unwrapping errors, connected component mask) |
+    | `correct_unwrap_error` | Correct phase-unwrapping errors |
     | `invert_network` | Invert the interferogram network (SBAS) |
     | `correct_LOD` | Correct for local oscillator drift |
     | `correct_SET` | Correct for solid Earth tides |
@@ -620,6 +647,7 @@ Any field shown by `--list-options` can be overridden on the command line before
     | `geocode` | Geocode outputs to geographic coordinates |
     | `google_earth` | Generate Google Earth KMZ |
     | `hdfeos5` | Export to HDF-EOS5 format |
+    | `plot` | (Re)generate figures under `mintpy/pic/`. Not a real MintPy step — handled specially. Auto-added whenever more than one real step above is requested (or the full `all` pipeline), matching MintPy's own CLI behavior; also usable standalone (e.g. to re-plot after a config change without recomputing anything) |
 
     ```bash
     # Full pipeline

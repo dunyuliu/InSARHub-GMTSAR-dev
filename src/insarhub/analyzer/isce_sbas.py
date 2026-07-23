@@ -32,7 +32,6 @@ import shutil
 from pathlib import Path
 
 from colorama import Fore
-from mintpy.smallbaselineApp import TimeSeriesAnalysis
 
 from insarhub.config.defaultconfig import ISCE_SBAS_Config
 from insarhub.config.paths import ISCEPaths
@@ -67,6 +66,9 @@ class ISCE_SBAS(Mintpy_SBAS_Base_Analyzer):
 
     def prep_data(self) -> None:
         """Auto-discover stackSentinel outputs and write the MintPy config."""
+        if self.config.container:
+            return self._run_via_container(["prep_data"])
+
         if not self.isce_dir.exists():
             raise FileNotFoundError(
                 f"ISCE processing directory not found: {self.isce_dir}. "
@@ -87,22 +89,38 @@ class ISCE_SBAS(Mintpy_SBAS_Base_Analyzer):
 
     def run(self, steps=None):
         """Run MintPy, writing all output to workdir/mintpy/."""
+        if self.config.container:
+            return self._run_via_container(steps)
+
         self.mintpy_dir.mkdir(parents=True, exist_ok=True)
         if self.config.troposphericDelay_method == "pyaps" and (steps is None or "correct_troposphere" in steps):
             self._cds_authorize()
         run_steps = steps or [
             "load_data", "modify_network", "reference_point", "quick_overview",
-            "invert_network", "correct_LOD", "correct_SET", "correct_ionosphere",
-            "correct_troposphere", "deramp", "correct_topography", "residual_RMS",
-            "reference_date", "velocity", "geocode", "google_earth", "hdfeos5",
+            "correct_unwrap_error", "invert_network", "correct_LOD", "correct_SET",
+            "correct_ionosphere", "correct_troposphere", "deramp", "correct_topography",
+            "residual_RMS", "reference_date", "velocity", "geocode", "google_earth", "hdfeos5",
         ]
         from colorama import Style
         print(f"{Style.BRIGHT}{Fore.MAGENTA}Running MintPy Analysis…{Fore.RESET}")
+        from mintpy.smallbaselineApp import TimeSeriesAnalysis
         app = TimeSeriesAnalysis(self.cfg_path.as_posix(), str(self.mintpy_dir))
-        app.open()
-        app.run(steps=run_steps)
-        if 'geocode' in run_steps:
-            self._geocode_diagnostic_files(self.mintpy_dir)
+        try:
+            app.open()
+            app.run(steps=run_steps)
+            if 'geocode' in run_steps:
+                self._geocode_diagnostic_files(self.mintpy_dir)
+            # Mirrors mintpy.smallbaselineApp's own CLI wrapper
+            # (run_smallbaselineApp()), which calls these two after run() --
+            # plot_result() is what actually populates mintpy_dir/pic/, and
+            # close() is what restores the process's working directory after
+            # open() changed into mintpy_dir (skipping it would leave a
+            # long-running server process permanently cd'd into the last
+            # analyzed folder).
+            if app.template.get('mintpy.plot') and len(run_steps) > 1:
+                app.plot_result()
+        finally:
+            app.close()
 
     def cleanup(self) -> None:
         """Remove large ISCE2 intermediate directories and input data no longer needed

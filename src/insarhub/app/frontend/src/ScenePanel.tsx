@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Theme } from './theme'
+import { statusColor, type Theme } from './theme'
 import { useResizable, ResizeHandle } from './useResizable'
+import { API } from './api'
 
 export function parseStack(s: string): { path: number; frame: number } | null {
   const m = s.match(/\(\s*(\d+)\s*,\s*(\d+)\s*\)/)
@@ -9,7 +10,6 @@ export function parseStack(s: string): { path: number; frame: number } | null {
   return { path: parseInt(m[1]), frame: parseInt(m[2]) }
 }
 
-const API = import.meta.env.DEV ? 'http://localhost:8080' : ''
 
 // Persist active job IDs across ScenePanel unmount/remount, keyed by stack key "(path, frame)"
 const _dlJobs:    Map<string, string> = new Map()
@@ -275,7 +275,7 @@ export default function ScenePanel({
     }
   }
 
-  const dlStatusColor = dlStatus === 'done' ? '#4caf50' : dlStatus === 'error' ? '#e53935' : t.textMuted
+  const dlStatusColor = statusColor(dlStatus, t.textMuted)
 
   return (
     <div style={{
