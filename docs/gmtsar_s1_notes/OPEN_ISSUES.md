@@ -137,23 +137,58 @@ each real run and records whichever new directory matches GMTSAR's real
 `\d{7}_\d{7}` naming; `_status_dir()` uses that discovered directory
 once known, instead of assuming a name. Real MintPy run against this
 fixed path is the next validation step.
-- **CLI is NOT ready for GMTSAR_S1** (checked 2026-07-21): dispatch in
-  `cli/main.py` is generic (`issubclass(processor_cls, LocalProcessor)`),
-  so `GMTSAR_S1` is *routed* to the local-processor code path, but that
-  path has real ISCE_S1-specific assumptions that break it:
-  - `_proc_local_submit` hardcodes 2-tuple pairs
-    (`[(str(p[0]), str(p[1])) for p in raw_pairs]`) -- truncates
-    GMTSAR_S1's required 4-tuples.
-  - `refresh`/`retry`/`watch`/`cancel` look for `isce_jobs*.json`
-    specifically (`_find_jobs_file(..., pattern="isce_jobs*.json")`),
-    not `gmtsar_jobs.json`.
-  - `_load_local_processor` (saved-job reload) rebuilds ISCE step-based
-    pairs (`[(j["step"], j["step"]) ...]`), which doesn't match GMTSAR's
-    pair structure at all.
-  Needs generalizing these three spots (pairs arity, job-file pattern,
-  reload logic) across processors -- touches shared CLI code other
-  processors depend on, so scope this as its own piece of work, not a
-  quick fix. GUI: no frontend dialog integration exists either.
+- **CLI partially generalized for GMTSAR_S1** (2026-07-21 -> 2026-07-23):
+  dispatch in `cli/main.py` is generic
+  (`issubclass(processor_cls, LocalProcessor)`), so `GMTSAR_S1` is
+  *routed* to the local-processor code path -- but that path had real
+  ISCE_S1-specific assumptions. **Fixed and confirmed via a real CLI
+  `refresh` run against GMTSAR_S1's actual saved `gmtsar_jobs.json`**:
+  - `_proc_local_submit` used to hardcode 2-tuple pairs, truncating
+    GMTSAR_S1's required 4-tuples. Now preserves full arity.
+  - `refresh`/`retry`/`watch`/`cancel` used to look for `isce_jobs*.json`
+    specifically. Added `JOBS_FILE`/`JOBS_SUBDIR` class attributes to
+    `LocalProcessor` (set per-processor) + a generic `_jobs_glob()`
+    helper -- now finds `gmtsar_jobs.json` under `gmtsar_case/`.
+  - `_load_local_processor` (saved-job reload) assumed ISCE's
+    `{"jobs": {...}}` wrapper and step-based pairs. GMTSAR_S1.save()
+    writes the jobs dict directly at the top level and stores the real
+    pair under `"pair"` -- reload now handles both shapes.
+  **Method-signature mismatch: FIXED.** `refresh(ls=...)` /
+  `watch(refresh_interval=...)` crashed on `GMTSAR_S1` (different
+  signatures than `ISCE_Base`). Added `_call_if_supported()` in
+  cli/main.py -- calls each processor's method with only the kwargs its
+  real signature accepts (via `inspect.signature`), instead of assuming
+  every local processor shares ISCE's exact shape. `cancel` (no
+  `GMTSAR_S1` equivalent at all -- `ISCE_Base.cancel()` does a real
+  `scancel`/kill-background-process, nothing analogous exists yet):
+  now a clean `[ERROR] 'GMTSAR_S1' does not support cancel()` instead of
+  an `AttributeError` crash.
+
+  **Also found and fixed, real and deeper**: a freshly CLI-reconstructed
+  `GMTSAR_S1` (submit() ran in a DIFFERENT process than refresh/watch/
+  cancel, the normal CLI usage pattern) had `self.jobs` permanently empty
+  -- `refresh()` only updates entries already in `self.jobs`, so a
+  reloaded processor printed nothing, ever, regardless of real on-disk
+  status. Root cause went deeper for `frame_mode=False`: `self._stems`
+  and `self._real_intf_dirs` are populated only in-memory during
+  `_stage_case()`/`_run_one_pair()` in the ORIGINAL submitting process,
+  never persisted -- so even fixing `self.jobs` init couldn't find the
+  real Julian-date `intf/` directory. Fixed with two read-only rediscovery
+  methods run at construction time: `_rediscover_stem()` (matches
+  already-extracted `raw/*.tiff` symlinks against a pair's real `.SAFE`
+  name, no need for the original `.SAFE` source again) and
+  `_rediscover_real_intf_dir()` (recomputes the Julian-date pair name from
+  real `SC_clock_start` in the already-present `.PRM` files, same formula
+  `_run_one_pair()` uses live). `frame_mode=True` needed none of this --
+  its `_status_dir()` is purely path-based, no `_stems` dependency.
+
+  **Confirmed via a real CLI run against the actual completed
+  single-subswath job** (fresh process, no submit() call in this
+  process): `refresh` and `watch --interval 3` both correctly printed
+  `SUCCEEDED`, matching the real on-disk `.succeeded` marker.
+  `cancel` correctly refused instead of crashing.
+
+  GUI: no frontend dialog integration exists either.
 - **DEM auto-download** from `bbox` (matching `ISCE_S1`'s GLO-30
   auto-fetch): not implemented -- `dem_path` must be supplied explicitly
   (now validated at construction time, fails fast if missing).

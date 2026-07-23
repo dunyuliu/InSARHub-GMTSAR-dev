@@ -264,6 +264,33 @@ class GMTSAR_S1(LocalProcessor):
         # See _run_one_pair()'s docstring for why this exists.
         self._real_intf_dirs: dict[str, str] = {}
         self._lock = threading.Lock()
+        self._rediscover_state()
+
+    def _rediscover_state(self) -> None:
+        """Populate self.jobs (and self._stems/_real_intf_dirs for
+        frame_mode=False) from real on-disk state, so a freshly
+        constructed object -- e.g. the CLI reconstructing GMTSAR_S1 from
+        a saved gmtsar_jobs.json in a separate process -- reports real
+        status immediately, instead of every pair reading PENDING just
+        because this process never ran submit() itself.
+
+        Found via a real CLI `refresh` run: without this, self.jobs
+        stayed empty forever (refresh() only updates entries already in
+        self.jobs), so a CLI-reloaded processor printed nothing at all.
+        """
+        for pair in self.pairs:
+            key = _pair_key(pair)
+            if not self.config.frame_mode:
+                ref_safe, _ref_eof, sec_safe, _sec_eof = pair
+                ref_stem = self._rediscover_stem(ref_safe)
+                sec_stem = self._rediscover_stem(sec_safe)
+                if ref_stem and sec_stem:
+                    self._stems[key] = (ref_stem, sec_stem)
+                    real_dir = self._rediscover_real_intf_dir(ref_stem, sec_stem)
+                    if real_dir:
+                        self._real_intf_dirs[key] = real_dir
+            status = _read_status(self._status_dir(pair))
+            self.jobs[key] = self._job_meta(pair, status)
 
     # ------------------------------------------------------------------ #
     #  Paths                                                              #
@@ -342,6 +369,73 @@ class GMTSAR_S1(LocalProcessor):
                 logger.warning("skipping unresolvable entry %s (%s)", f, exc)
                 continue
             dest.symlink_to(target)
+
+    def _rediscover_stem(self, safe_name: str) -> str | None:
+        """Read-only counterpart to _extract_subswath_stem(): find a stem
+        already extracted into case_dir/raw/ by a PRIOR process (e.g. a
+        real submit() run), without needing the original .SAFE source
+        available again.
+
+        Needed for CLI reload (refresh/retry/watch/cancel run as a fresh
+        process, invoked separately from submit()): self._stems is only
+        ever populated in-memory during _stage_case(), so a freshly
+        reconstructed GMTSAR_S1 object has no way to find real on-disk
+        status without this. real .SAFE names are unique enough (mission +
+        timestamp + orbit) that matching a raw/*.tiff symlink's resolved
+        target path against safe_name is reliable, not a guess.
+        """
+        raw_dir = self.case_dir / "raw"
+        if not raw_dir.is_dir():
+            return None
+        for tiff in raw_dir.glob("*.tiff"):
+            if not tiff.is_symlink():
+                continue
+            try:
+                target = tiff.resolve(strict=True)
+            except (RuntimeError, OSError):
+                continue
+            if safe_name in str(target):
+                return tiff.stem
+        return None
+
+    def _rediscover_real_intf_dir(self, ref_stem: str, sec_stem: str) -> str | None:
+        """Read-only counterpart to the before/after-diff discovery in
+        _run_one_pair(): recompute GMTSAR's real Julian-date intf/
+        directory name from the two SLC .PRM files' SC_clock_start
+        (already-real files sitting in raw/ from a prior run), instead of
+        needing to have observed the directory's creation live.
+        """
+        raw_dir = self.case_dir / "raw"
+        days = []
+        for stem in (ref_stem, sec_stem):
+            prms = list(raw_dir.glob(f"S1_*_F{self.config.subswath}.PRM"))
+            match = None
+            for prm in prms:
+                # stem's date (YYYYMMDD) appears in the PRM's own filename
+                # (S1_<YYYYMMDD>_<HHMMSS>_F<N>.PRM) for the scene it was
+                # focused from -- extract the date segment from the stem's
+                # own naming (s1a-iw2-slc-vv-<start>-...) to match.
+                parts = stem.split("-")
+                if len(parts) < 5:
+                    continue
+                date_token = parts[4][:8]  # YYYYMMDD from YYYYMMDDtHHMMSS
+                if date_token in prm.name:
+                    match = prm
+                    break
+            if match is None:
+                return None
+            clock_start = None
+            for line in match.read_text().splitlines():
+                if line.strip().startswith("SC_clock_start"):
+                    clock_start = float(line.split("=")[1].strip())
+                    break
+            if clock_start is None:
+                return None
+            days.append(int(clock_start))
+        if len(days) != 2:
+            return None
+        candidate = self.case_dir / "intf" / f"{days[0]}_{days[1]}"
+        return candidate.name if candidate.is_dir() else None
 
     def _find_input(self, name: str, cfg_dir) -> Path:
         """Resolve a .SAFE/.EOF name the caller passed in `pairs` against

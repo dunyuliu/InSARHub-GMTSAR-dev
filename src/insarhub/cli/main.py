@@ -1961,6 +1961,22 @@ def _load_local_processor(processor_name: str, workdir: Path, jobs_path: Path,
     return processor_cls(pairs=pairs or [("_", "_")], config=cfg)
 
 
+def _call_if_supported(bound_method, **kwargs):
+    """Call bound_method with only the kwargs its real signature accepts.
+
+    Local processors don't all share the same refresh()/watch() shape --
+    e.g. ISCE_Base.refresh(ls=...) shows per-command detail, a concept
+    GMTSAR_S1 has no equivalent of. Rather than force every processor to
+    accept every other processor's kwargs (or crash on TypeError), only
+    pass what's actually supported; the rest are silently no-ops for
+    processors that don't have that concept.
+    """
+    import inspect
+    sig = inspect.signature(bound_method)
+    supported = {k: v for k, v in kwargs.items() if k in sig.parameters}
+    return bound_method(**supported)
+
+
 def _proc_local_refresh(args):
     processor_name = getattr(args, "processor_name", "ISCE_S1")
     workdir        = _resolve_workdir(args.workdir)
@@ -1971,9 +1987,9 @@ def _proc_local_refresh(args):
         sys.exit(1)
     hpc_mode = getattr(args, "hpc_mode", False)
     container = getattr(args, "container", None)
-    _load_local_processor(processor_name, workdir, jobs_path,
-                          hpc_mode=hpc_mode, container=container).refresh(
-        ls=getattr(args, "ls", None))
+    processor = _load_local_processor(processor_name, workdir, jobs_path,
+                                      hpc_mode=hpc_mode, container=container)
+    _call_if_supported(processor.refresh, ls=getattr(args, "ls", None))
 
 
 def _proc_local_retry(args):
@@ -2002,8 +2018,12 @@ def _proc_local_cancel(args):
         sys.exit(1)
     hpc_mode = getattr(args, "hpc_mode", False)
     container = getattr(args, "container", None)
-    _load_local_processor(processor_name, workdir, jobs_path,
-                          hpc_mode=hpc_mode, container=container).cancel()
+    processor = _load_local_processor(processor_name, workdir, jobs_path,
+                                      hpc_mode=hpc_mode, container=container)
+    if not hasattr(processor, "cancel"):
+        print(f"[ERROR] '{processor_name}' does not support cancel().", file=sys.stderr)
+        sys.exit(1)
+    processor.cancel()
 
 
 def _proc_local_watch(args):
@@ -2018,9 +2038,12 @@ def _proc_local_watch(args):
 
     hpc_mode = getattr(args, "hpc_mode", False)
     container = getattr(args, "container", None)
-    _load_local_processor(processor_name, workdir, jobs_path,
-                          hpc_mode=hpc_mode, container=container).watch(
-        refresh_interval=refresh_interval)
+    processor = _load_local_processor(processor_name, workdir, jobs_path,
+                                      hpc_mode=hpc_mode, container=container)
+    # refresh_interval (ISCE_Base) vs poll_interval (GMTSAR_S1) -- pass both
+    # spellings, _call_if_supported keeps only the one the method actually has.
+    _call_if_supported(processor.watch, refresh_interval=refresh_interval,
+                       poll_interval=refresh_interval)
 
 
 def cmd_analyzer(args, extra_args: list[str]):
