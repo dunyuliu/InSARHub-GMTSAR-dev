@@ -31,7 +31,9 @@ Two distinct GMTSAR entry points, selected via config.frame_mode:
           s1a-iw2-slc-vv-20190716t135159-20190716t135224-028143-032dc3-005 \
           config.py
     One shared case_dir for the whole pairs list -- p2p_processing's own
-    output (intf/<ref_stem>_<sec_stem>/) is pair-namespaced, so
+    output (intf/<julian_date_pair>/, e.g. intf/2019184_2019196/ --
+    GMTSAR's own Julian-date naming, NOT ref/sec stems, confirmed via a
+    real run + real MintPy testing) is pair-namespaced, so
     concurrent pairs don't collide.
 
   frame_mode=True -- multi-subswath Frame, via p2p_S1_TOPS_Frame.
@@ -58,15 +60,22 @@ Interface mirrors ISCE_S1 / Hyp3_S1:
 
 Why no custom output-normalization step (frame_mode=False only -- see
 KNOWN GAP below for frame_mode=True): GMTSAR's native per-pair output
-directory (intf/<ref>_<sec>/ -- corr_ll.grd, phasefilt_ll.grd,
-unwrap_ll.grd, two numeric-named *.PRM files) is exactly what MintPy's
-own prep_gmtsar.py already expects (confirmed by reading
-mintpy/prep_gmtsar.py directly: it globs `{fbase}_ll*.grd` and digit-named
-`*.PRM` files). KNOWN GAP: frame_mode=True's real output lands in
-merge/ with the same file basenames but has NOT been checked against
-prep_gmtsar.py's directory-discovery logic -- needs a real Frame-mode
-run + a prep_gmtsar.py dry run before that claim can be made for Frame
-mode too.
+directory (intf/<julian_date_pair>/ -- e.g. intf/2019184_2019196/,
+GMTSAR's own Julian-date pair naming derived from each SLC's
+SC_clock_start, NOT the ref/sec stems passed on the CLI -- confirmed
+via a real run + reading intf/'s actual contents; the ref_stem_sec_stem
+name this docstring used to claim was wrong, found via real MintPy
+integration testing 2026-07-21) contains corr_ll.grd, phasefilt_ll.grd,
+and *.PRM files, matching what MintPy's own prep_gmtsar.py expects
+(confirmed by reading mintpy/prep_gmtsar.py directly: it globs
+`{fbase}_ll*.grd` and `*.PRM`, and derives DATE12 from the Julian-date
+directory basename itself, so GMTSAR's naming is not just compatible --
+prep_gmtsar.py actually requires it). GMTSAR_S1 discovers the real
+directory post-run (_run_one_pair()) rather than assuming a name.
+KNOWN GAP: frame_mode=True's real output lands in merge/ with the same
+file basenames but has NOT been checked against prep_gmtsar.py's
+directory-discovery logic -- needs a real Frame-mode run + a
+prep_gmtsar.py dry run before that claim can be made for Frame mode too.
 
 Deliberately kept as a subprocess-per-pair design, not in-process Python
 calls into GMTSAR's own p2p_stages.py: (1) InSARHub and GMTSAR run in
@@ -82,6 +91,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import subprocess
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -245,6 +255,10 @@ class GMTSAR_S1(LocalProcessor):
         # during staging. Populated by submit()/retry() before any
         # _status_dir()/_build_cmd() call needs it.
         self._stems: dict[str, tuple[str, str]] = {}
+        # frame_mode=False only: pair_key -> GMTSAR's real Julian-date
+        # output dirname (e.g. "2019184_2019196"), discovered post-run.
+        # See _run_one_pair()'s docstring for why this exists.
+        self._real_intf_dirs: dict[str, str] = {}
         self._lock = threading.Lock()
 
     # ------------------------------------------------------------------ #
@@ -259,7 +273,8 @@ class GMTSAR_S1(LocalProcessor):
     def case_dir(self) -> Path:
         """Shared GMTSAR case directory -- used directly when
         frame_mode=False (p2p_processing is pair-namespaced via
-        intf/<ref>_<sec>/). When frame_mode=True this is only the PARENT
+        intf/<julian_date_pair>/, GMTSAR's own naming -- see
+        _run_one_pair()). When frame_mode=True this is only the PARENT
         of each pair's own subdirectory; see pair_case_dir().
         """
         return self.workdir / "gmtsar_case"
@@ -279,6 +294,11 @@ class GMTSAR_S1(LocalProcessor):
             # directory's existence/markers as the status signal.
             return self.pair_case_dir(pair) / "merge"
         key = _pair_key(pair)
+        if key in self._real_intf_dirs:
+            # GMTSAR's own real output directory, discovered post-run --
+            # see _run_one_pair()'s docstring. This is the directory
+            # MintPy's prep_gmtsar.py actually looks at.
+            return self.case_dir / "intf" / self._real_intf_dirs[key]
         if key not in self._stems:
             # Not staged yet (or staging failed partway through a
             # multi-pair _stage_case() and never reached this pair) --
@@ -286,8 +306,13 @@ class GMTSAR_S1(LocalProcessor):
             # _read_status(), instead of a masking KeyError that hides
             # the real staging failure (found via audit).
             return self.case_dir / "intf" / f"_unstaged_{key}"
+        # Not yet run (or the real dir wasn't found post-run, e.g. the
+        # pair failed before GMTSAR created any output). Sentinel path
+        # based on our own stems -- not GMTSAR's real naming, but stable
+        # and never collides with a real Julian-date directory, so it's
+        # safe as a PENDING/RUNNING placeholder before/without a real run.
         ref_stem, sec_stem = self._stems[key]
-        return self.case_dir / "intf" / f"{ref_stem}_{sec_stem}"
+        return self.case_dir / "intf" / f"_pending_{ref_stem}_{sec_stem}"
 
     # ------------------------------------------------------------------ #
     #  Case staging (the InSARHub <-> GMTSAR directory-convention bridge) #
@@ -517,11 +542,32 @@ class GMTSAR_S1(LocalProcessor):
         log_path = run_dir / "p2p.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
         cmd = self._build_cmd(pair)
+
+        before = set()
+        intf_dir = self.case_dir / "intf"
+        if not self.config.frame_mode and intf_dir.is_dir():
+            before = {p.name for p in intf_dir.iterdir()}
+
         with open(log_path, "w") as log_f:
             proc = subprocess.run(
                 cmd, cwd=str(run_dir), stdout=log_f, stderr=subprocess.STDOUT,
                 env=self._subprocess_env(),
             )
+
+        if not self.config.frame_mode and intf_dir.is_dir():
+            # Real bug found via MintPy integration testing (2026-07-21):
+            # p2p_processing's real output directory is named by GMTSAR's
+            # own Julian-date pair (e.g. intf/2019184_2019196/, derived
+            # from each SLC's SC_clock_start), NOT our ref_stem_sec_stem
+            # naming -- that assumption only "worked" because our own
+            # status marker mkdir'd its own (unpopulated) directory,
+            # masking the mismatch. Find the real directory GMTSAR just
+            # created so _status_dir() points MintPy at real output.
+            after = {p.name for p in intf_dir.iterdir()}
+            new_dirs = [d for d in after - before if re.match(r"^\d{7}_\d{7}$", d)]
+            if new_dirs:
+                self._real_intf_dirs[key] = new_dirs[0]
+
         return proc.returncode == 0
 
     def _build_cmd(self, pair: tuple) -> list[str]:

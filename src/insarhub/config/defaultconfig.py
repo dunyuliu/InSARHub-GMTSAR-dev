@@ -1118,11 +1118,13 @@ class GMTSAR_S1_Config:
     config.py). InSARHub parallelises independent pairs up to max_workers,
     mirroring how ISCE_S1 parallelises independent commands within a step.
 
-    Output lands in <workdir>/gmtsar_case/intf/<ref>_<sec>/ using GMTSAR's
-    native file names (corr_ll.grd, phasefilt_ll.grd, unwrap_ll.grd, two
-    numeric-named *.PRM files) -- this is already exactly what MintPy's own
-    prep_gmtsar.py expects, so no output-normalization step is needed
-    before handing off to a Mintpy analyzer.
+    Output lands in <workdir>/gmtsar_case/intf/<julian_date_pair>/ (e.g.
+    intf/2019184_2019196/ -- GMTSAR's own Julian-date pair naming, NOT
+    ref/sec stems, confirmed via a real run) using GMTSAR's native file
+    names (corr_ll.grd, phasefilt_ll.grd, *.PRM files) -- this is already
+    exactly what MintPy's own prep_gmtsar.py expects, so no
+    output-normalization step is needed before handing off to a Mintpy
+    analyzer.
 
     Two distinct GMTSAR entry points are supported, controlled by
     frame_mode, because they have genuinely different real CLI contracts
@@ -1142,7 +1144,7 @@ class GMTSAR_S1_Config:
         GMTSAR_S1 does that extraction itself (see config.subswath), so
         callers only ever hand it raw .SAFE/.EOF names, same as Frame
         mode. One shared case_dir for the whole pairs list; output in
-        intf/<ref_stem>_<sec_stem>/ (pair-namespaced).
+        intf/<julian_date_pair>/ (GMTSAR-assigned, pair-namespaced).
 
     frame_mode=True -- multi-subswath Frame, via p2p_S1_TOPS_Frame.
         p2p_S1_TOPS_Frame is NOT pair-namespaced (it always writes to
