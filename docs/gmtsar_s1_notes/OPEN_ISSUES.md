@@ -164,3 +164,37 @@ fixed path is the next validation step.
   other than `S1_TOPS` (13 other GMTSAR-supported families listed in
   `SUPPORTED_SATS`, none exercised) -- all only covered by mocked unit
   tests, not real runs.
+
+## MintPy `prep_gmtsar.py` — partial real progress, then a real scope wall
+
+Ran `prep_gmtsar.py` for real against our real single-subswath
+(`frame_mode=False`, unwrapping enabled, `threshold_snaphu=0.1`) output.
+Confirmed working, in order, each fixed for real as it was hit:
+
+- `ALOOKS`/`RLOOKS`: no `config.<SAT>.txt` exists (`GMTSAR_S1` only
+  writes `config.py`) -- prep_gmtsar.py needs these supplied directly in
+  its own template (bare `ALOOKS`/`RLOOKS` keys, not `mintpy.load.*`).
+  Computed from real PRM `AZIMUTH_PIXEL_SIZE`/`RANGE_PIXEL_SIZE` using
+  prep_gmtsar.py's own formula.
+- `HEADING`: not derivable from GMTSAR's PRM (`orbdir=D`, `lookdir=R`
+  only, no angle). Used MintPy's own documented canonical value for
+  descending IW Sentinel-1 (-168 deg, `mintpy/utils/utils0.py:706`) --
+  a standard reference value, not a per-track precision derivation.
+- GDAL netCDF driver missing in `insarhub_test` (pip-installed GDAL) --
+  `gdal.Open()` on GMTSAR's `.grd` returned None. Fixed by installing
+  `libgdal-netcdf` (now pinned in `environment.yml`).
+
+With those three fixed, prep_gmtsar.py got past metadata extraction,
+LAT/LON_REF, and X/Y_FIRST/STEP -- real progress, `data.rsc` was
+written successfully.
+
+**Real wall hit**: `read_baseline_table()` requires a
+`baseline_table.dat` file (`file_ID yyyyddd.fraction day_cnt b_para
+b_perp` per line, one row per SLC date) -- a **stack-level** artifact
+GMTSAR generates across multiple dates, not something a single
+interferogram run produces. Our validation used exactly one real pair
+(two dates), so no real baseline table exists. Confirming full MintPy
+load requires either a real multi-pair stack (significant more compute
+-- snaphu alone took ~3h for the one pair we ran) or accepting a
+synthetic stand-in, which was NOT built (declined, rather than guess) --
+this is a genuine open item, not a "should work" claim.
