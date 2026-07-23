@@ -245,12 +245,28 @@ class TestStatusMarkers:
         pair = proc.pairs[0]
         assert proc._status_dir(pair) == proc.pair_case_dir(pair) / "merge"
 
-    def test_status_dir_single_subswath_uses_stems(self, tmp_path):
+    def test_status_dir_single_subswath_before_real_run_uses_pending_sentinel(self, tmp_path):
+        # Before a real run, GMTSAR's real (Julian-date) output dir isn't
+        # known yet -- _status_dir() falls back to a stem-based sentinel
+        # that can never collide with a real \d{7}_\d{7} directory.
         from insarhub.processor.gmtsar_s1 import _pair_key
         proc = _make_gmtsar_s1(tmp_path, frame_mode=False)
         pair = proc.pairs[0]
         proc._stems[_pair_key(pair)] = (REF_STEM_IW2, SEC_STEM_IW2)
-        expected = proc.case_dir / "intf" / f"{REF_STEM_IW2}_{SEC_STEM_IW2}"
+        expected = proc.case_dir / "intf" / f"_pending_{REF_STEM_IW2}_{SEC_STEM_IW2}"
+        assert proc._status_dir(pair) == expected
+
+    def test_status_dir_single_subswath_uses_real_julian_date_dir_post_run(self, tmp_path):
+        # Real bug found via MintPy integration testing: GMTSAR names its
+        # real output dir by Julian date (e.g. 2019184_2019196), not
+        # ref_stem_sec_stem. _real_intf_dirs, populated post-run by
+        # _run_one_pair(), must take priority once known.
+        from insarhub.processor.gmtsar_s1 import _pair_key
+        proc = _make_gmtsar_s1(tmp_path, frame_mode=False)
+        pair = proc.pairs[0]
+        proc._stems[_pair_key(pair)] = (REF_STEM_IW2, SEC_STEM_IW2)
+        proc._real_intf_dirs[_pair_key(pair)] = "2019184_2019196"
+        expected = proc.case_dir / "intf" / "2019184_2019196"
         assert proc._status_dir(pair) == expected
 
 
@@ -277,19 +293,22 @@ class TestSubmit:
         proc = _make_gmtsar_s1(tmp_path, frame_mode=False, subswath=2, polarization="vv")
 
         def fake_run(cmd, cwd, env, **kwargs):
-            # Simulate p2p_processing succeeding by writing GMTSAR's own
-            # status marker where _status_dir() expects it. Also covers
-            # the pop_config call _stage_one_case_dir() makes first
-            # (check=True, no stdout/stderr kwargs).
+            # Simulate p2p_processing succeeding by creating GMTSAR's
+            # real Julian-date output dir (not ref_stem_sec_stem -- see
+            # _run_one_pair()'s docstring), exercising the real
+            # before/after-diff discovery logic in _run_one_pair().
             if cmd[0] == "p2p_processing":
-                status_dir = proc.case_dir / "intf" / f"{REF_STEM_IW2}_{SEC_STEM_IW2}"
-                status_dir.mkdir(parents=True, exist_ok=True)
+                real_dir = proc.case_dir / "intf" / "2019184_2019196"
+                real_dir.mkdir(parents=True, exist_ok=True)
             (Path(cwd) / "config.py").touch(exist_ok=True)
             return MagicMock(returncode=0)
 
         with patch("subprocess.run", side_effect=fake_run) as mock_run:
             proc.submit()
             _wait_submit(proc)
+
+        assert proc._real_intf_dirs[list(proc.jobs.keys())[0]] == "2019184_2019196"
+        assert (proc.case_dir / "intf" / "2019184_2019196" / ".succeeded").exists()
 
         # pop_config + p2p_processing should both have been invoked.
         assert mock_run.called

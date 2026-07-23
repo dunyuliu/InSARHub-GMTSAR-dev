@@ -357,7 +357,7 @@ Processor.available()
 
     - **Refresh**
 
-        Read per-pair status from GMTSAR's own output markers (`.succeeded`/`.failed` under `intf/<ref>_<sec>/` or `merge/`).
+        Read per-pair status from GMTSAR's own output markers (`.succeeded`/`.failed` under `intf/<julian_date_pair>/` (GMTSAR-assigned) or `merge/`).
 
         ```python
         jobs = processor.refresh()
@@ -413,7 +413,7 @@ Processor.available()
 
     - **Output layout**
 
-        `frame_mode=False`: `<workdir>/gmtsar_case/intf/<ref_stem>_<sec_stem>/` — GMTSAR's native file names (`corr_ll.grd`, `phasefilt_ll.grd`, `unwrap_ll.grd`, two numeric-named `*.PRM` files), which is exactly what MintPy's `prep_gmtsar.py` expects directly.
+        `frame_mode=False`: `<workdir>/gmtsar_case/intf/<julian_date_pair>/` (e.g. `intf/2019184_2019196/` — GMTSAR's own Julian-date pair naming, not ref/sec stems) — GMTSAR's native file names (`corr_ll.grd`, `phasefilt_ll.grd`, `*.PRM` files), which is exactly what MintPy's `prep_gmtsar.py` expects directly.
 
         `frame_mode=True`: `<workdir>/gmtsar_case/<ref_safe>_<sec_safe>/merge/` — the merged, geocoded product across all three subswaths (`phasefilt_ll.grd`, `corr_ll.grd`, plus PNG/KML previews).
     - **Running without a local ISCE2 install**

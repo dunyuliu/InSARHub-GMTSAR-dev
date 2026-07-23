@@ -117,12 +117,43 @@ real Sentinel-1 data.
 - **Full pipeline chain**: InSARHub's `S1_SLC` downloader -> `GMTSAR_S1`
   -> a MintPy analyzer run, chained continuously. Both real runs above fed
   pre-staged `.SAFE`/`.EOF`/DEM files directly; the downloader itself was
-  never exercised, and MintPy's own consumption of GMTSAR_S1's output is
-  only confirmed by reading `prep_gmtsar.py`'s source, not by an actual
-  MintPy run. Next up.
-- **CLI / GUI**: `GMTSAR_S1` is wired at the Python API / registry level
-  only. Not exercised via `insarhub processor submit --type GMTSAR_S1`,
-  and no frontend dialog integration exists yet.
+  never exercised. Next up.
+
+## RESOLVED: frame_mode=False output directory naming was wrong
+
+Found while starting real `prep_gmtsar.py` testing (2026-07-21): GMTSAR's
+real `p2p_processing` output directory is named by its own Julian-date
+pair (e.g. `intf/2019184_2019196/`, derived from each SLC's
+`SC_clock_start`), NOT `intf/<ref_stem>_<sec_stem>/` as the code and docs
+previously claimed. The wrong assumption was masked because `_write_status()`
+`mkdir`s its own status directory regardless of whether GMTSAR actually
+wrote output there -- so `SUCCEEDED` was still reported correctly, but
+downstream consumers (MintPy) pointed at that path would find nothing.
+`prep_gmtsar.py` itself relies on this exact naming: it derives `DATE12`
+by parsing the interferogram directory's basename as a Julian-date pair.
+
+**Fixed**: `_run_one_pair()` now diffs `intf/`'s contents before/after
+each real run and records whichever new directory matches GMTSAR's real
+`\d{7}_\d{7}` naming; `_status_dir()` uses that discovered directory
+once known, instead of assuming a name. Real MintPy run against this
+fixed path is the next validation step.
+- **CLI is NOT ready for GMTSAR_S1** (checked 2026-07-21): dispatch in
+  `cli/main.py` is generic (`issubclass(processor_cls, LocalProcessor)`),
+  so `GMTSAR_S1` is *routed* to the local-processor code path, but that
+  path has real ISCE_S1-specific assumptions that break it:
+  - `_proc_local_submit` hardcodes 2-tuple pairs
+    (`[(str(p[0]), str(p[1])) for p in raw_pairs]`) -- truncates
+    GMTSAR_S1's required 4-tuples.
+  - `refresh`/`retry`/`watch`/`cancel` look for `isce_jobs*.json`
+    specifically (`_find_jobs_file(..., pattern="isce_jobs*.json")`),
+    not `gmtsar_jobs.json`.
+  - `_load_local_processor` (saved-job reload) rebuilds ISCE step-based
+    pairs (`[(j["step"], j["step"]) ...]`), which doesn't match GMTSAR's
+    pair structure at all.
+  Needs generalizing these three spots (pairs arity, job-file pattern,
+  reload logic) across processors -- touches shared CLI code other
+  processors depend on, so scope this as its own piece of work, not a
+  quick fix. GUI: no frontend dialog integration exists either.
 - **DEM auto-download** from `bbox` (matching `ISCE_S1`'s GLO-30
   auto-fetch): not implemented -- `dem_path` must be supplied explicitly
   (now validated at construction time, fails fast if missing).
